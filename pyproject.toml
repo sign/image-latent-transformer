@@ -1,0 +1,46 @@
+[project]
+name = "visual-text-decoder"
+description = "Decode text (bytes) from an image"
+version = "0.0.1"
+authors = [
+    { name = "Amit Moryossef", email = "amit@sign.mt" },
+]
+readme = "README.md"
+dependencies = [
+    "transformers",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "ruff"
+]
+
+[tool.setuptools]
+packages = [
+    "visual_text_decoder",
+]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    "E", # pycodestyle errors
+    "W", # pycodestyle warnings
+    "F", # pyflakes
+    "C90", # mccabe complexity
+    "I", # isort
+    "N", # pep8-naming
+    "UP", # pyupgrade
+    "B", # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "PT", # flake8-pytest-style
+    "W605", # invalid escape sequence
+    "BLE", # flake8-blind-except
+    "TRY", # tryceratops
+]
+
+[tool.pytest.ini_options]
+addopts = "-v"
+testpaths = ["visual_text_decoder"]
