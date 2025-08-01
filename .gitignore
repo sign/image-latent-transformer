@@ -1,5 +1,5 @@
 .idea/
 .claude/
-visual_text_decoder.egg-info
+image_latent_transformer.egg-info
 build
 .env

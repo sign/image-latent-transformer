@@ -1,5 +1,5 @@
 [project]
-name = "visual-text-decoder"
+name = "image-latent-transformer"
 description = "Decode text (bytes) from an image"
 version = "0.0.1"
 authors = [
@@ -7,7 +7,10 @@ authors = [
 ]
 readme = "README.md"
 dependencies = [
-    "transformers",
+    "transformers[torch]",
+    "datasets",
+    "Pillow", # For AutoImageProcessor
+    "torchvision", # For use_fast=True
 ]
 
 [project.optional-dependencies]
@@ -18,7 +21,7 @@ dev = [
 
 [tool.setuptools]
 packages = [
-    "visual_text_decoder",
+    "image_latent_transformer",
 ]
 
 [tool.ruff]
@@ -43,4 +46,4 @@ select = [
 
 [tool.pytest.ini_options]
 addopts = "-v"
-testpaths = ["visual_text_decoder"]
+testpaths = ["image_latent_transformer"]
