@@ -1,8 +1,10 @@
+from typing import Union
+
 import torch
 import torch.nn as nn
 import logging
 
-from transformers import AutoModelForImageClassification, AutoModelForCausalLM
+from transformers import AutoModelForImageClassification, AutoModelForCausalLM, AutoModelForMaskedLM
 
 logger = logging.getLogger(__name__)
 
@@ -10,19 +12,28 @@ logger = logging.getLogger(__name__)
 class ImageLatentTransformer(nn.Module):
     def __init__(self,
                  image_encoder: AutoModelForImageClassification,
+                 bytes_encoder: Union[AutoModelForMaskedLM, AutoModelForCausalLM],
                  latent_transformer: AutoModelForCausalLM,
                  bytes_decoder: AutoModelForCausalLM):
         super().__init__()
         self.image_encoder = image_encoder
+        self.bytes_encoder = bytes_encoder
         self.latent_transformer = latent_transformer
         self.bytes_decoder = bytes_decoder
 
-        embedding_dim = image_encoder.config.hidden_size + bytes_decoder.config.hidden_size
+        embedding_dim = image_encoder.config.hidden_size + bytes_encoder.config.hidden_size
         model_dim = latent_transformer.config.hidden_size
         self.encoder_mapping = nn.Linear(embedding_dim, model_dim)
         self.decoder_mapping = nn.Linear(model_dim, bytes_decoder.config.hidden_size)
 
     def encode_images(self, input_pixels: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            input_pixels: (BATCH, LENGTH, CHANNELS, HEIGHT, WIDTH)
+        Returns:
+            torch.Tensor: (BATCH, LENGTH, HIDDEN_DIM) - Image embeddings
+        """
+
         # Flatten batch and length dimensions
         B, L, C, H, W = input_pixels.shape
         input_pixels = input_pixels.view(B * L, C, H, W)
@@ -31,12 +42,16 @@ class ImageLatentTransformer(nn.Module):
         image_embeds = encoded_image.hidden_states[-1]  # Use the last hidden state
         # Pool channels dimension (e.g., mean pooling)
         image_embeds = image_embeds.mean(dim=1)
-        # Reshape back to (B, L, hidden_dim)
-        image_embeds = image_embeds.view(B, L, -1)
-        image_embeds.refine_names('BATCH', 'LENGTH', 'HIDDEN_DIM')
-        return image_embeds
+        return image_embeds.view(B, L, -1)
 
     def encode_texts(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            input_ids: (BATCH, LENGTH, TOKENS)
+            attention_mask: (BATCH, LENGTH, TOKENS)
+        Returns:
+            torch.Tensor: (BATCH, LENGTH, HIDDEN_DIM) - Text embeddings
+        """
         # Flatten batch and length dimensions
         B, L, T = input_ids.shape
         input_ids = input_ids.view(B * L, T)
@@ -46,18 +61,19 @@ class ImageLatentTransformer(nn.Module):
         text_embeds = text_outputs.hidden_states[-1]
         # Pool sequence dimension (e.g., mean pooling)
         text_embeds = text_embeds.mean(dim=1)  # (B*L, hidden_dim)
-        # Reshape back to (B, L, hidden_dim)
-        text_embeds = text_embeds.view(B, L, -1)
-        text_embeds.refine_names('BATCH', 'LENGTH', 'HIDDEN_DIM')
-        return text_embeds
+        return text_embeds.view(B, L, -1)
 
     def forward(self,
                 input_ids: torch.Tensor,
                 attention_mask: torch.Tensor,
                 input_pixels: torch.Tensor) -> torch.Tensor:
-        input_ids.refine_names('BATCH', 'LENGTH', 'TOKENS')
-        attention_mask.refine_names('BATCH', 'LENGTH', 'TOKENS')
-        input_pixels.refine_names('BATCH', 'LENGTH', 'CHANNELS', 'HEIGHT', 'WIDTH')
+        """
+        Args:
+            input_ids: (BATCH, LENGTH, TOKENS)
+            attention_mask: (BATCH, LENGTH, TOKENS)
+            input_pixels: (BATCH, LENGTH, CHANNELS, HEIGHT, WIDTH)
+        """
+
 
         # Embed images and texts
         image_embeds = self.encode_images(input_pixels)
@@ -79,8 +95,10 @@ class ImageLatentTransformer(nn.Module):
         # Decode the latent vectors to bytes using parallel causal decoding
         return self.parallel_causal_decode(mapped_embeds, input_ids, attention_mask)
 
-    def parallel_causal_decode(self, latent_vectors: torch.Tensor,
-                               target_ids: torch.Tensor, target_mask: torch.Tensor) -> torch.Tensor:
+    def parallel_causal_decode(self,
+                               latent_vectors: torch.Tensor,
+                               target_ids: torch.Tensor,
+                               target_mask: torch.Tensor) -> torch.Tensor:
         B, L, hidden_dim = latent_vectors.shape
 
         # Create cumulative latent contexts: each position sees all previous latent vectors
