@@ -1,10 +1,12 @@
-from typing import Union
+from typing import Union, Optional
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import logging
 
 from transformers import AutoModelForImageClassification, AutoModelForCausalLM, AutoModelForMaskedLM
+from transformers.modeling_outputs import CausalLMOutput
 
 logger = logging.getLogger(__name__)
 
@@ -47,8 +49,8 @@ class ImageLatentTransformer(nn.Module):
     def encode_texts(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            input_ids: (BATCH, LENGTH, TOKENS)
-            attention_mask: (BATCH, LENGTH, TOKENS)
+            input_ids: (BATCH, LENGTH, INPUT_TOKENS)
+            attention_mask: (BATCH, LENGTH, INPUT_TOKENS)
         Returns:
             torch.Tensor: (BATCH, LENGTH, HIDDEN_DIM) - Text embeddings
         """
@@ -66,14 +68,19 @@ class ImageLatentTransformer(nn.Module):
     def forward(self,
                 input_ids: torch.Tensor,
                 attention_mask: torch.Tensor,
-                input_pixels: torch.Tensor) -> torch.Tensor:
+                input_pixels: torch.Tensor,
+                labels_input: Optional[torch.Tensor] = None,
+                labels_attention_mask: Optional[torch.Tensor] = None,
+                labels_output: Optional[torch.Tensor] = None):
         """
         Args:
-            input_ids: (BATCH, LENGTH, TOKENS)
-            attention_mask: (BATCH, LENGTH, TOKENS)
+            input_ids: (BATCH, LENGTH, INPUT_TOKENS)
+            attention_mask: (BATCH, LENGTH, INPUT_TOKENS)
             input_pixels: (BATCH, LENGTH, CHANNELS, HEIGHT, WIDTH)
+            labels_input: (BATCH, LENGTH, OUTPUT_TOKENS) - Input tokens for bytes decoder
+            labels_attention_mask: (BATCH, LENGTH, OUTPUT_TOKENS) - Attention mask for labels
+            labels_output: (BATCH, LENGTH, OUTPUT_TOKENS) - Target tokens for language modeling
         """
-
 
         # Embed images and texts
         image_embeds = self.encode_images(input_pixels)
@@ -93,7 +100,25 @@ class ImageLatentTransformer(nn.Module):
         logger.debug("Mapped embeddings shape: %s", mapped_embeds.shape)
 
         # Decode the latent vectors to bytes using parallel causal decoding
-        return self.parallel_causal_decode(mapped_embeds, input_ids, attention_mask)
+        logits = self.parallel_causal_decode(mapped_embeds, labels_input, labels_attention_mask)
+
+        loss = None
+        if labels_output is not None:
+            # Flatten dimensions for cross entropy loss
+            # logits: (B, L, T, vocab_size) -> (B*L*T, vocab_size)
+            # labels_output: (B, L, T) -> (B*L*T,)
+            flat_logits = logits.reshape(-1, logits.size(-1))
+            flat_labels = labels_output.reshape(-1)
+
+            # Compute cross entropy loss
+            loss = F.cross_entropy(flat_logits, flat_labels, ignore_index=-100)
+
+        return CausalLMOutput(
+            loss=loss,
+            logits=logits,
+            hidden_states=(mapped_embeds,),
+            attentions=None
+        )
 
     def parallel_causal_decode(self,
                                latent_vectors: torch.Tensor,
