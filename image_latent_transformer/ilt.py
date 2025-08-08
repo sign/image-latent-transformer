@@ -14,12 +14,14 @@ class ImageLatentTransformer(nn.Module):
                  image_encoder: AutoModelForImageClassification,
                  bytes_encoder: Union[AutoModelForMaskedLM, AutoModelForCausalLM],
                  latent_transformer: AutoModelForCausalLM,
-                 bytes_decoder: AutoModelForCausalLM):
+                 bytes_decoder: AutoModelForCausalLM,
+                 padding_index: int = 0):
         super().__init__()
         self.image_encoder = image_encoder
         self.bytes_encoder = bytes_encoder
         self.latent_transformer = latent_transformer
         self.bytes_decoder = bytes_decoder
+        self.padding_index = padding_index
 
         embedding_dim = image_encoder.config.hidden_size + bytes_encoder.config.hidden_size
         model_dim = latent_transformer.config.hidden_size
@@ -35,7 +37,7 @@ class ImageLatentTransformer(nn.Module):
         """
 
         # Flatten batch and length dimensions
-        B, L, C, H, W = input_pixels.shape # noqa: N806
+        B, L, C, H, W = input_pixels.shape  # noqa: N806
         input_pixels = input_pixels.view(B * L, C, H, W)
         # Encode images using the image encoder
         encoded_image = self.image_encoder(input_pixels, output_hidden_states=True)
@@ -53,7 +55,7 @@ class ImageLatentTransformer(nn.Module):
             torch.Tensor: (BATCH, LENGTH, HIDDEN_DIM) - Text embeddings
         """
         # Flatten batch and length dimensions
-        B, L, T = input_ids.shape # noqa: N806
+        B, L, T = input_ids.shape  # noqa: N806
         input_ids = input_ids.view(B * L, T)
         attention_mask = attention_mask.view(B * L, T)
         # Encode texts using the bytes decoder as encoder
@@ -109,7 +111,7 @@ class ImageLatentTransformer(nn.Module):
             flat_labels = labels_output.reshape(-1)
 
             # Compute cross entropy loss
-            loss = torch.nn.functional.cross_entropy(flat_logits, flat_labels, ignore_index=0) # 0 is the padding index
+            loss = torch.nn.functional.cross_entropy(flat_logits, flat_labels, ignore_index=self.padding_index)
 
         return CausalLMOutput(
             loss=loss,
@@ -123,9 +125,8 @@ class ImageLatentTransformer(nn.Module):
                                target_ids: torch.Tensor,
                                target_mask: torch.Tensor) -> torch.Tensor:
         """
-        Parallel causal decoding with word-level vectors followed by character-level vectors.
-        Creates a sequence like: word1, word2, ..., wordL, char1, char2, ..., charT
-
+        Parallel causal decoding with word-level vectors prepended to character sequences.
+        
         Args:
             latent_vectors: (B, L, hidden_dim) - latent representations for each word
             target_ids: (B, L, T) - target token IDs for each word
@@ -134,47 +135,58 @@ class ImageLatentTransformer(nn.Module):
         Returns:
             torch.Tensor: (B, L, T, vocab_size) - logits for each token in each word
         """
-        B, L, hidden_dim = latent_vectors.shape # noqa: N806
-        _, _, T = target_ids.shape # noqa: N806
+        B, L, hidden_dim = latent_vectors.shape  # noqa: N806
+        _, _, T = target_ids.shape  # noqa: N806
 
-        # Get embeddings for target tokens
+        # Step 1: Reshape target_ids from [B, L, T] to [B*L, T]
+        target_ids_flat = target_ids.view(B * L, T)  # [B*L, T]
+        target_mask_flat = target_mask.view(B * L, T)  # [B*L, T]
+
+        # Step 2: Get embeddings for target tokens
         embed_layer = self.bytes_decoder.get_input_embeddings()
+        target_embeds = embed_layer(target_ids_flat)  # [B*L, T, embed_dim]
 
-        # Get target token embeddings
-        target_embeds = embed_layer(target_ids)  # (B, L, T, embed_dim)
+        # Step 3: Create causal mask using tril to determine which words to prepend
+        # For L=3 words, we want:
+        # - 1st sequence: sees only word 0
+        # - 2nd sequence: sees word 0 and word 1
+        # - 3rd sequence: sees word 0, word 1, and word 2
+        word_indices = torch.arange(L, device=latent_vectors.device)
+        causal_mask = torch.tril(torch.ones(L, L, device=latent_vectors.device))  # [L, L]
 
-        # Flatten target embeddings from (B, L, T, embed_dim) to (B, L*T, embed_dim)
-        target_embeds_flat = target_embeds.view(B, L * T, -1)
+        # Step 4: Reshape latent vectors for broadcasting
+        latent_vectors_expanded = latent_vectors.unsqueeze(1).expand(B, L, L, hidden_dim)  # [B, L, L, hidden_dim]
 
-        # Concatenate latent vectors and target embeddings
-        # First L positions are latent vectors, next L*T positions are target tokens
-        combined_embeds = torch.cat([latent_vectors, target_embeds_flat], dim=1)  # (B, L + L*T, embed_dim)
+        # Step 5: Apply causal mask to select which words each sequence sees
+        # causal_mask[i, j] = 1 if sequence i can see word j
+        causal_mask_expanded = causal_mask.unsqueeze(0).unsqueeze(-1).expand(B, L, L,
+                                                                             hidden_dim)  # [B, L, L, hidden_dim]
+        masked_latents = latent_vectors_expanded * causal_mask_expanded  # [B, L, L, hidden_dim]
 
-        # Flatten target_mask from (B, L, T) to (B, L*T)
-        target_mask_flat = target_mask.view(B, L * T)
+        # Step 6: Reshape masked_latents to [B*L, L, hidden_dim]
+        masked_latents_flat = masked_latents.view(B * L, L, hidden_dim)  # [B*L, L, hidden_dim]
 
-        # Create combined attention mask
-        # Word positions are always attended (1s), character positions use target_mask
-        word_mask = torch.ones(B, L, dtype=torch.bool, device=latent_vectors.device)
-        combined_mask = torch.cat([word_mask, target_mask_flat], dim=1)  # (B, L + L*T)
+        # Step 7: Concatenate word embeddings with character embeddings
+        # Each sequence gets its corresponding words prepended
+        combined_embeds = torch.cat([masked_latents_flat, target_embeds], dim=1)  # [B*L, L+T, embed_dim]
 
-        logger.debug("Combined embeds shape: %s", combined_embeds.shape)
-        logger.debug("Combined mask shape: %s", combined_mask.shape)
-        logger.debug("Target IDs shape: %s", target_ids.shape)
-        logger.debug("Target mask shape: %s", target_mask.shape)
+        # Step 8: Create attention mask
+        # Word positions that are masked (0 in causal_mask) should have attention_mask=0
+        causal_mask_flat = causal_mask.unsqueeze(0).expand(B, L, L).reshape(B * L, L)  # [B*L, L]
+        combined_mask = torch.cat([causal_mask_flat, target_mask_flat], dim=1)  # [B*L, L+T]
 
-        # Pass through bytes decoder
+        # Step 9: Pass through bytes decoder
         outputs = self.bytes_decoder(
             inputs_embeds=combined_embeds,
             attention_mask=combined_mask,
             output_hidden_states=False
         )
 
-        # Extract only the character-level logits (skip word-level outputs)
-        all_logits = outputs.logits  # (B, L + L*T, vocab_size)
-        char_logits = all_logits[:, L:]  # (B, L*T, vocab_size)
+        # Step 10: Extract character-level logits (skip word positions)
+        all_logits = outputs.logits  # [B*L, L+T, vocab_size]
+        char_logits = all_logits[:, L:]  # [B*L, T, vocab_size]
 
-        # Reshape back to (B, L, T, vocab_size)
+        # Step 11: Reshape back to [B, L, T, vocab_size]
         logits = char_logits.view(B, L, T, -1)
 
         return logits

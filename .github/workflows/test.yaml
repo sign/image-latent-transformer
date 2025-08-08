@@ -15,12 +15,19 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+
+      - name: Setup Miniconda
+        uses: conda-incubator/setup-miniconda@v3
         with:
           python-version: '3.12'
-          cache: 'pip'
+          miniforge-version: latest
+          auto-activate-base: true
+          activate-environment: ""
 
-      - name: Install Requirements
+      - name: Install Conda Dependencies
+        run: conda install -c conda-forge pycairo pygobject manimpango -y
+
+      - name: Install Package
         run: pip install ".[dev]"
 
       - name: Test Code

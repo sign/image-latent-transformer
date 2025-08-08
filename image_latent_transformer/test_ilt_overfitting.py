@@ -183,3 +183,6 @@ def test_ilt_overfitting():
     print("✅ Byte-level conditioning test passed!")
 
     print("\n🎉 All overfitting tests passed! Model shows proper contextual learning and conditioning.")
+
+if __name__ == "__main__":
+    test_ilt_overfitting()
