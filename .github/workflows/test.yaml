@@ -20,13 +20,20 @@ jobs:
         uses: conda-incubator/setup-miniconda@v3
         with:
           auto-activate-base: true
-          activate-environment: ""
+          python-version: "3.12"
+          channels: conda-forge,defaults
+          channel-priority: true
 
       - name: Install Conda Dependencies
-        run: conda install -c conda-forge pycairo pygobject manimpango -y
+        shell: bash -l {0}
+        run: |
+          conda install python=3.12 -y
+          conda install -c conda-forge pycairo pygobject manimpango -y
 
       - name: Install Package
+        shell: bash -l {0}
         run: pip install ".[dev]"
 
       - name: Test Code
+        shell: bash -l {0}
         run: pytest .

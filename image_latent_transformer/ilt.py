@@ -126,7 +126,7 @@ class ImageLatentTransformer(nn.Module):
                                target_mask: torch.Tensor) -> torch.Tensor:
         """
         Parallel causal decoding with word-level vectors prepended to character sequences.
-        
+
         Args:
             latent_vectors: (B, L, hidden_dim) - latent representations for each word
             target_ids: (B, L, T) - target token IDs for each word
@@ -151,7 +151,6 @@ class ImageLatentTransformer(nn.Module):
         # - 1st sequence: sees only word 0
         # - 2nd sequence: sees word 0 and word 1
         # - 3rd sequence: sees word 0, word 1, and word 2
-        word_indices = torch.arange(L, device=latent_vectors.device)
         causal_mask = torch.tril(torch.ones(L, L, device=latent_vectors.device))  # [L, L]
 
         # Step 4: Reshape latent vectors for broadcasting
