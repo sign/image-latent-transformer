@@ -1,7 +1,7 @@
 import torch
 
 
-def collate_fn(batch):
+def collate_fn(batch, pad_value=0):
     """
     Vibe coded:
     Generic collate function that automatically pads mismatched dimensions.
@@ -30,7 +30,7 @@ def collate_fn(batch):
 
             for dim in range(ndim):
                 max_size = max(shape[dim] if dim < len(shape) else 1
-                              for shape in shapes)
+                               for shape in shapes)
                 max_shape.append(max_size)
 
             # Pad each tensor to max_shape
@@ -45,8 +45,6 @@ def collate_fn(batch):
                     else:
                         padding.extend([0, max_shape[dim]])
 
-                # Apply padding (use -100 for labels_output, 0 for others)
-                pad_value = -100 if key == 'labels_output' else 0
                 if padding:
                     padded_tensor = torch.nn.functional.pad(tensor, padding, value=pad_value)
                 else:

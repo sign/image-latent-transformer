@@ -1,3 +1,5 @@
+from functools import partial
+
 import torch
 from transformers import (
     AutoImageProcessor,
@@ -5,6 +7,7 @@ from transformers import (
     AutoModelForImageClassification,
     Trainer,
     TrainingArguments,
+    enable_full_determinism,
     set_seed,
 )
 from transformers.modeling_outputs import CausalLMOutput
@@ -44,11 +47,13 @@ def setup_model():
 
 
 def test_ilt_overfitting():
-    set_seed(42)
-
     """Test that the model can overfit on simple sequences and learn contextual patterns."""
+    set_seed(42, deterministic=True)
+    enable_full_determinism(seed=42)
+
     # Setup
     model, image_processor, tokenizer = setup_model()
+    collator = partial(collate_fn, pad_value=tokenizer.pad_token_type_id)
 
     def make_dataset(texts: list[str]):
         """Create a dataset from a list of texts."""
@@ -66,7 +71,7 @@ def test_ilt_overfitting():
 
         # Compute losses for each sequence - process entire batch at once
         device = next(model.parameters()).device
-        batch = collate_fn([dataset[i] for i in range(len(dataset))])
+        batch = collator([dataset[i] for i in range(len(dataset))])
         # Move batch to the same device as the model
         batch = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
 
@@ -101,7 +106,7 @@ def test_ilt_overfitting():
     training_args = TrainingArguments(
         num_train_epochs=100,  # Much more epochs for better overfitting
         per_device_train_batch_size=len(train_texts),
-        logging_steps=10,
+        logging_steps=1,
         logging_strategy="steps",
         save_strategy="no",  # Disable saving to avoid shared tensor issues
         remove_unused_columns=False,
@@ -110,6 +115,7 @@ def test_ilt_overfitting():
         weight_decay=0.0,  # No regularization for overfitting
         learning_rate=5e-3,  # Higher learning rate for faster overfitting
         lr_scheduler_type="constant",  # Keep learning rate constant
+        use_mps_device=False
     )
 
     # Initialize trainer
@@ -117,7 +123,7 @@ def test_ilt_overfitting():
         model=model,
         args=training_args,
         train_dataset=make_dataset(train_texts),
-        data_collator=collate_fn,
+        data_collator=collator,
     )
 
     # Train the model
