@@ -18,6 +18,5 @@ pip install ".[dev]"
 Small scale Hebrew language modeling experiment.
 
 TODO: 
-- [ ] Make `ilt_overfitting.py` work, then convert it to a test to see the model can be trained and sampled from
 - [ ] Add a script to train the model on a small dataset
 - [ ] Allow configuring the encoder to turn on/off modalities (only encode bytes, only encode images, etc.)

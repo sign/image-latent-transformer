@@ -2,10 +2,10 @@ import re
 
 import torch
 from torch.utils.data import Dataset
-from typing import Any, Dict, List
-from transformers import AutoImageProcessor, ByT5Tokenizer
+from transformers import AutoImageProcessor
 
 from image_latent_transformer.renderer import render_texts
+from image_latent_transformer.tokenizer import ByteTokenizer
 
 
 class TextImageDataset(Dataset):
@@ -21,9 +21,9 @@ class TextImageDataset(Dataset):
     """
 
     def __init__(self,
-                 texts_dataset: List[str],
+                 texts_dataset: list[str],
                  image_processor: AutoImageProcessor,
-                 tokenizer: ByT5Tokenizer,
+                 tokenizer: ByteTokenizer,
                  max_seq_length: int = 128,
                  max_word_length: int = 32):
         self.texts_dataset = texts_dataset
@@ -32,11 +32,16 @@ class TextImageDataset(Dataset):
         self.max_word_length = max_word_length
         self.max_seq_length = max_seq_length
 
+        assert tokenizer.bos_token_id is not None, "Tokenizer must have a BOS token"
+        assert tokenizer.eos_token_id is not None, "Tokenizer must have an EOS token"
+
+
     def __len__(self) -> int:
         return len(self.texts_dataset)
 
     def get_words_and_labels(self, text: str) -> tuple[list[str], list[str]]:
-        words = re.findall(r'\S+\s*', text)
+        text = "<> " + text.strip()  # Add BOS token "<>" at the start
+        words = re.findall(r'\S+\s*', text)  # Split text into words, keeping spaces
         words = words[:self.max_seq_length]  # Limit to max sequence length
 
         labels = []
@@ -65,7 +70,8 @@ class TextImageDataset(Dataset):
             return_tensors="pt",
             padding=True,
             max_length=self.max_word_length,
-            truncation=True
+            truncation=True,
+            add_special_tokens=False # get_words_and_labels adds BOS already
         )
 
         # Render text to images
@@ -94,27 +100,11 @@ class TextImageDataset(Dataset):
             add_special_tokens=True  # Add BOS/EOS tokens
         )
 
-        input_ids = tokenized.input_ids.squeeze(0)  # Remove batch dim
-        attention_mask = tokenized.attention_mask.squeeze(0)  # Remove batch dim
-        
-        labels_input_ids = tokenized_labels.input_ids.squeeze(0)  # Remove batch dim
-        labels_attention_mask = tokenized_labels.attention_mask.squeeze(0)  # Remove batch dim
-
-        # Create labels_input (for bytes decoder input) - right-shifted with BOS
-        labels_input = labels_input_ids.clone()
-        
-        # Create labels_output (for loss computation) - left-shifted, removing BOS
-        labels_output = labels_input_ids.clone()
-        labels_output[:, :-1] = labels_input_ids[:, 1:]  # Shift left
-        labels_output[:, -1] = -100  # Last position has no next token
-        # Set padded positions to -100 (ignored in loss)
-        labels_output[labels_attention_mask == 0] = -100
-
         return {
-            "input_ids": input_ids,
-            "attention_mask": attention_mask,
+            "input_ids": tokenized.input_ids,
+            "attention_mask": tokenized.attention_mask,
             "input_pixels": images,
-            "labels_input": labels_input,
-            "labels_attention_mask": labels_attention_mask,
-            "labels_output": labels_output
+            "labels_input": tokenized_labels.input_ids[:, :-1],  # Remove EOS token from input labels
+            "labels_attention_mask": tokenized_labels.attention_mask[:, :-1],  # Remove EOS token from attention mask
+            "labels_output": tokenized_labels.input_ids[:, 1:] # Remove BOS token from output labels
         }
