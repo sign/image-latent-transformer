@@ -1,11 +1,9 @@
-from typing import Union, Optional
+import logging
+from typing import Optional, Union
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import logging
-
-from transformers import AutoModelForImageClassification, AutoModelForCausalLM, AutoModelForMaskedLM
+from transformers import AutoModelForCausalLM, AutoModelForImageClassification, AutoModelForMaskedLM
 from transformers.modeling_outputs import CausalLMOutput
 
 logger = logging.getLogger(__name__)
@@ -37,7 +35,7 @@ class ImageLatentTransformer(nn.Module):
         """
 
         # Flatten batch and length dimensions
-        B, L, C, H, W = input_pixels.shape
+        B, L, C, H, W = input_pixels.shape # noqa: N806
         input_pixels = input_pixels.view(B * L, C, H, W)
         # Encode images using the image encoder
         encoded_image = self.image_encoder(input_pixels, output_hidden_states=True)
@@ -55,7 +53,7 @@ class ImageLatentTransformer(nn.Module):
             torch.Tensor: (BATCH, LENGTH, HIDDEN_DIM) - Text embeddings
         """
         # Flatten batch and length dimensions
-        B, L, T = input_ids.shape
+        B, L, T = input_ids.shape # noqa: N806
         input_ids = input_ids.view(B * L, T)
         attention_mask = attention_mask.view(B * L, T)
         # Encode texts using the bytes decoder as encoder
@@ -111,7 +109,7 @@ class ImageLatentTransformer(nn.Module):
             flat_labels = labels_output.reshape(-1)
 
             # Compute cross entropy loss
-            loss = F.cross_entropy(flat_logits, flat_labels, ignore_index=0) # 0 is the padding index
+            loss = torch.nn.functional.cross_entropy(flat_logits, flat_labels, ignore_index=0) # 0 is the padding index
 
         return CausalLMOutput(
             loss=loss,
@@ -127,39 +125,39 @@ class ImageLatentTransformer(nn.Module):
         """
         Parallel causal decoding with word-level vectors followed by character-level vectors.
         Creates a sequence like: word1, word2, ..., wordL, char1, char2, ..., charT
-        
+
         Args:
             latent_vectors: (B, L, hidden_dim) - latent representations for each word
             target_ids: (B, L, T) - target token IDs for each word
             target_mask: (B, L, T) - attention mask for target tokens
-            
+
         Returns:
             torch.Tensor: (B, L, T, vocab_size) - logits for each token in each word
         """
-        B, L, hidden_dim = latent_vectors.shape
-        _, _, T = target_ids.shape
-        
+        B, L, hidden_dim = latent_vectors.shape # noqa: N806
+        _, _, T = target_ids.shape # noqa: N806
+
         # Get embeddings for target tokens
         embed_layer = self.bytes_decoder.get_input_embeddings()
-        
+
         # Get target token embeddings
         target_embeds = embed_layer(target_ids)  # (B, L, T, embed_dim)
-        
+
         # Flatten target embeddings from (B, L, T, embed_dim) to (B, L*T, embed_dim)
         target_embeds_flat = target_embeds.view(B, L * T, -1)
-        
+
         # Concatenate latent vectors and target embeddings
         # First L positions are latent vectors, next L*T positions are target tokens
         combined_embeds = torch.cat([latent_vectors, target_embeds_flat], dim=1)  # (B, L + L*T, embed_dim)
-        
+
         # Flatten target_mask from (B, L, T) to (B, L*T)
         target_mask_flat = target_mask.view(B, L * T)
-        
+
         # Create combined attention mask
         # Word positions are always attended (1s), character positions use target_mask
         word_mask = torch.ones(B, L, dtype=torch.bool, device=latent_vectors.device)
         combined_mask = torch.cat([word_mask, target_mask_flat], dim=1)  # (B, L + L*T)
-        
+
         logger.debug("Combined embeds shape: %s", combined_embeds.shape)
         logger.debug("Combined mask shape: %s", combined_mask.shape)
         logger.debug("Target IDs shape: %s", target_ids.shape)

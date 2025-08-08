@@ -10,14 +10,14 @@ def collate_fn(batch):
     """
     if not batch:
         return batch
-    
+
     # Get all keys from the first item
     keys = batch[0].keys()
     collated = {}
-    
+
     for key in keys:
         tensors = [item[key] for item in batch]
-        
+
         # Check if all tensors have the same shape
         shapes = [tensor.shape for tensor in tensors]
         if len(set(shapes)) == 1:
@@ -27,12 +27,12 @@ def collate_fn(batch):
             # Find maximum size for each dimension
             max_shape = []
             ndim = max(len(shape) for shape in shapes)
-            
+
             for dim in range(ndim):
-                max_size = max(shape[dim] if dim < len(shape) else 1 
+                max_size = max(shape[dim] if dim < len(shape) else 1
                               for shape in shapes)
                 max_shape.append(max_size)
-            
+
             # Pad each tensor to max_shape
             padded_tensors = []
             for tensor in tensors:
@@ -44,20 +44,20 @@ def collate_fn(batch):
                         padding.extend([0, pad_size])
                     else:
                         padding.extend([0, max_shape[dim]])
-                
+
                 # Apply padding (use -100 for labels_output, 0 for others)
                 pad_value = -100 if key == 'labels_output' else 0
                 if padding:
                     padded_tensor = torch.nn.functional.pad(tensor, padding, value=pad_value)
                 else:
                     padded_tensor = tensor
-                
+
                 # If tensor has fewer dimensions than max, add singleton dimensions
                 while len(padded_tensor.shape) < ndim:
                     padded_tensor = padded_tensor.unsqueeze(0)
-                
+
                 padded_tensors.append(padded_tensor)
-            
+
             collated[key] = torch.stack(padded_tensors)
-    
+
     return collated

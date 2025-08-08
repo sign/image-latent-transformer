@@ -1,11 +1,16 @@
 import torch
-import torch.nn.functional as F
-from transformers import AutoImageProcessor, AutoModelForImageClassification, ByT5Tokenizer, AutoModelForCausalLM, \
-    set_seed, Trainer, TrainingArguments
+from transformers import (
+    AutoImageProcessor,
+    AutoModelForCausalLM,
+    AutoModelForImageClassification,
+    Trainer,
+    TrainingArguments,
+    set_seed,
+)
 from transformers.modeling_outputs import CausalLMOutput
 
-from image_latent_transformer.ilt import ImageLatentTransformer
 from image_latent_transformer.dataset import TextImageDataset
+from image_latent_transformer.ilt import ImageLatentTransformer
 from image_latent_transformer.tokenizer import ByteTokenizer
 from image_latent_transformer.utils import collate_fn
 
@@ -74,10 +79,10 @@ def test_ilt_overfitting():
         output_per_text = {}
         for i, text in enumerate(texts):
             # Compute cross entropy loss for this item
-            item_loss = F.cross_entropy(input=logits[i].reshape(-1, logits.size(-1)),
-                                        target=labels[i].reshape(-1),
-                                        ignore_index=tokenizer.pad_token_type_id,
-                                        reduction='mean')
+            item_loss = torch.nn.functional.cross_entropy(input=logits[i].reshape(-1, logits.size(-1)),
+                                                          target=labels[i].reshape(-1),
+                                                          ignore_index=tokenizer.pad_token_type_id,
+                                                          reduction='mean')
             print(f"Loss for '{text}': {item_loss.item():.4f}")
 
             output_per_text[text] = CausalLMOutput(
@@ -167,11 +172,13 @@ def test_ilt_overfitting():
 
     # After 'a c', 'cat' should be more likely than 'cog'
     assert conditional_losses['a cat'] < conditional_losses['a cog'], \
-        f"'a cat' should have lower loss than 'a cog': {conditional_losses['a cat']:.4f} vs {conditional_losses['a cog']:.4f}"
+        (f"'a cat' should have lower loss than 'a cog': "
+         f"{conditional_losses['a cat']:.4f} vs {conditional_losses['a cog']:.4f}")
 
     # After 'a d', 'dog' should be more likely than 'dat'
     assert conditional_losses['a dog'] < conditional_losses['a dat'], \
-        f"'a dog' should have lower loss than 'a dat': {conditional_losses['a dog']:.4f} vs {conditional_losses['a dat']:.4f}"
+        (f"'a dog' should have lower loss than 'a dat': "
+         f"{conditional_losses['a dog']:.4f} vs {conditional_losses['a dat']:.4f}")
 
     print("✅ Byte-level conditioning test passed!")
 

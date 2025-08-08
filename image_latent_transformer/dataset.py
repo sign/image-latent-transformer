@@ -11,7 +11,7 @@ from image_latent_transformer.tokenizer import ByteTokenizer
 class TextImageDataset(Dataset):
     """
     PyTorch dataset that converts text data into input_ids, attention_mask, and input_pixels.
-    
+
     Args:
         texts_dataset: Dataset or list of texts to process
         image_processor: HuggingFace image processor for converting rendered text to pixels
@@ -58,7 +58,7 @@ class TextImageDataset(Dataset):
         Returns:
             Dict containing:
                 - input_ids: (LENGTH, TOKENS)
-                - attention_mask: (LENGTH, TOKENS) 
+                - attention_mask: (LENGTH, TOKENS)
                 - input_pixels: (LENGTH, CHANNELS, HEIGHT, WIDTH)
         """
         text = self.texts_dataset[idx]
