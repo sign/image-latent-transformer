@@ -1,5 +1,17 @@
 # Image Latent Transformer (ILT)
 
+We believe that language modeling can be enhanced by treating text as images, 
+leveraging the visual structure of written language.
+
+We perform whitespace segmentation and then encode each "token" as an image, and as a sequence of bytes.
+The "tokens" go into a large transformer model, which predicts a representation of the next token.
+Conditioned on this representation and all previous ones, we decode the next token as a sequence of bytes.
+
+Finally, we render the predicted bytes as an image, which is then fed to the model as input for the next prediction.
+
+![Model Architecture](./assets/architecture.png)
+
+
 > [!NOTE]  
 > For a more exhaustive writeup, please refer to our [paper draft](https://www.overleaf.com/read/rwxjzsvhrvwd#b9c65f).
 
@@ -38,6 +50,9 @@ TODO:
 > Rendering on different systems may yield different results.
 > We call the community to create a more robust renderer, decoupled from the system's font rendering,
 > for better consistency across platforms and easier reproducibility.
+
+Inference is not yet implemented. The autoregressive prediction logic is a bit more complex than the usual.
+It is unnecessary to have inference if we just want to check the loss. 
 
 ## Cite
 
