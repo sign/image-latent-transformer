@@ -1,3 +1,4 @@
+import tempfile
 from functools import partial
 
 import torch
@@ -104,6 +105,7 @@ def test_ilt_overfitting():
 
     # Setup training arguments with more epochs for overfitting
     training_args = TrainingArguments(
+        output_dir=tempfile.mktemp(),
         num_train_epochs=100,  # Much more epochs for better overfitting
         per_device_train_batch_size=len(train_texts),
         logging_steps=1,

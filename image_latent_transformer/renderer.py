@@ -1,6 +1,7 @@
 import cairo
 import gi
 import numpy as np
+import torch
 from PIL import Image
 
 gi.require_version("Pango", "1.0")
@@ -84,10 +85,22 @@ def render_texts(texts: list[str], line_height: int = 32, dpi: int = 120, font_s
     img_array = img_array[:, :, :3]  # Remove alpha channel
     img_array = img_array[:, :, ::-1]  # BGR to RGB
 
-    img = Image.fromarray(img_array, 'RGB')
+    img = Image.fromarray(img_array)
     img.info['dpi'] = (dpi, dpi)
 
-    return line_height, img
+    return img
+
+
+def deconstruct_images(image_tensor: torch.Tensor, num_words: int, channels_first: bool = False) -> torch.Tensor:
+    if not channels_first:
+        # Convert from [H, W, C] to [C, H, W]
+        image_tensor = image_tensor.permute(2, 0, 1)
+
+    C, H, W = image_tensor.shape  # noqa: N806
+    line_height = H // num_words
+    return image_tensor \
+        .unflatten(1, (num_words, line_height)) \
+        .permute(1, 0, 2, 3)  # [n, C, H//n, W]
 
 
 if __name__ == "__main__":
@@ -99,3 +112,7 @@ if __name__ == "__main__":
     image.save("hello_example.png")
     print(f"Rendered {texts} and saved as 'hello_example.png'")
     print(f"Image size: {image.size}")
+
+    image = render_texts(["a", "b", "c", "d"], line_height=32, dpi=120, font_size=12)
+    image_tensor = torch.tensor(np.array(image))
+    print(deconstruct_images(image_tensor, num_words=4).shape)

@@ -4,7 +4,7 @@ import torch
 from torch.utils.data import Dataset
 from transformers import AutoImageProcessor
 
-from image_latent_transformer.renderer import render_texts
+from image_latent_transformer.renderer import deconstruct_images, render_texts
 from image_latent_transformer.tokenizer import ByteTokenizer
 
 
@@ -75,7 +75,7 @@ class TextImageDataset(Dataset):
         )
 
         # Render text to images
-        line_height, text_lines = render_texts(words)
+        text_lines = render_texts(words)
 
         # Process images
         image = self.image_processor(
@@ -86,9 +86,7 @@ class TextImageDataset(Dataset):
         ).pixel_values
 
         # Deconstruct the image to one image per line/word
-        images = image.squeeze(0) \
-            .unflatten(1, (len(words), line_height)) \
-            .permute(1, 0, 2, 3)  # [3, N, 32, 128] -> [N, 3, 32, 128]
+        images = deconstruct_images(image.squeeze(0), num_words=len(words), channels_first=True)
 
         # Tokenize labels with BOS and EOS tokens for bytes decoder
         tokenized_labels = self.tokenizer(
