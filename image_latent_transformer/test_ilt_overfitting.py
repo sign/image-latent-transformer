@@ -18,6 +18,10 @@ from image_latent_transformer.ilt import ImageLatentTransformer
 from image_latent_transformer.tokenizer import ByteTokenizer
 from image_latent_transformer.utils import collate_fn
 
+def print_model_summary(model):
+    """Print a summary of the model's architecture."""
+    total_params = sum(p.numel() for p in model.parameters())
+    print(f"Total parameters: {total_params:,}")
 
 def setup_model():
     """Set up the ImageLatentTransformer model like in image_model.py."""
@@ -26,15 +30,20 @@ def setup_model():
     image_processor = AutoImageProcessor.from_pretrained(image_model_name, use_fast=True)
     image_model = AutoModelForImageClassification.from_pretrained(image_model_name)
     image_model.classifier = torch.nn.Identity()
+    print_model_summary(image_model)
 
     # Small Language Model
     tokenizer = ByteTokenizer()
     byte_lm = AutoModelForCausalLM.from_pretrained("HuggingFaceTB/SmolLM2-135M")
     byte_lm.resize_token_embeddings(len(tokenizer))
+    print_model_summary(byte_lm)
 
     # Latent Transformer
-    latent_lm = AutoModelForCausalLM.from_pretrained("HuggingFaceTB/SmolLM2-360M")
+    # latent_lm = AutoModelForCausalLM.from_pretrained("HuggingFaceTB/SmolLM2-360M")
+    # Using a smaller transformer for the test
+    latent_lm = AutoModelForCausalLM.from_pretrained("HuggingFaceTB/SmolLM2-135M")
     latent_lm.resize_token_embeddings(0)
+    print_model_summary(latent_lm)
 
     # Combine the models
     model = ImageLatentTransformer(
@@ -43,6 +52,7 @@ def setup_model():
         latent_transformer=latent_lm,
         bytes_decoder=byte_lm
     )
+    print_model_summary(model)
 
     return model, image_processor, tokenizer
 
@@ -106,7 +116,7 @@ def test_ilt_overfitting():
     # Setup training arguments with more epochs for overfitting
     training_args = TrainingArguments(
         output_dir=tempfile.mktemp(),
-        num_train_epochs=100,  # Much more epochs for better overfitting
+        num_train_epochs=50,  # Much more epochs for better overfitting
         per_device_train_batch_size=len(train_texts),
         logging_steps=1,
         logging_strategy="steps",
@@ -115,7 +125,7 @@ def test_ilt_overfitting():
         dataloader_drop_last=False,
         warmup_steps=0,  # No warmup for immediate learning
         weight_decay=0.0,  # No regularization for overfitting
-        learning_rate=5e-3,  # Higher learning rate for faster overfitting
+        learning_rate=1e-4,
         lr_scheduler_type="constant",  # Keep learning rate constant
         use_mps_device=False
     )

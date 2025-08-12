@@ -37,11 +37,13 @@ Small scale Hebrew language modeling experiment.
 
 TODO:
 
+- [ ] Allow configuring the encoder to turn on/off modalities (only encode bytes, only encode images, etc.)
+- [ ] Add a test for overfitting with image only or byte only inputs
+- [ ] Add a test that the future does not leak into the past
 - [ ] Make our setup compatible with
   the [run_clm](https://github.com/huggingface/transformers/tree/main/examples/pytorch/language-modeling) example
   script, and train a small language model on
   the [Hebrew FineWeb dataset](https://huggingface.co/datasets/HuggingFaceFW/fineweb-2/viewer/heb_Hebr).
-- [ ] Allow configuring the encoder to turn on/off modalities (only encode bytes, only encode images, etc.)
 
 ## Inference
 
