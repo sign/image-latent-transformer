@@ -41,11 +41,11 @@ class ImageLatentTransformer(nn.Module):
             torch.Tensor: (BATCH, LENGTH, HIDDEN_DIM) - Image embeddings
         """
         B, L, C, H, W = input_pixels.shape  # noqa: N806
-        
+
         # If image encoder is None, return zeros
         if self.image_encoder is None:
             return torch.zeros(B, L, self.image_encoder_dim, device=input_pixels.device, dtype=input_pixels.dtype)
-        
+
         # Flatten batch and length dimensions
         input_pixels = input_pixels.view(B * L, C, H, W)
         # Encode images using the image encoder
@@ -64,11 +64,11 @@ class ImageLatentTransformer(nn.Module):
             torch.Tensor: (BATCH, LENGTH, HIDDEN_DIM) - Text embeddings
         """
         B, L, T = input_ids.shape  # noqa: N806
-        
+
         # If bytes encoder is None, return zeros
         if self.bytes_encoder is None:
             return torch.zeros(B, L, self.bytes_encoder_dim, device=input_ids.device, dtype=torch.float32)
-        
+
         # Flatten batch and length dimensions
         input_ids = input_ids.view(B * L, T)
         attention_mask = attention_mask.view(B * L, T)

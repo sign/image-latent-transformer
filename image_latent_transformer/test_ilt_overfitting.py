@@ -19,6 +19,7 @@ from image_latent_transformer.ilt import ImageLatentTransformer
 from image_latent_transformer.tokenizer import ByteTokenizer
 from image_latent_transformer.utils import collate_fn
 
+
 def print_model_summary(model):
     """Print a summary of the model's architecture."""
     total_params = sum(p.numel() for p in model.parameters())
@@ -121,11 +122,11 @@ def model_configuration(request, trained_model):
     """Configure model based on the test parameter."""
     model, image_processor, tokenizer, collator = trained_model
     config_name = request.param
-    
+
     # Store original encoders
     original_bytes_encoder = model.bytes_encoder
     original_image_encoder = model.image_encoder
-    
+
     # Apply configuration
     if config_name == "full_model":
         print("\n[Configuration: Full model with all encoders]")
@@ -136,10 +137,10 @@ def model_configuration(request, trained_model):
     elif config_name == "no_image_encoder":
         print("\n[Configuration: Model without image encoder]")
         model.image_encoder = None
-    
+
     # Yield the configured model
     yield model, image_processor, tokenizer, collator
-    
+
     # Restore original encoders after test
     model.bytes_encoder = original_bytes_encoder
     model.image_encoder = original_image_encoder
@@ -193,13 +194,13 @@ def predict_dataset(texts: list[str], model, image_processor, tokenizer, collato
 
 @pytest.mark.parametrize("model_configuration", [
     "full_model",
-    "no_bytes_encoder", 
+    "no_bytes_encoder",
     "no_image_encoder"
 ], indirect=True)
 def test_character_level_conditioning(model_configuration):
     """Test 1: Character-level conditioning (a b vs a a, b a vs b b)"""
     model, image_processor, tokenizer, collator = model_configuration
-    
+
     print("\n=== Test 1: Character-level conditioning ===")
 
     test_texts_char = ["a b", "b a", "a a", "b b"]
@@ -224,7 +225,7 @@ def test_character_level_conditioning(model_configuration):
 def test_word_level_conditioning(model_configuration):
     """Test 2: Word-level conditioning (a cat vs a dat, a dog vs a cog)"""
     model, image_processor, tokenizer, collator = model_configuration
-    
+
     print("\n=== Test 2: Word-level conditioning ===")
 
     test_texts_word = ["a cat", "a dog", "a dat", "a cog", "a bat", "a fog"]
@@ -249,7 +250,7 @@ def test_word_level_conditioning(model_configuration):
 def test_byte_level_conditioning(model_configuration):
     """Test 3: Byte-level conditioning within words"""
     model, image_processor, tokenizer, collator = model_configuration
-    
+
     print("\n=== Test 3: Byte-level conditioning within words ===")
 
     # For "a cat" and "a dog", after seeing "a c" or "a d", the model should be confident about the rest
