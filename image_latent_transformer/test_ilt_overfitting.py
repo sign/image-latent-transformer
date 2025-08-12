@@ -116,6 +116,35 @@ def trained_model():
     return model, image_processor, tokenizer, collator
 
 
+@pytest.fixture
+def model_configuration(request, trained_model):
+    """Configure model based on the test parameter."""
+    model, image_processor, tokenizer, collator = trained_model
+    config_name = request.param
+    
+    # Store original encoders
+    original_bytes_encoder = model.bytes_encoder
+    original_image_encoder = model.image_encoder
+    
+    # Apply configuration
+    if config_name == "full_model":
+        print("\n[Configuration: Full model with all encoders]")
+        # No changes needed
+    elif config_name == "no_bytes_encoder":
+        print("\n[Configuration: Model without bytes encoder]")
+        model.bytes_encoder = None
+    elif config_name == "no_image_encoder":
+        print("\n[Configuration: Model without image encoder]")
+        model.image_encoder = None
+    
+    # Yield the configured model
+    yield model, image_processor, tokenizer, collator
+    
+    # Restore original encoders after test
+    model.bytes_encoder = original_bytes_encoder
+    model.image_encoder = original_image_encoder
+
+
 def make_dataset(texts: list[str], image_processor, tokenizer):
     """Create a dataset from a list of texts."""
     return TextImageDataset(
@@ -162,9 +191,14 @@ def predict_dataset(texts: list[str], model, image_processor, tokenizer, collato
     return output_per_text
 
 
-def test_character_level_conditioning(trained_model):
+@pytest.mark.parametrize("model_configuration", [
+    "full_model",
+    "no_bytes_encoder", 
+    "no_image_encoder"
+], indirect=True)
+def test_character_level_conditioning(model_configuration):
     """Test 1: Character-level conditioning (a b vs a a, b a vs b b)"""
-    model, image_processor, tokenizer, collator = trained_model
+    model, image_processor, tokenizer, collator = model_configuration
     
     print("\n=== Test 1: Character-level conditioning ===")
 
@@ -182,9 +216,14 @@ def test_character_level_conditioning(trained_model):
     print("✅ Character-level conditioning test passed!")
 
 
-def test_word_level_conditioning(trained_model):
+@pytest.mark.parametrize("model_configuration", [
+    "full_model",
+    "no_bytes_encoder",
+    "no_image_encoder"
+], indirect=True)
+def test_word_level_conditioning(model_configuration):
     """Test 2: Word-level conditioning (a cat vs a dat, a dog vs a cog)"""
-    model, image_processor, tokenizer, collator = trained_model
+    model, image_processor, tokenizer, collator = model_configuration
     
     print("\n=== Test 2: Word-level conditioning ===")
 
@@ -202,9 +241,14 @@ def test_word_level_conditioning(trained_model):
     print("✅ Word-level conditioning test passed!")
 
 
-def test_byte_level_conditioning(trained_model):
+@pytest.mark.parametrize("model_configuration", [
+    "full_model",
+    "no_bytes_encoder",
+    "no_image_encoder"
+], indirect=True)
+def test_byte_level_conditioning(model_configuration):
     """Test 3: Byte-level conditioning within words"""
-    model, image_processor, tokenizer, collator = trained_model
+    model, image_processor, tokenizer, collator = model_configuration
     
     print("\n=== Test 3: Byte-level conditioning within words ===")
 

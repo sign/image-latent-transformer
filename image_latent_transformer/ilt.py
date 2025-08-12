@@ -26,11 +26,11 @@ class ImageLatentTransformer(nn.Module):
         self.bytes_decoder = bytes_decoder
         self.padding_index = padding_index
 
-        bytes_encoder_dim = bytes_encoder.config.hidden_size if bytes_encoder is not None else 0
-        image_encoder_dim = image_encoder.config.hidden_size if image_encoder is not None else 0
+        self.bytes_encoder_dim = bytes_encoder.config.hidden_size if bytes_encoder is not None else 0
+        self.image_encoder_dim = image_encoder.config.hidden_size if image_encoder is not None else 0
 
         model_dim = latent_transformer.config.hidden_size
-        self.encoder_mapping = nn.Linear(bytes_encoder_dim + image_encoder_dim, model_dim)
+        self.encoder_mapping = nn.Linear(self.bytes_encoder_dim + self.image_encoder_dim, model_dim)
         self.decoder_mapping = nn.Linear(model_dim, bytes_decoder.config.hidden_size)
 
     def encode_images(self, input_pixels: torch.Tensor) -> torch.Tensor:
@@ -40,9 +40,13 @@ class ImageLatentTransformer(nn.Module):
         Returns:
             torch.Tensor: (BATCH, LENGTH, HIDDEN_DIM) - Image embeddings
         """
-
-        # Flatten batch and length dimensions
         B, L, C, H, W = input_pixels.shape  # noqa: N806
+        
+        # If image encoder is None, return zeros
+        if self.image_encoder is None:
+            return torch.zeros(B, L, self.image_encoder_dim, device=input_pixels.device, dtype=input_pixels.dtype)
+        
+        # Flatten batch and length dimensions
         input_pixels = input_pixels.view(B * L, C, H, W)
         # Encode images using the image encoder
         encoded_image = self.image_encoder(input_pixels, output_hidden_states=True)
@@ -59,12 +63,17 @@ class ImageLatentTransformer(nn.Module):
         Returns:
             torch.Tensor: (BATCH, LENGTH, HIDDEN_DIM) - Text embeddings
         """
-        # Flatten batch and length dimensions
         B, L, T = input_ids.shape  # noqa: N806
+        
+        # If bytes encoder is None, return zeros
+        if self.bytes_encoder is None:
+            return torch.zeros(B, L, self.bytes_encoder_dim, device=input_ids.device, dtype=torch.float32)
+        
+        # Flatten batch and length dimensions
         input_ids = input_ids.view(B * L, T)
         attention_mask = attention_mask.view(B * L, T)
         # Encode texts using the bytes decoder as encoder
-        text_outputs = self.bytes_decoder(input_ids=input_ids, attention_mask=attention_mask, output_hidden_states=True)
+        text_outputs = self.bytes_encoder(input_ids=input_ids, attention_mask=attention_mask, output_hidden_states=True)
         text_embeds = text_outputs.hidden_states[-1]
         # Pool sequence dimension (e.g., mean pooling)
         text_embeds = text_embeds.mean(dim=1)  # (B*L, hidden_dim)

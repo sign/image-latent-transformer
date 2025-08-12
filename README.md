@@ -33,12 +33,13 @@ pip install ".[dev]"
 > Our generic collator `collate_fn` in [utils.py](./image_latent_transformer/utils.py) was written using AI,
 > and it may not work correctly in all scenarios.
 
+To turn off bytes encoding, set `bytes_encoder=False`, and similarly for images, set `image_encoder=False`.
+You can also turn off a specific encoder after training has completed, for testing purposes.
+
 Small scale Hebrew language modeling experiment.
 
 TODO:
 
-- [ ] Allow configuring the encoder to turn on/off modalities (only encode bytes, only encode images, etc.)
-- [ ] Add a test for overfitting with image only or byte only inputs
 - [ ] Add a test that the future does not leak into the past
 - [ ] Make our setup compatible with
   the [run_clm](https://github.com/huggingface/transformers/tree/main/examples/pytorch/language-modeling) example
