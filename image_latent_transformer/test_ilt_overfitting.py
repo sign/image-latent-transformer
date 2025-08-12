@@ -1,6 +1,7 @@
 import tempfile
 from functools import partial
 
+import pytest
 import torch
 from transformers import (
     AutoImageProcessor,
@@ -57,8 +58,9 @@ def setup_model():
     return model, image_processor, tokenizer
 
 
-def test_ilt_overfitting():
-    """Test that the model can overfit on simple sequences and learn contextual patterns."""
+@pytest.fixture(scope="module")
+def trained_model():
+    """Train the model once and reuse for all tests."""
     set_seed(42, deterministic=True)
     enable_full_determinism(seed=42)
 
@@ -75,40 +77,6 @@ def test_ilt_overfitting():
             max_seq_length=128,
             max_word_length=32
         )
-
-    def predict_dataset(texts: list[str]):
-        """Predict a dataset and return the logits."""
-        dataset = make_dataset(texts)
-
-        # Compute losses for each sequence - process entire batch at once
-        device = next(model.parameters()).device
-        batch = collator([dataset[i] for i in range(len(dataset))])
-        # Move batch to the same device as the model
-        batch = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
-
-        with torch.no_grad():
-            outputs = model(**batch)
-
-        logits = outputs.logits
-        labels = batch['labels_output']
-
-        output_per_text = {}
-        for i, text in enumerate(texts):
-            # Compute cross entropy loss for this item
-            item_loss = torch.nn.functional.cross_entropy(input=logits[i].reshape(-1, logits.size(-1)),
-                                                          target=labels[i].reshape(-1),
-                                                          ignore_index=tokenizer.pad_token_type_id,
-                                                          reduction='mean')
-            print(f"Loss for '{text}': {item_loss.item():.4f}")
-
-            output_per_text[text] = CausalLMOutput(
-                loss=item_loss,
-                logits=logits[i],
-                hidden_states=(outputs.hidden_states[0][i],),
-                attentions=None
-            )
-
-        return output_per_text
 
     # Create training data - all four texts for better testing
     train_texts = ["a b", "b a", "a cat", "a dog"]
@@ -142,14 +110,66 @@ def test_ilt_overfitting():
     print("Training model on texts:", train_texts)
     trainer.train()
 
-    # Test contextual understanding
+    # Set to eval mode
     model.eval()
 
-    # Test 1: Character-level conditioning (a b vs a a, b a vs b b)
+    return model, image_processor, tokenizer, collator
+
+
+def make_dataset(texts: list[str], image_processor, tokenizer):
+    """Create a dataset from a list of texts."""
+    return TextImageDataset(
+        texts_dataset=texts,
+        image_processor=image_processor,
+        tokenizer=tokenizer,
+        max_seq_length=128,
+        max_word_length=32
+    )
+
+
+def predict_dataset(texts: list[str], model, image_processor, tokenizer, collator):
+    """Predict a dataset and return the logits."""
+    dataset = make_dataset(texts, image_processor, tokenizer)
+
+    # Compute losses for each sequence - process entire batch at once
+    device = next(model.parameters()).device
+    batch = collator([dataset[i] for i in range(len(dataset))])
+    # Move batch to the same device as the model
+    batch = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
+
+    with torch.no_grad():
+        outputs = model(**batch)
+
+    logits = outputs.logits
+    labels = batch['labels_output']
+
+    output_per_text = {}
+    for i, text in enumerate(texts):
+        # Compute cross entropy loss for this item
+        item_loss = torch.nn.functional.cross_entropy(input=logits[i].reshape(-1, logits.size(-1)),
+                                                      target=labels[i].reshape(-1),
+                                                      ignore_index=tokenizer.pad_token_type_id,
+                                                      reduction='mean')
+        print(f"Loss for '{text}': {item_loss.item():.4f}")
+
+        output_per_text[text] = CausalLMOutput(
+            loss=item_loss,
+            logits=logits[i],
+            hidden_states=(outputs.hidden_states[0][i],),
+            attentions=None
+        )
+
+    return output_per_text
+
+
+def test_character_level_conditioning(trained_model):
+    """Test 1: Character-level conditioning (a b vs a a, b a vs b b)"""
+    model, image_processor, tokenizer, collator = trained_model
+    
     print("\n=== Test 1: Character-level conditioning ===")
 
     test_texts_char = ["a b", "b a", "a a", "b b"]
-    predictions = predict_dataset(test_texts_char)
+    predictions = predict_dataset(test_texts_char, model, image_processor, tokenizer, collator)
     losses = {text: pred.loss.item() for text, pred in predictions.items()}
 
     # Check conditioning: trained sequences should have lower loss
@@ -161,11 +181,15 @@ def test_ilt_overfitting():
 
     print("✅ Character-level conditioning test passed!")
 
-    # Test 2: Word-level conditioning (a cat vs a dat, a dog vs a cog)
+
+def test_word_level_conditioning(trained_model):
+    """Test 2: Word-level conditioning (a cat vs a dat, a dog vs a cog)"""
+    model, image_processor, tokenizer, collator = trained_model
+    
     print("\n=== Test 2: Word-level conditioning ===")
 
     test_texts_word = ["a cat", "a dog", "a dat", "a cog", "a bat", "a fog"]
-    predictions = predict_dataset(test_texts_word)
+    predictions = predict_dataset(test_texts_word, model, image_processor, tokenizer, collator)
     word_losses = {text: pred.loss.item() for text, pred in predictions.items()}
 
     # Check conditioning: trained sequences should have lower loss
@@ -177,7 +201,11 @@ def test_ilt_overfitting():
 
     print("✅ Word-level conditioning test passed!")
 
-    # Test 3: Check byte-level conditioning within words
+
+def test_byte_level_conditioning(trained_model):
+    """Test 3: Byte-level conditioning within words"""
+    model, image_processor, tokenizer, collator = trained_model
+    
     print("\n=== Test 3: Byte-level conditioning within words ===")
 
     # For "a cat" and "a dog", after seeing "a c" or "a d", the model should be confident about the rest
@@ -185,7 +213,7 @@ def test_ilt_overfitting():
 
     # Create a special test to check conditional probabilities
     test_conditional = ["a cat", "a cog", "a dog", "a dat"]
-    predictions = predict_dataset(test_conditional)
+    predictions = predict_dataset(test_conditional, model, image_processor, tokenizer, collator)
     conditional_losses = {text: pred.loss.item() for text, pred in predictions.items()}
 
     # After 'a c', 'cat' should be more likely than 'cog'
@@ -200,7 +228,6 @@ def test_ilt_overfitting():
 
     print("✅ Byte-level conditioning test passed!")
 
-    print("\n🎉 All overfitting tests passed! Model shows proper contextual learning and conditioning.")
 
 if __name__ == "__main__":
-    test_ilt_overfitting()
+    pytest.main([__file__, "-v"])

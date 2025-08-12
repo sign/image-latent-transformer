@@ -17,15 +17,20 @@ class ImageLatentTransformer(nn.Module):
                  bytes_decoder: AutoModelForCausalLM,
                  padding_index: int = 0):
         super().__init__()
+
+        assert bytes_encoder is not None or image_encoder is not None, "At least one encoder must be provided"
+
         self.image_encoder = image_encoder
         self.bytes_encoder = bytes_encoder
         self.latent_transformer = latent_transformer
         self.bytes_decoder = bytes_decoder
         self.padding_index = padding_index
 
-        embedding_dim = image_encoder.config.hidden_size + bytes_encoder.config.hidden_size
+        bytes_encoder_dim = bytes_encoder.config.hidden_size if bytes_encoder is not None else 0
+        image_encoder_dim = image_encoder.config.hidden_size if image_encoder is not None else 0
+
         model_dim = latent_transformer.config.hidden_size
-        self.encoder_mapping = nn.Linear(embedding_dim, model_dim)
+        self.encoder_mapping = nn.Linear(bytes_encoder_dim + image_encoder_dim, model_dim)
         self.decoder_mapping = nn.Linear(model_dim, bytes_decoder.config.hidden_size)
 
     def encode_images(self, input_pixels: torch.Tensor) -> torch.Tensor:
