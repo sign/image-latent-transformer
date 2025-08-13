@@ -33,8 +33,18 @@ pip install ".[dev]"
 > Our generic collator `collate_fn` in [utils.py](./image_latent_transformer/utils.py) was written using AI,
 > and it may not work correctly in all scenarios.
 
+- **Bytes Encoder** - You can use any language model as the bytes encoder, 
+such as causal LMs (e.g. `HuggingFaceTB/SmolLM2-135M`) or Masked LM (e.g. `answerdotai/ModernBERT-base`).
+- **Image Encoder** - You can use any image encoder, from 
+tiny (27m parameters; [Microsoft's SwinV2](https://huggingface.co/microsoft/swinv2-tiny-patch4-window16-256)) to 
+large (272m parameters; [Apple's FastViT-HD](https://huggingface.co/kevin510/fast-vit-hd)).
+- **Latent Transformer** - You can use any causal LM, such as `HuggingFaceTB/SmolLM2-360M`.
+- **Bytes Decoder** - You can use any causal LM as the bytes decoder, such as `HuggingFaceTB/SmolLM2-135M`.
+
 To turn off bytes encoding, set `bytes_encoder=False`, and similarly for images, set `image_encoder=False`.
 You can also turn off a specific encoder after training has completed, for testing purposes.
+
+
 
 Small scale Hebrew language modeling experiment.
 
