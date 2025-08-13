@@ -98,9 +98,6 @@ class TextImageDataset(Dataset):
             add_special_tokens=True  # Add BOS/EOS tokens
         )
 
-        print("Labels", labels)
-        print("Tokenized labels", tokenized_labels.input_ids)
-
         return {
             "input_ids": tokenized.input_ids,
             "attention_mask": tokenized.attention_mask,
