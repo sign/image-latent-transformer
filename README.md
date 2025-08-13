@@ -27,11 +27,7 @@ pip install ".[dev]"
 > [!TIP]
 > Run tests using `pytest` to ensure everything is working correctly.
 
-## Training
-
-> [!WARNING]  
-> Our generic collator `collate_fn` in [utils.py](./image_latent_transformer/utils.py) was written using AI,
-> and it may not work correctly in all scenarios.
+## Model Setup
 
 - **Bytes Encoder** - You can use any language model as the bytes encoder, 
 such as causal LMs (e.g. `HuggingFaceTB/SmolLM2-135M`) or Masked LM (e.g. `answerdotai/ModernBERT-base`).
@@ -45,12 +41,11 @@ To turn off bytes encoding, set `bytes_encoder=False`, and similarly for images,
 You can also turn off a specific encoder after training has completed, for testing purposes.
 
 
+## Training 
+> [!WARNING]  
+> Our generic collator `collate_fn` in [utils.py](./image_latent_transformer/utils.py) was written using AI,
+> and it may not work correctly in all scenarios.
 
-Small scale Hebrew language modeling experiment.
-
-TODO:
-
-- [ ] Add a test that the future does not leak into the past
 - [ ] Make our setup compatible with
   the [run_clm](https://github.com/huggingface/transformers/tree/main/examples/pytorch/language-modeling) example
   script, and train a small language model on
