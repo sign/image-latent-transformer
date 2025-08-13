@@ -1,3 +1,5 @@
+from functools import partial
+
 import pytest
 import torch
 from transformers import (
@@ -11,6 +13,7 @@ from transformers.modeling_outputs import CausalLMOutput
 from image_latent_transformer.dataset import TextImageDataset
 from image_latent_transformer.ilt import ImageLatentTransformer
 from image_latent_transformer.tokenizer import ByteTokenizer
+from image_latent_transformer.utils import collate_fn
 
 
 def print_model_summary(name: str, model):
@@ -58,25 +61,25 @@ def setup_model():
     set_seed(42, deterministic=True)
     enable_full_determinism(seed=42)
 
-    return model, image_processor, tokenizer
+    collator = partial(collate_fn, pad_value=tokenizer.pad_token_type_id)
+
+    return model, image_processor, tokenizer, collator
 
 
-
-
-def make_dataset(texts: list[str], image_processor, tokenizer):
+def make_dataset(texts: list[str], image_processor, tokenizer, max_word_length=32):
     """Create a dataset from a list of texts."""
     return TextImageDataset(
         texts_dataset=texts,
         image_processor=image_processor,
         tokenizer=tokenizer,
         max_seq_length=128,
-        max_word_length=32
+        max_word_length=max_word_length
     )
 
 
-def predict_dataset(texts: list[str], model, image_processor, tokenizer, collator):
+def predict_dataset(texts: list[str], model, image_processor, tokenizer, collator, dataset_kwargs=None):
     """Predict a dataset and return the logits."""
-    dataset = make_dataset(texts, image_processor, tokenizer)
+    dataset = make_dataset(texts, image_processor, tokenizer, **dataset_kwargs)
 
     # Compute losses for each sequence - process entire batch at once
     device = next(model.parameters()).device
@@ -91,13 +94,15 @@ def predict_dataset(texts: list[str], model, image_processor, tokenizer, collato
     labels = batch['labels_output']
 
     output_per_text = {}
+    losses = {}
     for i, text in enumerate(texts):
         # Compute cross entropy loss for this item
         item_loss = torch.nn.functional.cross_entropy(input=logits[i].reshape(-1, logits.size(-1)),
                                                       target=labels[i].reshape(-1),
                                                       ignore_index=tokenizer.pad_token_type_id,
-                                                      reduction='mean')
-        print(f"Loss for '{text}': {item_loss.item():.4f}")
+                                                      reduction='none')
+        losses[text] = item_loss.mean().item()
+        print(f"Loss for '{text}': {losses[text]:.4f}")
 
         output_per_text[text] = CausalLMOutput(
             loss=item_loss,
@@ -106,7 +111,52 @@ def predict_dataset(texts: list[str], model, image_processor, tokenizer, collato
             attentions=None
         )
 
-    return output_per_text
+    return losses, output_per_text
+
+
+def test_attention_no_look_ahead():
+    """Test that attention does not look ahead - causal masking is working correctly."""
+    model, image_processor, tokenizer, collator = setup_model()
+    model.eval()
+
+    # Test sequences that share prefixes
+    texts = ["a b c", "a b d"]
+
+    _, outputs = predict_dataset(texts, model, image_processor, tokenizer, collator, dataset_kwargs={
+        # Force every word to predict a single byte (and EOS)
+        # "a <eos>, b <eos>, c <eos>, <eos> <pad>" and "a <eos>, b <eos>, d <eos>, <eos> <pad>"
+        "max_word_length": 1
+    })
+    for text in texts:
+        print(f"Loss for '{text}':", outputs[text].loss.cpu().numpy())
+
+    # Check that the first 4 tokens have identical losses
+    for i in range(4):
+        assert abs(outputs[texts[0]].loss[i] - outputs[texts[1]].loss[i]) < 1e-4, \
+            f"Loss at position {i} should be identical: {outputs[texts[0]].loss[i]} vs {outputs[texts[1]].loss[i]}"
+
+
+def test_attention_does_look_back():
+    """Test that attention does look back - model uses previous context."""
+    model, image_processor, tokenizer, collator = setup_model()
+    model.eval()
+
+    # Test sequences with shared suffix but different prefix
+    texts = ["c b a", "d b a"]
+
+    _, outputs = predict_dataset(texts, model, image_processor, tokenizer, collator, dataset_kwargs={
+        # Force every word to predict a single byte (and EOS)
+        # "c <eos>, b <eos>, a <eos>, <eos> <pad>" and "d <eos>, b <eos>, a <eos>, <eos> <pad>"
+        "max_word_length": 1
+    })
+    for text in texts:
+        print(f"Loss for '{text}':", outputs[text].loss.cpu().numpy())
+
+    # Check that ALL positions have different losses due to different context
+    for i in range(7):  # Check all 7 positions (excluding padding)
+        loss_diff = abs(outputs[texts[0]].loss[i] - outputs[texts[1]].loss[i])
+        assert loss_diff > 1e-4, \
+            f"Loss at position {i} should be different due to context: {outputs[texts[0]].loss[i]} vs {outputs[texts[1]].loss[i]} (diff: {loss_diff})"
 
 
 if __name__ == "__main__":

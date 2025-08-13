@@ -17,8 +17,7 @@ def trained_model():
     """Train the model once and reuse for all tests."""
 
     # Setup
-    model, image_processor, tokenizer = setup_model()
-    collator = partial(collate_fn, pad_value=tokenizer.pad_token_type_id)
+    model, image_processor, tokenizer, collator = setup_model()
 
     def make_dataset(texts: list[str]):
         """Create a dataset from a list of texts."""
@@ -109,8 +108,7 @@ def test_character_level_conditioning(model_configuration):
     print("\n=== Test 1: Character-level conditioning ===")
 
     test_texts_char = ["a b", "b a", "a a", "b b"]
-    predictions = predict_dataset(test_texts_char, model, image_processor, tokenizer, collator)
-    losses = {text: pred.loss.item() for text, pred in predictions.items()}
+    losses, predictions = predict_dataset(test_texts_char, model, image_processor, tokenizer, collator)
 
     # Check conditioning: trained sequences should have lower loss
     assert losses['a b'] < losses['a a'], \
@@ -134,15 +132,14 @@ def test_word_level_conditioning(model_configuration):
     print("\n=== Test 2: Word-level conditioning ===")
 
     test_texts_word = ["a cat", "a dog", "a dat", "a cog", "a bat", "a fog"]
-    predictions = predict_dataset(test_texts_word, model, image_processor, tokenizer, collator)
-    word_losses = {text: pred.loss.item() for text, pred in predictions.items()}
+    losses, predictions = predict_dataset(test_texts_word, model, image_processor, tokenizer, collator)
 
     # Check conditioning: trained sequences should have lower loss
-    assert word_losses['a cat'] < word_losses['a dat'], \
-        f"'a cat' should have lower loss than 'a dat': {word_losses['a cat']:.4f} vs {word_losses['a dat']:.4f}"
+    assert losses['a cat'] < losses['a dat'], \
+        f"'a cat' should have lower loss than 'a dat': {losses['a cat']:.4f} vs {losses['a dat']:.4f}"
 
-    assert word_losses['a dog'] < word_losses['a cog'], \
-        f"'a dog' should have lower loss than 'a cog': {word_losses['a dog']:.4f} vs {word_losses['a cog']:.4f}"
+    assert losses['a dog'] < losses['a cog'], \
+        f"'a dog' should have lower loss than 'a cog': {losses['a dog']:.4f} vs {losses['a cog']:.4f}"
 
     print("✅ Word-level conditioning test passed!")
 
@@ -163,18 +160,17 @@ def test_byte_level_conditioning(model_configuration):
 
     # Create a special test to check conditional probabilities
     test_conditional = ["a cat", "a cog", "a dog", "a dat"]
-    predictions = predict_dataset(test_conditional, model, image_processor, tokenizer, collator)
-    conditional_losses = {text: pred.loss.item() for text, pred in predictions.items()}
+    losses, predictions = predict_dataset(test_conditional, model, image_processor, tokenizer, collator)
 
     # After 'a c', 'cat' should be more likely than 'cog'
-    assert conditional_losses['a cat'] < conditional_losses['a cog'], \
+    assert losses['a cat'] < losses['a cog'], \
         (f"'a cat' should have lower loss than 'a cog': "
-         f"{conditional_losses['a cat']:.4f} vs {conditional_losses['a cog']:.4f}")
+         f"{losses['a cat']:.4f} vs {losses['a cog']:.4f}")
 
     # After 'a d', 'dog' should be more likely than 'dat'
-    assert conditional_losses['a dog'] < conditional_losses['a dat'], \
+    assert losses['a dog'] < losses['a dat'], \
         (f"'a dog' should have lower loss than 'a dat': "
-         f"{conditional_losses['a dog']:.4f} vs {conditional_losses['a dat']:.4f}")
+         f"{losses['a dog']:.4f} vs {losses['a dat']:.4f}")
 
     print("✅ Byte-level conditioning test passed!")
 
