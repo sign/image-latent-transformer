@@ -1,15 +1,10 @@
 import tempfile
-from functools import partial
 
 import pytest
-import torch
 from transformers import Trainer, TrainingArguments
 
-from transformers.modeling_outputs import CausalLMOutput
-
 from image_latent_transformer.dataset import TextImageDataset
-from image_latent_transformer.test_model import setup_model, predict_dataset
-from image_latent_transformer.utils import collate_fn
+from image_latent_transformer.test_model import predict_dataset, setup_model
 
 
 @pytest.fixture(scope="module")
@@ -35,7 +30,7 @@ def trained_model():
     # Setup training arguments with more epochs for overfitting
     training_args = TrainingArguments(
         output_dir=tempfile.mktemp(),
-        num_train_epochs=50,  # Much more epochs for better overfitting
+        num_train_epochs=70,  # More epochs for better overfitting
         per_device_train_batch_size=len(train_texts),
         logging_steps=1,
         logging_strategy="steps",

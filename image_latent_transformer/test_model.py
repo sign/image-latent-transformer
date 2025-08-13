@@ -6,7 +6,9 @@ from transformers import (
     AutoImageProcessor,
     AutoModelForCausalLM,
     AutoModelForImageClassification,
-    AutoModelForMaskedLM, set_seed, enable_full_determinism,
+    AutoModelForMaskedLM,
+    enable_full_determinism,
+    set_seed,
 )
 from transformers.modeling_outputs import CausalLMOutput
 
@@ -79,6 +81,8 @@ def make_dataset(texts: list[str], image_processor, tokenizer, max_word_length=3
 
 def predict_dataset(texts: list[str], model, image_processor, tokenizer, collator, dataset_kwargs=None):
     """Predict a dataset and return the logits."""
+    if dataset_kwargs is None:
+        dataset_kwargs = {}
     dataset = make_dataset(texts, image_processor, tokenizer, **dataset_kwargs)
 
     # Compute losses for each sequence - process entire batch at once
@@ -156,7 +160,8 @@ def test_attention_does_look_back():
     for i in range(7):  # Check all 7 positions (excluding padding)
         loss_diff = abs(outputs[texts[0]].loss[i] - outputs[texts[1]].loss[i])
         assert loss_diff > 1e-4, \
-            f"Loss at position {i} should be different due to context: {outputs[texts[0]].loss[i]} vs {outputs[texts[1]].loss[i]} (diff: {loss_diff})"
+            (f"Loss at position {i} should be different due to context: "
+             f"{outputs[texts[0]].loss[i]} vs {outputs[texts[1]].loss[i]} (diff: {loss_diff})")
 
 
 if __name__ == "__main__":
