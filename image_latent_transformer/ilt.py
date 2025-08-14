@@ -75,8 +75,9 @@ class ImageLatentTransformer(nn.Module):
         # Encode texts using the bytes decoder as encoder
         text_outputs = self.bytes_encoder(input_ids=input_ids, attention_mask=attention_mask, output_hidden_states=True)
         text_embeds = text_outputs.hidden_states[-1]
-        # Pool sequence dimension (e.g., mean pooling)
-        text_embeds = text_embeds.mean(dim=1)  # (B*L, hidden_dim)
+        # Pool sequence dimension weighted by attention mask
+        sequence_lengths = attention_mask.sum(dim=1, keepdim=True).clamp(min=1)  # Avoid division by zero
+        text_embeds = text_embeds.sum(dim=1) / sequence_lengths
         return text_embeds.view(B, L, -1)
 
     def encode_input(self,
@@ -102,6 +103,9 @@ class ImageLatentTransformer(nn.Module):
 
         return self.encoder_mapping(concatenated_embeds)
 
+    def _num_words_per_datum(self, attention_mask: torch.Tensor) -> torch.Tensor:
+        return attention_mask.sum(dim=-1).gt(0).sum(dim=-1)
+
     def forward(self,
                 input_ids: torch.Tensor,
                 attention_mask: torch.Tensor,
@@ -118,7 +122,6 @@ class ImageLatentTransformer(nn.Module):
             labels_attention_mask: (BATCH, LENGTH, OUTPUT_TOKENS) - Attention mask for labels
             labels_output: (BATCH, LENGTH, OUTPUT_TOKENS) - Target tokens for language modeling
         """
-
         # Embed images and texts
         mapped_embeds = self.encode_input(input_ids, attention_mask, input_pixels)
 

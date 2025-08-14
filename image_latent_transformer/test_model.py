@@ -166,5 +166,33 @@ def test_attention_does_look_back():
              f"{outputs[texts[0]].loss[i]} vs {outputs[texts[1]].loss[i]} (diff: {loss_diff})")
 
 
+def test_loss_is_independent_of_batch():
+    """Test that loss at first position is identical regardless of other items in batch."""
+    model, image_processor, tokenizer, collator = setup_model()
+    model.eval()
+    
+    # Run first batch with just "a"
+    texts_batch1 = ["a"]
+    _, outputs_batch1 = predict_dataset(texts_batch1, model, image_processor, tokenizer, collator, dataset_kwargs={
+        "max_word_length": 1
+    })
+    
+    # Run second batch with "a" and additional text
+    texts_batch2 = ["a", "more words than just a"]
+    _, outputs_batch2 = predict_dataset(texts_batch2, model, image_processor, tokenizer, collator)
+    
+    # Get the loss for "a" from both batches
+    loss_a_batch1 = outputs_batch1["a"].loss
+    loss_a_batch2 = outputs_batch2["a"].loss
+    
+    # Check that the loss at the first position (first token) is identical
+    # Note: loss_a_batch1[0] and loss_a_batch2[0] should be the same
+    # since they're both predicting the same token with the same context
+    assert abs(loss_a_batch1[0].item() - loss_a_batch2[0].item()) < 1e-4, \
+        f"Loss at first position should be identical: {loss_a_batch1[0].item()} vs {loss_a_batch2[0].item()}"
+    
+    print(f"✓ Loss at first position is batch-independent: {loss_a_batch1[0].item():.4f}")
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

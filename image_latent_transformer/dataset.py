@@ -40,7 +40,12 @@ class TextImageDataset(Dataset):
         return len(self.texts_dataset)
 
     def get_words_and_labels(self, text: str) -> tuple[list[str], list[str]]:
-        text = "<> " + text.strip()  # Add BOS token "<>" at the start
+        text = ("<> " + text).strip()  # Add BOS token "<>" at the start
+
+        # TODO: Ensure all texts end with a space. this is a model quirk and needs to be handled generally
+        #  if the text does not end with a space, the model should continue generating the last word directly
+        text += " "
+
         words = re.findall(r'\S+\s*', text)  # Split text into words, keeping spaces
         words = words[:self.max_seq_length]  # Limit to max sequence length
 
@@ -51,6 +56,7 @@ class TextImageDataset(Dataset):
             # For efficiency, we don't just use the next word as label, but a longer token string
             label = text[label_idx:label_idx+self.max_word_length].strip()
             labels.append(label)
+        print("words", words)
         return words, labels
 
     def __getitem__(self, idx: int) -> dict[str, torch.Tensor]:

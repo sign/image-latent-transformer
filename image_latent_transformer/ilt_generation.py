@@ -153,6 +153,8 @@ class ImageLatentTransformerForTextGeneration(ImageLatentTransformer):
             max_generated_words: Maximum number of words to generate
             bytes_generation_config: Generation config for bytes_decoder
         """
+        num_words = self._num_words_per_datum(attention_mask)
+
         # Track generated words per sample
         all_generated_words = [[] for _ in range(len(input_pixels))]
 
