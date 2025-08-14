@@ -21,9 +21,10 @@ class ImageLatentTransformerForTextGeneration(ImageLatentTransformer):
     context, bytes decoder generates individual words.
     """
 
-    def _generate_latents(self, latent_past_key_values, encoded_input: torch.Tensor) -> tuple[Any, torch.Tensor]:
+    def _generate_latents(self, latent_past_key_values, encoded_input: torch.Tensor, attention_mask: torch.Tensor) -> tuple[Any, torch.Tensor]:
         latent_output = self.latent_transformer(
             inputs_embeds=encoded_input,
+            attention_mask=attention_mask,
             past_key_values=latent_past_key_values,
             use_cache=True,
             output_hidden_states=True
@@ -165,7 +166,8 @@ class ImageLatentTransformerForTextGeneration(ImageLatentTransformer):
         # Main generation loop
         for _ in range(max_generated_words):
             # Step 2: Generate next latent state
-            past_key_values, latents = self._generate_latents(past_key_values, encoded_input)
+            past_key_values, latents = self._generate_latents(past_key_values, encoded_input,
+                                                              attention_mask=self._words_sequence_attention_mask(attention_mask))
             last_latents = latents[:, num_words - 1]
 
             # Step 3: Generate bytes for this word

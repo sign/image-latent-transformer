@@ -106,6 +106,18 @@ class ImageLatentTransformer(nn.Module):
     def _num_words_per_datum(self, attention_mask: torch.Tensor) -> torch.Tensor:
         return attention_mask.sum(dim=-1).gt(0).sum(dim=-1)
 
+    def _words_sequence_attention_mask(self, attention_mask: torch.Tensor) -> torch.Tensor:
+        # Create sequence-level attention mask for latent transformer
+        # attention_mask has shape (BATCH, LENGTH, INPUT_TOKENS), we need (BATCH, LENGTH)
+        num_words = self._num_words_per_datum(attention_mask)  # (BATCH,)
+        B, L, *_ = attention_mask.shape
+        sequence_attention_mask = torch.zeros(B, L, device=attention_mask.device, dtype=torch.long)
+        for i, length in enumerate(num_words):
+            sequence_attention_mask[i, :length] = 1
+
+        print("sequence_attention_mask", sequence_attention_mask.shape)
+        return sequence_attention_mask
+
     def forward(self,
                 input_ids: torch.Tensor,
                 attention_mask: torch.Tensor,
@@ -126,7 +138,11 @@ class ImageLatentTransformer(nn.Module):
         mapped_embeds = self.encode_input(input_ids, attention_mask, input_pixels)
 
         # Process the sequence with the latent transformer
-        latent_outputs = self.latent_transformer(inputs_embeds=mapped_embeds, output_hidden_states=True)
+        latent_outputs = self.latent_transformer(
+            inputs_embeds=mapped_embeds, 
+            attention_mask=self._words_sequence_attention_mask(attention_mask),
+            output_hidden_states=True
+        )
         latent_vectors = latent_outputs.hidden_states[-1]  # (B, L, hidden_dim)
         logger.debug("Latent vectors shape: %s", latent_vectors.shape)
         mapped_embeds = self.decoder_mapping(latent_vectors)
