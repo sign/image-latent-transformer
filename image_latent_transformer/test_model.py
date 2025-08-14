@@ -78,6 +78,12 @@ def make_dataset(texts: list[str], image_processor, tokenizer, max_word_length=3
         max_word_length=max_word_length
     )
 
+def dataset_to_batch(model, collator, dataset):
+    # Compute losses for each sequence - process entire batch at once
+    device = next(model.parameters()).device
+    batch = collator([dataset[i] for i in range(len(dataset))])
+    # Move batch to the same device as the model
+    return {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
 
 def predict_dataset(texts: list[str], model, image_processor, tokenizer, collator, dataset_kwargs=None):
     """Predict a dataset and return the logits."""
@@ -85,11 +91,7 @@ def predict_dataset(texts: list[str], model, image_processor, tokenizer, collato
         dataset_kwargs = {}
     dataset = make_dataset(texts, image_processor, tokenizer, **dataset_kwargs)
 
-    # Compute losses for each sequence - process entire batch at once
-    device = next(model.parameters()).device
-    batch = collator([dataset[i] for i in range(len(dataset))])
-    # Move batch to the same device as the model
-    batch = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
+    batch = dataset_to_batch(model, collator, dataset)
 
     with torch.no_grad():
         outputs = model(**batch)

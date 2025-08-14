@@ -40,11 +40,14 @@ large (272m parameters; [Apple's FastViT-HD](https://huggingface.co/kevin510/fas
 To turn off bytes encoding, set `bytes_encoder=False`, and similarly for images, set `image_encoder=False`.
 You can also turn off a specific encoder after training has completed, for testing purposes.
 
+> [!WARNING]  
+> In implementation of the bytes decoder, we concatenate the embeddings of the bytes of the current token with 
+> all the embeddings of the previous tokens (on the word level). This is done since not all causal LMs support
+> cross-attention, and so we want to avoid using it, and rely on the self-attention mechanism instead.
 
 ## Training 
-> [!WARNING]  
-> Our generic collator `collate_fn` in [utils.py](./image_latent_transformer/utils.py) was written using AI,
-> and it may not work correctly in all scenarios.
+> [!NOTE]  
+> Our generic collator `collate_fn` in [utils.py](./image_latent_transformer/utils.py) can be improved.
 
 - [ ] Make our setup compatible with
   the [run_clm](https://github.com/huggingface/transformers/tree/main/examples/pytorch/language-modeling) example
@@ -59,8 +62,11 @@ You can also turn off a specific encoder after training has completed, for testi
 > We call the community to create a more robust renderer, decoupled from the system's font rendering,
 > for better consistency across platforms and easier reproducibility.
 
-Inference is not yet implemented. The autoregressive prediction logic is a bit more complex than the usual.
-It is unnecessary to have inference if we just want to check the loss. 
+Since we have two decoders, the autoregressive prediction logic is a bit more complex than the usual,
+and supporting decoding algorithms like beam-search is not trivial.
+
+Thus, on the latent-transformer level, we only support greedy decoding for now.
+On the bytes decoder level, we support all classical decoding algorithms supported by HuggingFace Transformers.
 
 ## Cite
 

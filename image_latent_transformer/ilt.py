@@ -79,6 +79,29 @@ class ImageLatentTransformer(nn.Module):
         text_embeds = text_embeds.mean(dim=1)  # (B*L, hidden_dim)
         return text_embeds.view(B, L, -1)
 
+    def encode_input(self,
+                     input_ids: torch.Tensor,
+                     attention_mask: torch.Tensor,
+                     input_pixels: torch.Tensor):
+
+        embeds = []
+        if self.image_encoder_dim > 0:
+            image_embeds = self.encode_images(input_pixels)
+            logger.debug("Image embeddings shape: %s", image_embeds.shape)
+            embeds.append(image_embeds)
+
+        if self.bytes_encoder_dim > 0:
+            text_embeds = self.encode_texts(input_ids, attention_mask)
+            logger.debug("Text embeddings shape: %s", text_embeds.shape)
+            embeds.append(text_embeds)
+
+        assert len(embeds) > 0, "At least one type of encoder must be provided"
+
+        concatenated_embeds = torch.cat(embeds, dim=-1)
+        logger.debug("Concatenated embeddings shape: %s", concatenated_embeds.shape)
+
+        return self.encoder_mapping(concatenated_embeds)
+
     def forward(self,
                 input_ids: torch.Tensor,
                 attention_mask: torch.Tensor,
@@ -97,14 +120,7 @@ class ImageLatentTransformer(nn.Module):
         """
 
         # Embed images and texts
-        image_embeds = self.encode_images(input_pixels)
-        logger.debug("Image embeddings shape: %s", image_embeds.shape)
-        text_embeds = self.encode_texts(input_ids, attention_mask)
-        logger.debug("Text embeddings shape: %s", text_embeds.shape)
-
-        concatenated_embeds = torch.cat([image_embeds, text_embeds], dim=-1)
-        logger.debug("Concatenated embeddings shape: %s", concatenated_embeds.shape)
-        mapped_embeds = self.encoder_mapping(concatenated_embeds)
+        mapped_embeds = self.encode_input(input_ids, attention_mask, input_pixels)
 
         # Process the sequence with the latent transformer
         latent_outputs = self.latent_transformer(inputs_embeds=mapped_embeds, output_hidden_states=True)

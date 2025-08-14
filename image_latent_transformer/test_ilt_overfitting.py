@@ -1,6 +1,7 @@
 import tempfile
 
 import pytest
+import torch
 from transformers import Trainer, TrainingArguments
 
 from image_latent_transformer.dataset import TextImageDataset
@@ -58,6 +59,9 @@ def trained_model():
 
     # Set to eval mode
     model.eval()
+
+    # Save model
+    torch.save(model.state_dict(), "trained_model")
 
     return model, image_processor, tokenizer, collator
 
