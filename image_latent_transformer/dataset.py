@@ -56,7 +56,6 @@ class TextImageDataset(Dataset):
             # For efficiency, we don't just use the next word as label, but a longer token string
             label = text[label_idx:label_idx+self.max_word_length].strip()
             labels.append(label)
-        print("words", words)
         return words, labels
 
     def __getitem__(self, idx: int) -> dict[str, torch.Tensor]:

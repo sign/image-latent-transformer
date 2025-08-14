@@ -28,26 +28,26 @@ class ByteTokenizer(ByT5Tokenizer):
     def stop_tokens(self) -> list[int]:
         """
         Get all stop tokens (EOS and whitespace) for this tokenizer.
-        
+
         Returns:
             List of token IDs that should stop generation (EOS + all whitespace tokens)
         """
         # Get EOS token
         eos_token_id = self.eos_token_id
-        
+
         # Get all whitespace token IDs
         whitespace_chars = [" ", "\t", "\r", "\n", "\v", "\f"]
         whitespace_token_ids = []
-        
+
         for char in whitespace_chars:
             # Encode each whitespace character without special tokens
             tokens = self.encode(char, add_special_tokens=False)
             if tokens:  # Some whitespace might not have a token
                 whitespace_token_ids.append(tokens[0])
-        
+
         # Remove duplicates
         whitespace_token_ids = list(set(whitespace_token_ids))
-        
+
         # Combine EOS and whitespace tokens
         return [eos_token_id] + whitespace_token_ids
 

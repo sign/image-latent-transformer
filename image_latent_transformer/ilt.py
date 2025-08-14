@@ -179,46 +179,32 @@ class ImageLatentTransformer(nn.Module):
         embed_layer = self.bytes_decoder.get_input_embeddings()
         target_embeds = embed_layer(target_ids_flat)  # [B*L, T, embed_dim]
 
-        # Step 3: Create causal mask using tril to determine which words to prepend
-        # For L=3 words, we want:
-        # - 1st sequence: sees only word 0
-        # - 2nd sequence: sees word 0 and word 1
-        # - 3rd sequence: sees word 0, word 1, and word 2
-        causal_mask = torch.tril(torch.ones(L, L, device=latent_vectors.device))  # [L, L]
+        # Step 3: Each decoder uses only one latent vector (no history)
+        # Decoder i uses latent_vectors[:, i]
+        # Reshape from [B, L, hidden_dim] to [B*L, hidden_dim] then add sequence dimension
+        latent_vectors_flat = latent_vectors.view(B * L, hidden_dim).unsqueeze(1)  # [B*L, 1, hidden_dim]
 
-        # Step 4: Reshape latent vectors for broadcasting
-        latent_vectors_expanded = latent_vectors.unsqueeze(1).expand(B, L, L, hidden_dim)  # [B, L, L, hidden_dim]
+        # Step 4: Concatenate single latent vector with character embeddings
+        # Each sequence gets only its corresponding latent vector prepended
+        combined_embeds = torch.cat([latent_vectors_flat, target_embeds], dim=1)  # [B*L, 1+T, embed_dim]
 
-        # Step 5: Apply causal mask to select which words each sequence sees
-        # causal_mask[i, j] = 1 if sequence i can see word j
-        causal_mask_expanded = causal_mask.unsqueeze(0).unsqueeze(-1).expand(B, L, L,
-                                                                             hidden_dim)  # [B, L, L, hidden_dim]
-        masked_latents = latent_vectors_expanded * causal_mask_expanded  # [B, L, L, hidden_dim]
+        # Step 5: Create attention mask
+        # Each decoder only sees its single latent vector, so mask is all ones for the single latent position
+        latent_mask = torch.ones(B * L, 1, device=latent_vectors.device)  # [B*L, 1]
+        combined_mask = torch.cat([latent_mask, target_mask_flat], dim=1)  # [B*L, 1+T]
 
-        # Step 6: Reshape masked_latents to [B*L, L, hidden_dim]
-        masked_latents_flat = masked_latents.view(B * L, L, hidden_dim)  # [B*L, L, hidden_dim]
-
-        # Step 7: Concatenate word embeddings with character embeddings
-        # Each sequence gets its corresponding words prepended
-        combined_embeds = torch.cat([masked_latents_flat, target_embeds], dim=1)  # [B*L, L+T, embed_dim]
-
-        # Step 8: Create attention mask
-        # Word positions that are masked (0 in causal_mask) should have attention_mask=0
-        causal_mask_flat = causal_mask.unsqueeze(0).expand(B, L, L).reshape(B * L, L)  # [B*L, L]
-        combined_mask = torch.cat([causal_mask_flat, target_mask_flat], dim=1)  # [B*L, L+T]
-
-        # Step 9: Pass through bytes decoder
+        # Step 6: Pass through bytes decoder
         outputs = self.bytes_decoder(
             inputs_embeds=combined_embeds,
             attention_mask=combined_mask,
             output_hidden_states=False
         )
 
-        # Step 10: Extract character-level logits (skip word positions)
-        all_logits = outputs.logits  # [B*L, L+T, vocab_size]
-        char_logits = all_logits[:, L:]  # [B*L, T, vocab_size]
+        # Step 7: Extract character-level logits (skip the single latent position)
+        all_logits = outputs.logits  # [B*L, 1+T, vocab_size]
+        char_logits = all_logits[:, 1:]  # [B*L, T, vocab_size]
 
-        # Step 11: Reshape back to [B, L, T, vocab_size]
+        # Step 8: Reshape back to [B, L, T, vocab_size]
         logits = char_logits.view(B, L, T, -1)
 
         return logits

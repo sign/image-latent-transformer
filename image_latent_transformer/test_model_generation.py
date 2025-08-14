@@ -1,20 +1,21 @@
-from pathlib import Path
-
 import pytest
 import torch
 
 from image_latent_transformer.ilt_generation import ImageLatentTransformerForTextGeneration
-from image_latent_transformer.test_model import setup_model, make_dataset, dataset_to_batch
+from image_latent_transformer.test_model import dataset_to_batch, make_dataset, setup_model
 
 
 @pytest.fixture(scope="module")
 def generation_model_setup():
     """Setup the generation model with trained weights."""
-    trained_model_path = Path(__file__).parent / "trained_model"
 
     # Setup the base model
     model, image_processor, tokenizer, collator = setup_model()
-    model.load_state_dict(torch.load(trained_model_path))
+
+    # When running locally, it is easier to look at outputs of a trained model.
+    # trained_model_path = Path(__file__).parent / "trained_model"
+    # if trained_model_path.exists():
+    #     model.load_state_dict(torch.load(trained_model_path))
 
     # Create the generation model from the base model
     generation_model = ImageLatentTransformerForTextGeneration(
@@ -23,6 +24,9 @@ def generation_model_setup():
         latent_transformer=model.latent_transformer,
         bytes_decoder=model.bytes_decoder
     )
+
+    # TODO: turn it back on once https://github.com/sign/image-latent-transformer/issues/1 is fixed
+    generation_model.image_encoder = None
 
     # Set to eval mode
     generation_model.eval()
@@ -43,7 +47,8 @@ def predict_texts(texts: list[str], generation_model, image_processor, tokenizer
             input_pixels=batch["input_pixels"],
             tokenizer=tokenizer,
             image_processor=image_processor,
-            max_generated_words=5
+            max_generated_words=5,
+            max_word_length=5
         )
 
     for text, output in zip(texts, outputs):
@@ -54,8 +59,6 @@ def predict_texts(texts: list[str], generation_model, image_processor, tokenizer
 def test_batch_interference(generation_model_setup):
     """Test that generation of a batch does not interfere between texts."""
     generation_model, image_processor, tokenizer, collator = generation_model_setup
-
-    generation_model.image_encoder = None # TODO: turn it back on once https://github.com/sign/image-latent-transformer/issues/1 is fixed
 
     print("\n=== Testing batch interference ===")
     batch_1 = predict_texts(["a", "a cat", ""], generation_model, image_processor, tokenizer, collator)
