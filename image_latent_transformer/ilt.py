@@ -75,6 +75,10 @@ class ImageLatentTransformer(nn.Module):
         # Encode texts using the bytes decoder as encoder
         text_outputs = self.bytes_encoder(input_ids=input_ids, attention_mask=attention_mask, output_hidden_states=True)
         text_embeds = text_outputs.hidden_states[-1]
+
+        # Apply attention mask to text embeddings
+        text_embeds *= attention_mask.unsqueeze(-1)
+
         # Pool sequence dimension weighted by attention mask
         sequence_lengths = attention_mask.sum(dim=1, keepdim=True).clamp(min=1)  # Avoid division by zero
         text_embeds = text_embeds.sum(dim=1) / sequence_lengths
@@ -90,6 +94,7 @@ class ImageLatentTransformer(nn.Module):
             image_embeds = self.encode_images(input_pixels)
             logger.debug("Image embeddings shape: %s", image_embeds.shape)
             embeds.append(image_embeds)
+
 
         if self.bytes_encoder_dim > 0:
             text_embeds = self.encode_texts(input_ids, attention_mask)
@@ -115,7 +120,6 @@ class ImageLatentTransformer(nn.Module):
         for i, length in enumerate(num_words):
             sequence_attention_mask[i, :length] = 1
 
-        print("sequence_attention_mask", sequence_attention_mask.shape)
         return sequence_attention_mask
 
     def forward(self,
@@ -144,6 +148,7 @@ class ImageLatentTransformer(nn.Module):
             output_hidden_states=True
         )
         latent_vectors = latent_outputs.hidden_states[-1]  # (B, L, hidden_dim)
+
         logger.debug("Latent vectors shape: %s", latent_vectors.shape)
         mapped_embeds = self.decoder_mapping(latent_vectors)
         logger.debug("Mapped embeddings shape: %s", mapped_embeds.shape)
