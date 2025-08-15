@@ -1,4 +1,7 @@
+from typing import Optional
+
 import torch
+from transformers import AutoModelForImageClassification
 
 
 def collate_fn(batch, pad_value=0):
@@ -59,3 +62,21 @@ def collate_fn(batch, pad_value=0):
             collated[key] = torch.stack(padded_tensors)
 
     return collated
+
+
+class UnknownImageEncoderError(ValueError):
+    """Raised when an image encoder is not recognized or not supported."""
+    def __init__(self):
+        super().__init__("Image encoder does not have a valid hidden size configuration.")
+
+def image_encoder_size(image_encoder: Optional[AutoModelForImageClassification]) -> int:
+    if image_encoder is None:
+        return 0
+
+    config = getattr(image_encoder, 'config', {})
+
+    if hasattr(config, 'hidden_size'):
+        return config.hidden_size
+    if hasattr(config, 'vision_config') and hasattr(config.vision_config, 'hidden_size'):
+        return config.vision_config.hidden_size
+    raise UnknownImageEncoderError()

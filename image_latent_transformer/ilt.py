@@ -6,6 +6,8 @@ import torch.nn as nn
 from transformers import AutoModelForCausalLM, AutoModelForImageClassification, AutoModelForMaskedLM
 from transformers.modeling_outputs import CausalLMOutput
 
+from image_latent_transformer.utils import image_encoder_size
+
 logger = logging.getLogger(__name__)
 
 
@@ -27,7 +29,7 @@ class ImageLatentTransformer(nn.Module):
         self.padding_index = padding_index
 
         self.bytes_encoder_dim = bytes_encoder.config.hidden_size if bytes_encoder is not None else 0
-        self.image_encoder_dim = image_encoder.config.hidden_size if image_encoder is not None else 0
+        self.image_encoder_dim = image_encoder_size(image_encoder)
 
         model_dim = latent_transformer.config.hidden_size
         self.encoder_mapping = nn.Linear(self.bytes_encoder_dim + self.image_encoder_dim, model_dim)
@@ -95,7 +97,6 @@ class ImageLatentTransformer(nn.Module):
             logger.debug("Image embeddings shape: %s", image_embeds.shape)
             embeds.append(image_embeds)
 
-
         if self.bytes_encoder_dim > 0:
             text_embeds = self.encode_texts(input_ids, attention_mask)
             logger.debug("Text embeddings shape: %s", text_embeds.shape)
@@ -113,8 +114,8 @@ class ImageLatentTransformer(nn.Module):
 
     def _words_sequence_attention_mask(self, num_words: torch.Tensor) -> torch.Tensor:
         # Create sequence-level attention mask for latent transformer
-        B = len(num_words) # noqa: N806
-        L = torch.max(num_words).item() # noqa: N806
+        B = len(num_words)  # noqa: N806
+        L = torch.max(num_words).item()  # noqa: N806
         sequence_attention_mask = torch.zeros(B, L, device=num_words.device, dtype=torch.long)
         for i, length in enumerate(num_words):
             sequence_attention_mask[i, :length] = 1

@@ -1,6 +1,6 @@
 # Image Latent Transformer (ILT)
 
-We believe that language modeling can be enhanced by treating text as images, 
+We believe that language modeling can be enhanced by treating text as images,
 leveraging the visual structure of written language.
 
 We perform whitespace segmentation and then encode each "token" as an image, and as a sequence of bytes.
@@ -29,23 +29,33 @@ pip install ".[dev]"
 
 ## Model Setup
 
-- **Bytes Encoder** - You can use any language model as the bytes encoder, 
-such as causal LMs (e.g. `HuggingFaceTB/SmolLM2-135M`) or Masked LM (e.g. `answerdotai/ModernBERT-base`).
-- **Image Encoder** - You can use any image encoder, from 
-tiny (27m parameters; [Microsoft's SwinV2](https://huggingface.co/microsoft/swinv2-tiny-patch4-window16-256)) to 
-large (272m parameters; [Apple's FastViT-HD](https://huggingface.co/kevin510/fast-vit-hd)).
+- **Bytes Encoder** - You can use any language model as the bytes encoder,
+  such as causal LMs (e.g. `HuggingFaceTB/SmolLM2-135M`) or Masked LM (e.g. `answerdotai/ModernBERT-base`).
+- **Image Encoder** - You can use any image encoder, from
+  tiny (27m parameters; [Microsoft's SwinV2](https://huggingface.co/microsoft/swinv2-tiny-patch4-window16-256)) to
+  large (272m parameters; [Apple's FastViT-HD](https://huggingface.co/kevin510/fast-vit-hd)).
 - **Latent Transformer** - You can use any causal LM, such as `HuggingFaceTB/SmolLM2-360M`.
 - **Bytes Decoder** - You can use any causal LM as the bytes decoder, such as `HuggingFaceTB/SmolLM2-135M`.
+
+For language models, the parameter count is lower than reported, due to removing the embedding layers.
+
+Our implementation allows for any mix-and-match. Some example setups are:
+
+| Bytes Encoder                                                                | Image Encoder                                                                                           | Latent Transformer                                                    | Bytes Decoder                                                             | Total Parameters |
+|------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------|---------------------------------------------------------------------------|----------------|
+| [ModernBERT-base](https://huggingface.co/answerdotai/ModernBERT-base) (111m) | [swinv2-tiny-patch4-window16-256](https://huggingface.co/microsoft/swinv2-tiny-patch4-window16-256) (27m) | [gemma-3-270m](https://huggingface.co/google/gemma-3-270m) (100m)     | [SmolLM2-135M](https://huggingface.co/HuggingFaceTB/SmolLM2-135M) (106m)  | 346m           |
+| [deberta-v3-large](https://huggingface.co/microsoft/deberta-v3-large) (303m) | [clip-vit-base-patch32](https://huggingface.co/openai/clip-vit-base-patch32) (87m)                      | [Llama-3.2-1B](https://huggingface.co/meta-llama/Llama-3.2-1B) (973m) | [gpt2-medium](https://huggingface.co/openai-community/gpt2-medium) (304m) | 1,674m         |
 
 To turn off bytes encoding, set `bytes_encoder=False`, and similarly for images, set `image_encoder=False`.
 You can also turn off a specific encoder after training has completed, for testing purposes.
 
 > [!WARNING]  
-> In implementation of the bytes decoder, we concatenate the embeddings of the bytes of the current token with 
+> In implementation of the bytes decoder, we concatenate the embeddings of the bytes of the current token with
 > all the embeddings of the previous tokens (on the word level). This is done since not all causal LMs support
 > cross-attention, and so we want to avoid using it, and rely on the self-attention mechanism instead.
 
-## Training 
+## Training
+
 > [!NOTE]  
 > Our generic collator `collate_fn` in [utils.py](./image_latent_transformer/utils.py) can be improved.
 

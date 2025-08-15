@@ -24,10 +24,14 @@ def print_model_summary(name: str, model):
     print(name, f"Total parameters: {total_params:,}")
 
 
-def setup_model():
+def setup_model(
+        image_model_name="microsoft/swinv2-tiny-patch4-window16-256",
+        byte_encoder_name="answerdotai/ModernBERT-base",
+        latent_transformer_name="google/gemma-3-270m",
+        byte_decoder_name="HuggingFaceTB/SmolLM2-135M"
+):
     """Set up the ImageLatentTransformer model like in image_model.py."""
     # Image Encoder
-    image_model_name = "microsoft/swinv2-tiny-patch4-window16-256"
     image_processor = AutoImageProcessor.from_pretrained(image_model_name, use_fast=True)
     image_model = AutoModelForImageClassification.from_pretrained(image_model_name)
     image_model.classifier = torch.nn.Identity()
@@ -35,19 +39,19 @@ def setup_model():
 
     # Small Language Model (~106M parameters)
     tokenizer = ByteTokenizer()
-    byte_lm = AutoModelForCausalLM.from_pretrained("HuggingFaceTB/SmolLM2-135M")
+    byte_lm = AutoModelForCausalLM.from_pretrained(byte_decoder_name)
     byte_lm.resize_token_embeddings(len(tokenizer))
     print_model_summary("Bytes LM", byte_lm)
 
     # Bytes Encoder (~111M parameters)
-    byte_encoder = AutoModelForMaskedLM.from_pretrained("answerdotai/ModernBERT-base")
+    byte_encoder = AutoModelForMaskedLM.from_pretrained(byte_encoder_name)
     byte_encoder.resize_token_embeddings(len(tokenizer))
     print_model_summary("Bytes MLM", byte_encoder)
 
     # Latent Transformer
     # latent_lm = AutoModelForCausalLM.from_pretrained("HuggingFaceTB/SmolLM2-360M")
     # Using a smaller transformer for the test
-    latent_lm = AutoModelForCausalLM.from_pretrained("HuggingFaceTB/SmolLM2-135M")
+    latent_lm = AutoModelForCausalLM.from_pretrained(latent_transformer_name)
     latent_lm.resize_token_embeddings(0)
     print_model_summary("Latent LM", latent_lm)
 
