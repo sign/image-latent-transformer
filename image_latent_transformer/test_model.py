@@ -110,7 +110,7 @@ def predict_dataset(texts: list[str], model, image_processor, tokenizer, collato
                                                       ignore_index=tokenizer.pad_token_type_id,
                                                       reduction='none')
         losses[text] = item_loss.mean().item()
-        print(f"Loss for '{text}': {losses[text]:.4f}", item_loss)
+        print(f"Loss for '{text}': {losses[text]:.4f}")
 
         output_per_text[text] = CausalLMOutput(
             loss=item_loss,

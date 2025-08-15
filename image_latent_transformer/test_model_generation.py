@@ -13,6 +13,7 @@ def generation_model_setup():
     model, image_processor, tokenizer, collator = setup_model()
 
     # When running locally, it is easier to look at outputs of a trained model.
+    # from pathlib import Path
     # trained_model_path = Path(__file__).parent / "trained_model"
     # if trained_model_path.exists():
     #     model.load_state_dict(torch.load(trained_model_path))
@@ -48,7 +49,7 @@ def predict_texts(texts: list[str], generation_model, image_processor, tokenizer
             input_pixels=batch["input_pixels"],
             tokenizer=tokenizer,
             image_processor=image_processor,
-            max_generated_words=2,
+            max_generated_words=5,
             max_word_length=5
         )
 

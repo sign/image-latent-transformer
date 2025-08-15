@@ -27,7 +27,8 @@ class ImageLatentTransformerForTextGeneration(ImageLatentTransformer):
         latent_output = self.latent_transformer(
             inputs_embeds=encoded_input,
             attention_mask=attention_mask,
-            past_key_values=latent_past_key_values,
+            # TODO: past_key_values can improve efficiency, but currently fails tests.
+            # past_key_values=latent_past_key_values,
             use_cache=True,
             output_hidden_states=True
         )
@@ -170,19 +171,12 @@ class ImageLatentTransformerForTextGeneration(ImageLatentTransformer):
         past_key_values = None  # Initialize past key values for caching
 
         # Main generation loop
-        for word_idx in range(max_generated_words):
-            if word_idx == 1:
-                print("2nd encoded_input", encoded_input[0, num_words[0] - 1, :4])
-
+        for _ in range(max_generated_words):
             # Step 2: Generate next latent state
             words_attention_mask = self._words_sequence_attention_mask(num_words)
-            if word_idx == 1:
-                print("2nd words_attention_mask", words_attention_mask[0])
             past_key_values, latents = self._generate_latents(past_key_values, encoded_input,
                                                               attention_mask=words_attention_mask,
                                                               num_words=num_words)
-            if word_idx == 1:
-                print("2nd latents", latents[0, 0, :4])
 
             # Step 3: Generate bytes for this word
             generated_bytes = self._generate_word_bytes(
@@ -200,7 +194,9 @@ class ImageLatentTransformerForTextGeneration(ImageLatentTransformer):
                 break
 
             for word, generated_words in zip(words, all_generated_words):
-                generated_words.append(word)
+                if len(generated_words) == 0 or len(generated_words[-1]) > 0:
+                    # Only add words if not EOS
+                    generated_words.append(word)
 
             # Step 5, 6, 7: Create next inputs and encode them\
             encoded_input = self.prepare_next_inputs(words, num_words, tokenizer, image_processor, encoded_input)
