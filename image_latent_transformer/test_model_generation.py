@@ -37,6 +37,7 @@ def generation_model_setup():
 def predict_texts(texts: list[str], generation_model, image_processor, tokenizer, collator):
     """Helper function to predict texts using the generation model."""
 
+    print("-" * 30)
     dataset = make_dataset(texts, image_processor, tokenizer)
     batch = dataset_to_batch(generation_model, collator, dataset)
 
@@ -47,7 +48,7 @@ def predict_texts(texts: list[str], generation_model, image_processor, tokenizer
             input_pixels=batch["input_pixels"],
             tokenizer=tokenizer,
             image_processor=image_processor,
-            max_generated_words=5,
+            max_generated_words=2,
             max_word_length=5
         )
 
@@ -61,27 +62,29 @@ def test_batch_interference(generation_model_setup):
     generation_model, image_processor, tokenizer, collator = generation_model_setup
 
     print("\n=== Testing batch interference ===")
-    batch_1 = predict_texts(["a", "a cat", ""], generation_model, image_processor, tokenizer, collator)
-    batch_2 = predict_texts(["a", "b", "a_long_word"], generation_model, image_processor, tokenizer, collator)
-    batch_3 = predict_texts(["a", "a"], generation_model, image_processor, tokenizer, collator)
+    batches = [
+        ["a"],
+        ["a", "two words", ""],
+        ["a", "even three words"],
+        ["a", "b", "a_long_word"],
+        ["a", "a"]
+    ]
+    outputs = [predict_texts(batch, generation_model, image_processor, tokenizer, collator) for batch in batches]
 
-    print(f"\nBatch 1 result for 'a': '{batch_1[0]}'")
-    print(f"Batch 2 result for 'a': '{batch_2[0]}'")
-    print(f"Batch 3 result for 'a': '{batch_3[0]}'")
-
-    # Also test individual generation
-    single_1 = predict_texts(["a"], generation_model, image_processor, tokenizer, collator)
-    single_2 = predict_texts(["b"], generation_model, image_processor, tokenizer, collator)
-    print(f"\nSingle result for 'a': '{single_1[0]}'")
-    print(f"Single result for 'b': '{single_2[0]}'")
+    single = outputs[0][0]  # Single result for "a"
+    print(f"Single result for 'a': '{outputs[0][0]}'")
+    print(f"Batch 1 result for 'a': '{outputs[1][0]}'")
+    print(f"Batch 2 result for 'a': '{outputs[2][0]}'")
+    print(f"Batch 3 result for 'a': '{outputs[3][0]}'")
+    print(f"Batch 4 result for 'a': '{outputs[4][0]}'")
 
     # All results for 'a' should be the same
-    all_a_results = [batch_1[0], batch_2[0], batch_3[0], batch_3[1], single_1[0]]
+    all_a_results = [outputs[0][0], outputs[1][0], outputs[2][0], outputs[3][0], outputs[4][0], outputs[4][1]]
     print(f"\nAll results for 'a': {all_a_results}")
 
     # Check that all occurrences of "a" generate the same output
-    assert all(result == single_1[0] for result in all_a_results), \
-        f"Not all 'a' generations are equal. Expected all to be '{single_1[0]}', but got: {all_a_results}"
+    assert all(result == single for result in all_a_results), \
+        f"Not all 'a' generations are equal. Expected all to be '{single}', but got: {all_a_results}"
 
     print("✅ Generation test passed - no batch interference detected")
 

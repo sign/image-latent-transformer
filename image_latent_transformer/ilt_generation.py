@@ -21,7 +21,9 @@ class ImageLatentTransformerForTextGeneration(ImageLatentTransformer):
     context, bytes decoder generates individual words.
     """
 
-    def _generate_latents(self, latent_past_key_values, encoded_input: torch.Tensor, attention_mask: torch.Tensor) -> tuple[Any, torch.Tensor]:
+    def _generate_latents(self, latent_past_key_values, encoded_input: torch.Tensor,
+                          attention_mask: torch.Tensor,
+                          num_words: torch.Tensor) -> tuple[Any, torch.Tensor]:
         latent_output = self.latent_transformer(
             inputs_embeds=encoded_input,
             attention_mask=attention_mask,
@@ -31,11 +33,15 @@ class ImageLatentTransformerForTextGeneration(ImageLatentTransformer):
         )
 
         # Get the last latent state for the new word
-        latent_state = latent_output.hidden_states[-1]  # (B, L, hidden_dim)
+        latents = latent_output.hidden_states[-1]  # (B, L, hidden_dim)
+
+        assert len(latents.shape) == 3, "Latents should be of shape (B, L, latent_dim)"
+
+        batch_indices = torch.arange(latents.size(0), device=latents.device)
+        last_latents = latents[batch_indices, num_words - 1].unsqueeze(1)  # (B, 1, latent_dim)
 
         # Map latent state to bytes decoder dimension
-        # TODO: more can be done here to cache the mapping for previous words
-        mapped_latent = self.decoder_mapping(latent_state)  # (B, L, bytes_decoder_dim)
+        mapped_latent = self.decoder_mapping(last_latents)  # (B, 1, bytes_decoder_dim)
 
         return latent_output.past_key_values, mapped_latent
 
@@ -64,8 +70,7 @@ class ImageLatentTransformerForTextGeneration(ImageLatentTransformer):
                                        dtype=torch.long, device=latents.device)
         current_input_embeds = self.bytes_decoder.get_input_embeddings()(current_input_ids)
 
-        inputs_embeds = torch.cat([latents, current_input_embeds],
-                                  dim=1)  # (B, 2, bytes_decoder_dim)
+        inputs_embeds = torch.cat([latents, current_input_embeds], dim=1)  # (B, 2, bytes_decoder_dim)
 
         # Generate bytes for this word
         return self.bytes_decoder.generate(
@@ -102,12 +107,13 @@ class ImageLatentTransformerForTextGeneration(ImageLatentTransformer):
                                               new_attention_mask.unsqueeze(1),
                                               new_input_pixels.unsqueeze(1))
 
-        empty_word = torch.zeros_like(encoded_input[:, 0]).unsqueeze(1)
-        # Concatenate along sequence length
+        # Extend the encoded input with an empty tensor
+        empty_word = torch.zeros_like(encoded_input[:, 0:1])
         encoded_input = torch.cat([encoded_input, empty_word], dim=1)
 
         # Apply the new words' indexes to the encoded input
-        encoded_input[:, words_indexes] = new_encoded_input
+        batch_indices = torch.arange(encoded_input.size(0), device=encoded_input.device)
+        encoded_input[batch_indices, words_indexes] = new_encoded_input.squeeze(1)
 
         return encoded_input
 
@@ -164,15 +170,23 @@ class ImageLatentTransformerForTextGeneration(ImageLatentTransformer):
         past_key_values = None  # Initialize past key values for caching
 
         # Main generation loop
-        for _ in range(max_generated_words):
+        for word_idx in range(max_generated_words):
+            if word_idx == 1:
+                print("2nd encoded_input", encoded_input[0, num_words[0] - 1, :4])
+
             # Step 2: Generate next latent state
+            words_attention_mask = self._words_sequence_attention_mask(num_words)
+            if word_idx == 1:
+                print("2nd words_attention_mask", words_attention_mask[0])
             past_key_values, latents = self._generate_latents(past_key_values, encoded_input,
-                                                              attention_mask=self._words_sequence_attention_mask(attention_mask))
-            last_latents = latents[:, num_words - 1]
+                                                              attention_mask=words_attention_mask,
+                                                              num_words=num_words)
+            if word_idx == 1:
+                print("2nd latents", latents[0, 0, :4])
 
             # Step 3: Generate bytes for this word
             generated_bytes = self._generate_word_bytes(
-                latents=last_latents,
+                latents=latents,
                 tokenizer=tokenizer,
                 max_word_length=max_word_length,
                 bytes_generation_config=bytes_generation_config

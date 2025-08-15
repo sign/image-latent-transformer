@@ -176,40 +176,31 @@ def test_loss_is_independent_of_batch():
     # TODO: turn it back on once https://github.com/sign/image-latent-transformer/issues/1 is fixed
     model.image_encoder = None
 
-    dataset_kwargs = {
-        "max_word_length": 7 # Fixed: Added proper sequence attention mask in latent transformer
-    }
-
-    # Run first batch with just "a"
-    texts_batch1 = ["a"]
-    _, outputs_batch1 = predict_dataset(texts_batch1, model, image_processor, tokenizer, collator, dataset_kwargs)
-
-    # Run second batch with "a" and additional text
-    texts_batch2 = ["a", "2 w"]  # batch that includes a sample with two words
-    _, outputs_batch2 = predict_dataset(texts_batch2, model, image_processor, tokenizer, collator, dataset_kwargs)
-
-    # Run third batch with "a" and additional text
-    texts_batch3 = ["a", "two words"]  # batch that includes a sample with two words
-    _, outputs_batch3 = predict_dataset(texts_batch3, model, image_processor, tokenizer, collator, dataset_kwargs)
-    
+    batches = [
+        # Run first batch with just "a"
+        ["a"],
+        # Run second batch with "a" and additional text
+        ["a", "2 w"],
+        # Run third batch with "a" and additional longer text
+        ["a", "two words"]
+    ]
+    outputs = [predict_dataset(batch, model, image_processor, tokenizer, collator)[1] for  batch in batches]
 
     # Get the loss for "a" from both batches
-    loss_a_batch1 = outputs_batch1["a"].loss
-    loss_a_batch2 = outputs_batch2["a"].loss
-    loss_a_batch3 = outputs_batch3["a"].loss
+    losses = [outputs[i]["a"].loss[0].item() for i in range(len(outputs))]
 
     # Check that the loss at the first position (first token) is nearly identical
-    # Note: loss_a_batch1[0] and loss_a_batch2[0] should be the same
+    # Note: losses[0] and losses[1] should be the same
     # since they're both predicting the same token with the same context
     # Small numerical differences are acceptable due to batching implementation details
     tolerance = 1e-3  # Relaxed tolerance for batch-dependent numerical precision
-    assert abs(loss_a_batch1[0].item() - loss_a_batch2[0].item()) < tolerance, \
-        f"Loss at first position should be nearly identical: {loss_a_batch1[0].item()} vs {loss_a_batch2[0].item()}"
+    assert abs(losses[0] - losses[1]) < tolerance, \
+        f"Loss at first position should be nearly identical: {losses[0]} vs {losses[1]}"
 
-    assert abs(loss_a_batch1[0].item() - loss_a_batch3[0].item()) < tolerance, \
-        f"Loss at first position should be nearly identical: {loss_a_batch1[0].item()} vs {loss_a_batch3[0].item()}"
+    assert abs(losses[0] - losses[2]) < tolerance, \
+        f"Loss at first position should be nearly identical: {losses[0]} vs {losses[2]}"
 
-    print(f"✓ Loss at first position is batch-independent: {loss_a_batch1[0].item():.4f}")
+    print(f"✓ Loss at first position is batch-independent: {losses[0]:.4f}")
 
 
 if __name__ == "__main__":
