@@ -33,10 +33,11 @@ class ImageLatentTransformer(nn.Module):
         self.encoder_mapping = nn.Linear(self.bytes_encoder_dim + self.image_encoder_dim, model_dim)
         self.decoder_mapping = nn.Linear(model_dim, bytes_decoder.config.hidden_size)
 
-    def encode_images(self, input_pixels: torch.Tensor) -> torch.Tensor:
+    def encode_images(self, input_pixels: torch.Tensor, input_pixels_mask: torch.Tensor) -> torch.Tensor:
         """
         Args:
             input_pixels: (BATCH, LENGTH, CHANNELS, HEIGHT, WIDTH)
+            input_pixels_mask: Patch mask for images
         Returns:
             torch.Tensor: (BATCH, LENGTH, HIDDEN_DIM) - Image embeddings
         """
@@ -48,9 +49,14 @@ class ImageLatentTransformer(nn.Module):
 
         # Flatten batch and length dimensions
         input_pixels = input_pixels.view(B * L, C, H, W)
+        input_pixels_mask = input_pixels_mask.view(B * L, -1)
+
         # Encode images using the image encoder
-        encoded_image = self.image_encoder(input_pixels, output_hidden_states=True)
+        encoded_image = self.image_encoder(pixel_values=input_pixels,
+                                           # bool_masked_pos=input_pixels_mask, # TODO activate this when mask is supported
+                                           output_hidden_states=True)
         image_embeds = encoded_image.hidden_states[-1]  # Use the last hidden state
+
         # Pool channels dimension (e.g., mean pooling)
         image_embeds = image_embeds.mean(dim=1)
         return image_embeds.view(B, L, -1)
@@ -87,11 +93,12 @@ class ImageLatentTransformer(nn.Module):
     def encode_input(self,
                      input_ids: torch.Tensor,
                      attention_mask: torch.Tensor,
-                     input_pixels: torch.Tensor):
+                     input_pixels: torch.Tensor,
+                     input_pixels_mask: torch.Tensor) -> torch.Tensor:
 
         embeds = []
         if self.image_encoder_dim > 0:
-            image_embeds = self.encode_images(input_pixels)
+            image_embeds = self.encode_images(input_pixels, input_pixels_mask)
             logger.debug("Image embeddings shape: %s", image_embeds.shape)
             embeds.append(image_embeds)
 
@@ -125,6 +132,7 @@ class ImageLatentTransformer(nn.Module):
                 input_ids: torch.Tensor,
                 attention_mask: torch.Tensor,
                 input_pixels: torch.Tensor,
+                input_pixels_mask: torch.Tensor,
                 labels_input: Optional[torch.Tensor] = None,
                 labels_attention_mask: Optional[torch.Tensor] = None,
                 labels_output: Optional[torch.Tensor] = None):
@@ -138,7 +146,8 @@ class ImageLatentTransformer(nn.Module):
             labels_output: (BATCH, LENGTH, OUTPUT_TOKENS) - Target tokens for language modeling
         """
         # Embed images and texts
-        mapped_embeds = self.encode_input(input_ids, attention_mask, input_pixels)
+        mapped_embeds = self.encode_input(input_ids, attention_mask,
+                                          input_pixels, input_pixels_mask)
 
         # Process the sequence with the latent transformer
         num_words = self._num_words_per_datum(attention_mask)

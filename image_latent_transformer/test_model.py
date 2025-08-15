@@ -63,7 +63,11 @@ def setup_model():
     set_seed(42, deterministic=True)
     enable_full_determinism(seed=42)
 
-    collator = partial(collate_fn, pad_value=tokenizer.pad_token_type_id)
+    assert image_model.config.patch_size is not None, "Image model must have a patch size"
+
+    collator = partial(collate_fn,
+                       pad_value=tokenizer.pad_token_type_id,
+                       image_patch_size=image_model.config.patch_size)
 
     return model, image_processor, tokenizer, collator
 
@@ -174,7 +178,7 @@ def test_loss_is_independent_of_batch():
     model.eval()
 
     # TODO: turn it back on once https://github.com/sign/image-latent-transformer/issues/1 is fixed
-    model.image_encoder = None
+    # model.image_encoder = None
 
     batches = [
         # Run first batch with just "a"

@@ -6,8 +6,9 @@ from transformers import AutoImageProcessor
 from transformers.generation import GenerationConfig
 
 from image_latent_transformer.ilt import ImageLatentTransformer
-from image_latent_transformer.renderer import deconstruct_images, render_texts
+from image_latent_transformer.renderer import deconstruct_images, render_texts, render_texts_torch
 from image_latent_transformer.tokenizer import ByteTokenizer
+from image_latent_transformer.utils import collate_images
 
 logger = logging.getLogger(__name__)
 
@@ -95,18 +96,17 @@ class ImageLatentTransformerForTextGeneration(ImageLatentTransformer):
         new_input_ids = tokenized_words["input_ids"].to(encoded_input.device)
         new_attention_mask = tokenized_words["attention_mask"].to(encoded_input.device)
 
-        image = image_processor(
-            render_texts(words),
-            return_tensors="pt",
-            do_center_crop=False,
-            do_resize=False
-        ).pixel_values.to(encoded_input.device)
+        # Render images for the new words, one per batch item
+        patch_size = self.image_encoder.config.patch_size if self.image_encoder else 16
+        images = [[image] for image in render_texts_torch(words, image_processor)]
+        pixel_values, pixel_mask = collate_images(images, patch_size=patch_size)
+        new_input_pixels = pixel_values.to(encoded_input.device)
+        new_input_pixels_mask = pixel_mask.to(encoded_input.device)
 
-        # Deconstruct the image to one image per line/word
-        new_input_pixels = deconstruct_images(image.squeeze(0), num_words=len(words), channels_first=True)
         new_encoded_input = self.encode_input(new_input_ids.unsqueeze(1),
                                               new_attention_mask.unsqueeze(1),
-                                              new_input_pixels.unsqueeze(1))
+                                              new_input_pixels,
+                                              new_input_pixels_mask)
 
         # Extend the encoded input with an empty tensor
         empty_word = torch.zeros_like(encoded_input[:, 0:1])
@@ -122,6 +122,7 @@ class ImageLatentTransformerForTextGeneration(ImageLatentTransformer):
     def generate(
             self,
             input_pixels: torch.Tensor,
+            input_pixels_mask: torch.Tensor,
             input_ids: torch.Tensor,
             attention_mask: torch.Tensor,
             tokenizer: ByteTokenizer,
@@ -166,7 +167,8 @@ class ImageLatentTransformerForTextGeneration(ImageLatentTransformer):
         all_generated_words = [[] for _ in range(len(input_pixels))]
 
         # Step 1: Encode initial input
-        encoded_input = self.encode_input(input_ids, attention_mask, input_pixels)
+        encoded_input = self.encode_input(input_ids, attention_mask,
+                                          input_pixels, input_pixels_mask)
 
         past_key_values = None  # Initialize past key values for caching
 
