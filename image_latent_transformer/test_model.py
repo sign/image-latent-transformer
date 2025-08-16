@@ -71,6 +71,14 @@ def setup_model(
 
     return model, image_processor, tokenizer, collator
 
+def setup_tiny_model():
+    """Set up a tiny version of the ImageLatentTransformer model for testing, the tinyer the better."""
+    return setup_model(
+        image_model_name="WinKawaks/vit-tiny-patch16-224",
+        byte_encoder_name="prajjwal1/bert-tiny",
+        latent_transformer_name="sbintuitions/tiny-lm",
+        byte_decoder_name="sbintuitions/tiny-lm"
+    )
 
 def make_dataset(texts: list[str], image_processor, tokenizer, max_word_length=32):
     """Create a dataset from a list of texts."""
@@ -125,6 +133,7 @@ def predict_dataset(texts: list[str], model, image_processor, tokenizer, collato
         )
 
     return losses, output_per_text
+
 
 
 def test_attention_no_look_ahead():
@@ -189,7 +198,7 @@ def test_loss_is_independent_of_batch():
         # Run third batch with "a" and additional longer text
         ["a", "two words"],
     ]
-    outputs = [predict_dataset(batch, model, image_processor, tokenizer, collator)[1] for  batch in batches]
+    outputs = [predict_dataset(batch, model, image_processor, tokenizer, collator)[1] for batch in batches]
 
     # Get the loss for "a" from both batches
     losses = [outputs[i]["a"].loss[0].item() for i in range(len(outputs))]

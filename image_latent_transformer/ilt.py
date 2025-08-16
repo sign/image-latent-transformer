@@ -1,5 +1,4 @@
 import logging
-import random
 from typing import Optional, Union
 
 import torch
@@ -41,7 +40,7 @@ class ImageLatentTransformer(nn.Module):
     def _should_drop_modality(self):
         if not self.training or self.modality_dropout == 0:
             return False
-        return random.random() < self.modality_dropout
+        return torch.rand(1).item() < self.modality_dropout
 
     def encode_images(self, input_pixels: list[list[torch.Tensor]], device: torch.device) -> torch.Tensor:
         """

@@ -7,12 +7,8 @@ from image_latent_transformer.dataset import TextImageDataset
 from image_latent_transformer.test_model import predict_dataset, setup_model
 
 
-@pytest.fixture(scope="module")
-def trained_model():
-    """Train the model once and reuse for all tests."""
-
-    # Setup
-    model, image_processor, tokenizer, collator = setup_model()
+def train_model(setup_function, num_epochs=10):
+    model, image_processor, tokenizer, collator = setup_function()
 
     def make_dataset(texts: list[str]):
         """Create a dataset from a list of texts."""
@@ -30,7 +26,7 @@ def trained_model():
     # Setup training arguments with more epochs for overfitting
     training_args = TrainingArguments(
         output_dir=tempfile.mktemp(),
-        num_train_epochs=70,  # More epochs for better overfitting
+        num_train_epochs=num_epochs,
         per_device_train_batch_size=len(train_texts),
         logging_steps=1,
         logging_strategy="steps",
@@ -39,7 +35,7 @@ def trained_model():
         dataloader_drop_last=False,
         warmup_steps=0,  # No warmup for immediate learning
         weight_decay=0.0,  # No regularization for overfitting
-        learning_rate=3e-4,
+        learning_rate=1e-4,
         lr_scheduler_type="constant",  # Keep learning rate constant
     )
 
@@ -59,6 +55,12 @@ def trained_model():
     model.eval()
 
     return model, image_processor, tokenizer, collator
+
+
+@pytest.fixture(scope="module")
+def trained_model():
+    """Train the model once and reuse for all tests."""
+    return train_model(setup_model, num_epochs=70)
 
 
 @pytest.fixture
