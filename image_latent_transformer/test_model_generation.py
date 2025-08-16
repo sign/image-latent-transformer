@@ -47,6 +47,7 @@ def predict_texts(texts: list[str], generation_model, image_processor, tokenizer
             input_ids=batch["input_ids"],
             attention_mask=batch["attention_mask"],
             input_pixels=batch["input_pixels"],
+            input_pixels_mask=batch["input_pixels_mask"],
             tokenizer=tokenizer,
             image_processor=image_processor,
             max_generated_words=5,
