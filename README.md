@@ -12,9 +12,6 @@ Finally, we render the predicted bytes as an image, which is then fed to the mod
 ![Model Architecture](./assets/architecture.png)
 
 
-> [!NOTE]  
-> For a more exhaustive writeup, please refer to our [paper draft](https://www.overleaf.com/read/rwxjzsvhrvwd#b9c65f).
-
 ## Environment
 
 ```shell

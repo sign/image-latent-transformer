@@ -1,6 +1,6 @@
 import torch
 
-from image_latent_transformer.test_model import predict_dataset, setup_tiny_model, setup_model
+from image_latent_transformer.test_model import predict_dataset, setup_tiny_model
 from image_latent_transformer.test_model_overfitting import train_model
 
 
