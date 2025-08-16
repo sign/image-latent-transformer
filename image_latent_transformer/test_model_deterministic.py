@@ -35,7 +35,7 @@ def test_model_setup_is_deterministic():
 
 def test_train_model_is_deterministic():
     print("Setting up models for training determinism test...")
-    models = [train_model(setup_model, num_epochs=10) for _ in range(2)]
+    models = [train_model(setup_tiny_model, num_epochs=50) for _ in range(2)]
 
     print("Predicting losses for test texts using both models...")
     test_texts = ["a b", "b a", "a cat", "a dog"]
