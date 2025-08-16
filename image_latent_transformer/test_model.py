@@ -25,11 +25,14 @@ def print_model_summary(name: str, model):
 
 
 def setup_model(
-        image_model_name="microsoft/swinv2-tiny-patch4-window16-256",
-        byte_encoder_name="answerdotai/ModernBERT-base",
-        latent_transformer_name="google/gemma-3-270m",
-        byte_decoder_name="HuggingFaceTB/SmolLM2-135M"
+        image_model_name="WinKawaks/vit-tiny-patch16-224",
+        byte_encoder_name="prajjwal1/bert-tiny",
+        latent_transformer_name="EleutherAI/pythia-70m",
+        byte_decoder_name="EleutherAI/pythia-70m"
 ):
+    set_seed(42, deterministic=True)
+    enable_full_determinism(seed=42)
+
     """Set up the ImageLatentTransformer model like in image_model.py."""
     # Image Encoder
     image_processor = AutoImageProcessor.from_pretrained(image_model_name, use_fast=True)
@@ -63,9 +66,6 @@ def setup_model(
         bytes_decoder=byte_lm
     )
     print_model_summary("Final Model", model)
-
-    set_seed(42, deterministic=True)
-    enable_full_determinism(seed=42)
 
     collator = partial(collate_fn, pad_value=tokenizer.pad_token_type_id)
 
@@ -113,7 +113,8 @@ def predict_dataset(texts: list[str], model, image_processor, tokenizer, collato
                                                       target=labels[i].reshape(-1),
                                                       ignore_index=tokenizer.pad_token_type_id,
                                                       reduction='none')
-        losses[text] = item_loss.mean().item()
+        # Reduce loss based on ignore_index
+        losses[text] = item_loss.sum().item() / (labels[i] != tokenizer.pad_token_type_id).sum().item()
         print(f"Loss for '{text}': {losses[text]:.4f}")
 
         output_per_text[text] = CausalLMOutput(
@@ -167,7 +168,7 @@ def test_attention_does_look_back():
     # Check that ALL positions have different losses due to different context
     for i in range(7):  # Check all 7 positions (excluding padding)
         loss_diff = abs(outputs[texts[0]].loss[i] - outputs[texts[1]].loss[i])
-        assert loss_diff > 1e-4, \
+        assert loss_diff > 1e-3, \
             (f"Loss at position {i} should be different due to context: "
              f"{outputs[texts[0]].loss[i]} vs {outputs[texts[1]].loss[i]} (diff: {loss_diff})")
 
@@ -186,22 +187,23 @@ def test_loss_is_independent_of_batch():
         # Run second batch with "a" and additional text
         ["a", "2 w"],
         # Run third batch with "a" and additional longer text
-        ["a", "two words"]
+        ["a", "two words"],
     ]
     outputs = [predict_dataset(batch, model, image_processor, tokenizer, collator)[1] for  batch in batches]
 
     # Get the loss for "a" from both batches
     losses = [outputs[i]["a"].loss[0].item() for i in range(len(outputs))]
+    max_loss = max(losses)
+    losses = [loss / max_loss for loss in losses]  # Normalize losses for comparison, across different models
 
     # Check that the loss at the first position (first token) is nearly identical
     # Note: losses[0] and losses[1] should be the same
     # since they're both predicting the same token with the same context
     # Small numerical differences are acceptable due to batching implementation details
-    tolerance = 1e-3  # Relaxed tolerance for batch-dependent numerical precision
-    assert abs(losses[0] - losses[1]) < tolerance, \
+    assert abs(losses[0] - losses[1]) < 1e-3, \
         f"Loss at first position should be nearly identical: {losses[0]} vs {losses[1]}"
 
-    assert abs(losses[0] - losses[2]) < tolerance, \
+    assert abs(losses[0] - losses[2]) < 1e-3, \
         f"Loss at first position should be nearly identical: {losses[0]} vs {losses[2]}"
 
     print(f"✓ Loss at first position is batch-independent: {losses[0]:.4f}")

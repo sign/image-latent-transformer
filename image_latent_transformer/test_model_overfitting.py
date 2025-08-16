@@ -1,7 +1,6 @@
 import tempfile
 
 import pytest
-import torch
 from transformers import Trainer, TrainingArguments
 
 from image_latent_transformer.dataset import TextImageDataset
@@ -40,9 +39,8 @@ def trained_model():
         dataloader_drop_last=False,
         warmup_steps=0,  # No warmup for immediate learning
         weight_decay=0.0,  # No regularization for overfitting
-        learning_rate=1e-4,
+        learning_rate=3e-4,
         lr_scheduler_type="constant",  # Keep learning rate constant
-        use_mps_device=False
     )
 
     # Initialize trainer
@@ -59,9 +57,6 @@ def trained_model():
 
     # Set to eval mode
     model.eval()
-
-    # Save model
-    torch.save(model.state_dict(), "trained_model")
 
     return model, image_processor, tokenizer, collator
 

@@ -41,10 +41,11 @@ For language models, the parameter count is lower than reported, due to removing
 
 Our implementation allows for any mix-and-match. Some example setups are:
 
-| Bytes Encoder                                                                | Image Encoder                                                                                           | Latent Transformer                                                    | Bytes Decoder                                                             | Total Parameters |
-|------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------|---------------------------------------------------------------------------|----------------|
-| [ModernBERT-base](https://huggingface.co/answerdotai/ModernBERT-base) (111m) | [swinv2-tiny-patch4-window16-256](https://huggingface.co/microsoft/swinv2-tiny-patch4-window16-256) (27m) | [gemma-3-270m](https://huggingface.co/google/gemma-3-270m) (100m)     | [SmolLM2-135M](https://huggingface.co/HuggingFaceTB/SmolLM2-135M) (106m)  | 346m           |
-| [deberta-v3-large](https://huggingface.co/microsoft/deberta-v3-large) (303m) | [clip-vit-base-patch32](https://huggingface.co/openai/clip-vit-base-patch32) (87m)                      | [Llama-3.2-1B](https://huggingface.co/meta-llama/Llama-3.2-1B) (973m) | [gpt2-medium](https://huggingface.co/openai-community/gpt2-medium) (304m) | 1,674m         |
+| Name   | Bytes Encoder                                                                | Image Encoder                                                                                             | Latent Transformer                                                    | Bytes Decoder                                                             | Total Parameters |
+|--------|------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------|---------------------------------------------------------------------------|------------------|
+| tiny   | [bert-tiny](https://huggingface.co/prajjwal1/bert-tiny) (0.5m)               | [vit-tiny-patch16-224](https://huggingface.co/WinKawaks/vit-tiny-patch16-224) (5m)                        | [pythia-70m](https://huggingface.co/EleutherAI/pythia-70m) (19m)      | [tiny-lm](sbintuitions/tiny-lm) (3m)                                      | 28m              |
+| small  | [ModernBERT-base](https://huggingface.co/answerdotai/ModernBERT-base) (111m) | [swinv2-tiny-patch4-window16-256](https://huggingface.co/microsoft/swinv2-tiny-patch4-window16-256) (27m) | [gemma-3-270m](https://huggingface.co/google/gemma-3-270m) (100m)     | [SmolLM2-135M](https://huggingface.co/HuggingFaceTB/SmolLM2-135M) (106m)  | 346m             |
+| medium | [deberta-v3-large](https://huggingface.co/microsoft/deberta-v3-large) (303m) | [clip-vit-base-patch32](https://huggingface.co/openai/clip-vit-base-patch32) (87m)                        | [Llama-3.2-1B](https://huggingface.co/meta-llama/Llama-3.2-1B) (973m) | [gpt2-medium](https://huggingface.co/openai-community/gpt2-medium) (304m) | 1,674m           |
 
 To turn off bytes encoding, set `bytes_encoder=False`, and similarly for images, set `image_encoder=False`.
 You can also turn off a specific encoder after training has completed, for testing purposes.
@@ -63,6 +64,7 @@ You can also turn off a specific encoder after training has completed, for testi
   the [run_clm](https://github.com/huggingface/transformers/tree/main/examples/pytorch/language-modeling) example
   script, and train a small language model on
   the [Hebrew FineWeb dataset](https://huggingface.co/datasets/HuggingFaceFW/fineweb-2/viewer/heb_Hebr).
+
 
 ## Inference
 

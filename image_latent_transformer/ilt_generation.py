@@ -6,7 +6,7 @@ from transformers import AutoImageProcessor
 from transformers.generation import GenerationConfig
 
 from image_latent_transformer.ilt import ImageLatentTransformer
-from image_latent_transformer.renderer import deconstruct_images, render_texts
+from image_latent_transformer.renderer import render_texts_torch
 from image_latent_transformer.tokenizer import ByteTokenizer
 
 logger = logging.getLogger(__name__)
@@ -95,18 +95,12 @@ class ImageLatentTransformerForTextGeneration(ImageLatentTransformer):
         new_input_ids = tokenized_words["input_ids"].to(encoded_input.device)
         new_attention_mask = tokenized_words["attention_mask"].to(encoded_input.device)
 
-        image = image_processor(
-            render_texts(words),
-            return_tensors="pt",
-            do_center_crop=False,
-            do_resize=False
-        ).pixel_values.to(encoded_input.device)
+        images = render_texts_torch(words, image_processor=image_processor)
+        new_input_pixels = [[image] for image in images]
 
-        # Deconstruct the image to one image per line/word
-        new_input_pixels = deconstruct_images(image.squeeze(0), num_words=len(words), channels_first=True)
         new_encoded_input = self.encode_input(new_input_ids.unsqueeze(1),
                                               new_attention_mask.unsqueeze(1),
-                                              new_input_pixels.unsqueeze(1))
+                                              new_input_pixels)
 
         # Extend the encoded input with an empty tensor
         empty_word = torch.zeros_like(encoded_input[:, 0:1])
@@ -121,7 +115,7 @@ class ImageLatentTransformerForTextGeneration(ImageLatentTransformer):
     @torch.no_grad()
     def generate(
             self,
-            input_pixels: torch.Tensor,
+            input_pixels: list[list[torch.Tensor]],
             input_ids: torch.Tensor,
             attention_mask: torch.Tensor,
             tokenizer: ByteTokenizer,
@@ -151,7 +145,7 @@ class ImageLatentTransformerForTextGeneration(ImageLatentTransformer):
         We utilize the HuggingFace generation cache to efficiently generate.
 
         Args:
-            input_pixels: Image inputs (B, L, C, H, W)
+            input_pixels: List of lists of images, where each inner list contains images for one sample
             input_ids: Text input tokens (B, L, T) for encoding
             attention_mask: Attention mask for text inputs (B, L, T)
             tokenizer: ByteTokenizer instance

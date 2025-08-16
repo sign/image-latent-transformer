@@ -1,20 +1,26 @@
+from typing import Union
+
 import cairo
 import gi
 import numpy as np
 import torch
 from PIL import Image
+from transformers import AutoImageProcessor
 
 gi.require_version("Pango", "1.0")
 gi.require_version("PangoCairo", "1.0")
 from gi.repository import Pango, PangoCairo  # noqa: E402
 
 
-def render_texts(texts: list[str], line_height: int = 32, dpi: int = 120, font_size: int = 12) -> Image.Image:
+def render_texts(texts: Union[list[str], str],
+                 line_height: int = 32,
+                 dpi: int = 120,
+                 font_size: int = 12) -> Image.Image:
     """
     Renders multiple lines of text in black on white background using PangoCairo.
 
     Args:
-        texts (list[str]): The texts to render, one per line
+        texts (list[str], str): The texts to render, one per line
         line_height (int): Height of each line in pixels (default: 32)
         dpi (int): DPI resolution (default: 120)
         font_size (int): Font size (default: 12)
@@ -22,6 +28,9 @@ def render_texts(texts: list[str], line_height: int = 32, dpi: int = 120, font_s
     Returns:
         PIL.Image: Rendered image with text lines
     """
+    if not isinstance(texts, list):
+        texts = [texts]
+
     # Scale font size by DPI
     scaled_font_size = (dpi / 72) * font_size
 
@@ -89,6 +98,12 @@ def render_texts(texts: list[str], line_height: int = 32, dpi: int = 120, font_s
     img.info['dpi'] = (dpi, dpi)
 
     return img
+
+
+def render_texts_torch(texts: list[str], image_processor: AutoImageProcessor, **kwargs):
+    images = [render_texts(text) for text in texts]  # Render each text independently
+    images = [image_processor(image, do_center_crop=False, do_resize=False, return_tensors="pt") for image in images]
+    return [image.pixel_values[0] for image in images]
 
 
 def deconstruct_images(image_tensor: torch.Tensor, num_words: int, channels_first: bool = False) -> torch.Tensor:

@@ -1,16 +1,66 @@
+import inspect
+from functools import cache
 from typing import Optional
 
 import torch
 from transformers import AutoModelForImageClassification
 
 
-def collate_fn(batch, pad_value=0):
+def stack_pad_tensors(tensors, pad_value=0):
     """
     Vibe coded:
     Generic collate function that automatically pads mismatched dimensions.
     For each tensor field in the batch, finds dimensions that don't match
     and pads them with zeros to the maximum size.
     """
+
+    # Check if all tensors have the same shape
+    shapes = [tensor.shape for tensor in tensors]
+    if len(set(shapes)) == 1:
+        # All shapes are the same, just stack
+        return torch.stack(tensors)
+    else:
+        # Find maximum size for each dimension
+        max_shape = []
+        ndim = max(len(shape) for shape in shapes)
+
+        for dim in range(ndim):
+            max_size = max(shape[dim] if dim < len(shape) else 1
+                           for shape in shapes)
+            max_shape.append(max_size)
+
+        # Pad each tensor to max_shape
+        padded_tensors = []
+        for tensor in tensors:
+            # Calculate padding needed for each dimension
+            padding = []
+            for dim in reversed(range(ndim)):  # padding goes from last dim to first
+                if dim < len(tensor.shape):
+                    pad_size = max_shape[dim] - tensor.shape[dim]
+                    padding.extend([0, pad_size])
+                else:
+                    padding.extend([0, max_shape[dim]])
+
+            if padding:
+                padded_tensor = torch.nn.functional.pad(tensor, padding, value=pad_value)
+            else:
+                padded_tensor = tensor
+
+            # If tensor has fewer dimensions than max, add singleton dimensions
+            while len(padded_tensor.shape) < ndim:
+                padded_tensor = padded_tensor.unsqueeze(0)
+
+            padded_tensors.append(padded_tensor)
+
+        return torch.stack(padded_tensors)
+
+
+def collate_images(images: list[list[torch.Tensor]], pad_value=0) -> torch.Tensor:
+    images = [stack_pad_tensors(images, pad_value=pad_value) for images in images]
+    return stack_pad_tensors(images, pad_value=pad_value)
+
+
+def collate_fn(batch, pad_value=0):
     if not batch:
         return batch
 
@@ -21,62 +71,37 @@ def collate_fn(batch, pad_value=0):
     for key in keys:
         tensors = [item[key] for item in batch]
 
-        # Check if all tensors have the same shape
-        shapes = [tensor.shape for tensor in tensors]
-        if len(set(shapes)) == 1:
-            # All shapes are the same, just stack
-            collated[key] = torch.stack(tensors)
+        if key == "input_pixels":
+            collated[key] = tensors  # Not collated
         else:
-            # Find maximum size for each dimension
-            max_shape = []
-            ndim = max(len(shape) for shape in shapes)
-
-            for dim in range(ndim):
-                max_size = max(shape[dim] if dim < len(shape) else 1
-                               for shape in shapes)
-                max_shape.append(max_size)
-
-            # Pad each tensor to max_shape
-            padded_tensors = []
-            for tensor in tensors:
-                # Calculate padding needed for each dimension
-                padding = []
-                for dim in reversed(range(ndim)):  # padding goes from last dim to first
-                    if dim < len(tensor.shape):
-                        pad_size = max_shape[dim] - tensor.shape[dim]
-                        padding.extend([0, pad_size])
-                    else:
-                        padding.extend([0, max_shape[dim]])
-
-                if padding:
-                    padded_tensor = torch.nn.functional.pad(tensor, padding, value=pad_value)
-                else:
-                    padded_tensor = tensor
-
-                # If tensor has fewer dimensions than max, add singleton dimensions
-                while len(padded_tensor.shape) < ndim:
-                    padded_tensor = padded_tensor.unsqueeze(0)
-
-                padded_tensors.append(padded_tensor)
-
-            collated[key] = torch.stack(padded_tensors)
+            collated[key] = stack_pad_tensors(tensors, pad_value=pad_value)
 
     return collated
 
 
 class UnknownImageEncoderError(ValueError):
-    """Raised when an image encoder is not recognized or not supported."""
     def __init__(self):
         super().__init__("Image encoder does not have a valid hidden size configuration.")
+
 
 def image_encoder_size(image_encoder: Optional[AutoModelForImageClassification]) -> int:
     if image_encoder is None:
         return 0
 
     config = getattr(image_encoder, 'config', {})
+    if hasattr(config, 'vision_config'):
+        config = config.vision_config
 
     if hasattr(config, 'hidden_size'):
         return config.hidden_size
-    if hasattr(config, 'vision_config') and hasattr(config.vision_config, 'hidden_size'):
-        return config.vision_config.hidden_size
+
     raise UnknownImageEncoderError()
+
+
+@cache
+def accepts(func, param_name: str) -> bool:
+    sig = inspect.signature(func)
+    return (
+            param_name in sig.parameters
+            or any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values())
+    )

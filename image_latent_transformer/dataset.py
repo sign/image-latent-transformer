@@ -4,7 +4,7 @@ import torch
 from torch.utils.data import Dataset
 from transformers import AutoImageProcessor
 
-from image_latent_transformer.renderer import deconstruct_images, render_texts
+from image_latent_transformer.renderer import render_texts_torch
 from image_latent_transformer.tokenizer import ByteTokenizer
 
 
@@ -35,7 +35,6 @@ class TextImageDataset(Dataset):
         assert tokenizer.bos_token_id is not None, "Tokenizer must have a BOS token"
         assert tokenizer.eos_token_id is not None, "Tokenizer must have an EOS token"
 
-
     def __len__(self) -> int:
         return len(self.texts_dataset)
 
@@ -54,7 +53,7 @@ class TextImageDataset(Dataset):
         for word in words:
             label_idx += len(word)
             # For efficiency, we don't just use the next word as label, but a longer token string
-            label = text[label_idx:label_idx+self.max_word_length].strip()
+            label = text[label_idx:label_idx + self.max_word_length].strip()
             labels.append(label)
         return words, labels
 
@@ -76,22 +75,11 @@ class TextImageDataset(Dataset):
             padding=True,
             max_length=self.max_word_length,
             truncation=True,
-            add_special_tokens=False # get_words_and_labels adds BOS already
+            add_special_tokens=False  # get_words_and_labels adds BOS already
         )
 
-        # Render text to images
-        text_lines = render_texts(words)
-
-        # Process images
-        image = self.image_processor(
-            text_lines,
-            return_tensors="pt",
-            do_center_crop=False,
-            do_resize=False
-        ).pixel_values
-
-        # Deconstruct the image to one image per line/word
-        images = deconstruct_images(image.squeeze(0), num_words=len(words), channels_first=True)
+        # Render images independently for torch
+        images = render_texts_torch(words, image_processor=self.image_processor)
 
         # Tokenize labels with BOS and EOS tokens for bytes decoder
         tokenized_labels = self.tokenizer(
@@ -109,5 +97,5 @@ class TextImageDataset(Dataset):
             "input_pixels": images,
             "labels_input": tokenized_labels.input_ids[:, :-1],  # Remove EOS token from input labels
             "labels_attention_mask": tokenized_labels.attention_mask[:, :-1],  # Remove EOS token from attention mask
-            "labels_output": tokenized_labels.input_ids[:, 1:] # Remove BOS token from output labels
+            "labels_output": tokenized_labels.input_ids[:, 1:]  # Remove BOS token from output labels
         }

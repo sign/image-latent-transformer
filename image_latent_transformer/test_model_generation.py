@@ -12,12 +12,6 @@ def generation_model_setup():
     # Setup the base model
     model, image_processor, tokenizer, collator = setup_model()
 
-    # When running locally, it is easier to look at outputs of a trained model.
-    # from pathlib import Path
-    # trained_model_path = Path(__file__).parent / "trained_model"
-    # if trained_model_path.exists():
-    #     model.load_state_dict(torch.load(trained_model_path))
-
     # Create the generation model from the base model
     generation_model = ImageLatentTransformerForTextGeneration(
         image_encoder=model.image_encoder,

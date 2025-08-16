@@ -1,4 +1,5 @@
 import logging
+import random
 from typing import Optional, Union
 
 import torch
@@ -6,18 +7,19 @@ import torch.nn as nn
 from transformers import AutoModelForCausalLM, AutoModelForImageClassification, AutoModelForMaskedLM
 from transformers.modeling_outputs import CausalLMOutput
 
-from image_latent_transformer.utils import image_encoder_size
+from image_latent_transformer.utils import accepts, collate_images, image_encoder_size
 
 logger = logging.getLogger(__name__)
 
 
 class ImageLatentTransformer(nn.Module):
     def __init__(self,
-                 image_encoder: AutoModelForImageClassification,
-                 bytes_encoder: Union[AutoModelForMaskedLM, AutoModelForCausalLM],
+                 image_encoder: Optional[AutoModelForImageClassification],
+                 bytes_encoder: Optional[Union[AutoModelForMaskedLM, AutoModelForCausalLM]],
                  latent_transformer: AutoModelForCausalLM,
                  bytes_decoder: AutoModelForCausalLM,
-                 padding_index: int = 0):
+                 padding_index: int = 0,
+                 modality_dropout: float = 0.15):
         super().__init__()
 
         assert bytes_encoder is not None or image_encoder is not None, "At least one encoder must be provided"
@@ -27,6 +29,7 @@ class ImageLatentTransformer(nn.Module):
         self.latent_transformer = latent_transformer
         self.bytes_decoder = bytes_decoder
         self.padding_index = padding_index
+        self.modality_dropout = modality_dropout if image_encoder is not None or bytes_encoder is not None else 0.0
 
         self.bytes_encoder_dim = bytes_encoder.config.hidden_size if bytes_encoder is not None else 0
         self.image_encoder_dim = image_encoder_size(image_encoder)
@@ -35,23 +38,37 @@ class ImageLatentTransformer(nn.Module):
         self.encoder_mapping = nn.Linear(self.bytes_encoder_dim + self.image_encoder_dim, model_dim)
         self.decoder_mapping = nn.Linear(model_dim, bytes_decoder.config.hidden_size)
 
-    def encode_images(self, input_pixels: torch.Tensor) -> torch.Tensor:
+    def _should_drop_modality(self):
+        if not self.training or self.modality_dropout == 0:
+            return False
+        return random.random() < self.modality_dropout
+
+    def encode_images(self, input_pixels: list[list[torch.Tensor]], device: torch.device) -> torch.Tensor:
         """
         Args:
-            input_pixels: (BATCH, LENGTH, CHANNELS, HEIGHT, WIDTH)
+            input_pixels: List of lists of images, where each inner list contains images for one sample
+            device: Device to move the tensors to
         Returns:
             torch.Tensor: (BATCH, LENGTH, HIDDEN_DIM) - Image embeddings
         """
+        # TODO: handle padding
+        input_pixels = collate_images(input_pixels)
+        input_pixels = input_pixels.to(device)
+
         B, L, C, H, W = input_pixels.shape  # noqa: N806
 
         # If image encoder is None, return zeros
-        if self.image_encoder is None:
+        if self.image_encoder is None or self._should_drop_modality():
             return torch.zeros(B, L, self.image_encoder_dim, device=input_pixels.device, dtype=input_pixels.dtype)
 
         # Flatten batch and length dimensions
         input_pixels = input_pixels.view(B * L, C, H, W)
         # Encode images using the image encoder
-        encoded_image = self.image_encoder(input_pixels, output_hidden_states=True)
+        kwargs = {}
+        if accepts(self.image_encoder.forward, 'interpolate_pos_encoding'):
+            kwargs['interpolate_pos_encoding'] = True
+
+        encoded_image = self.image_encoder(input_pixels, output_hidden_states=True, **kwargs)
         image_embeds = encoded_image.hidden_states[-1]  # Use the last hidden state
         # Pool channels dimension (e.g., mean pooling)
         image_embeds = image_embeds.mean(dim=1)
@@ -68,7 +85,7 @@ class ImageLatentTransformer(nn.Module):
         B, L, T = input_ids.shape  # noqa: N806
 
         # If bytes encoder is None, return zeros
-        if self.bytes_encoder is None:
+        if self.bytes_encoder is None or self._should_drop_modality():
             return torch.zeros(B, L, self.bytes_encoder_dim, device=input_ids.device, dtype=torch.float32)
 
         # Flatten batch and length dimensions
@@ -89,11 +106,11 @@ class ImageLatentTransformer(nn.Module):
     def encode_input(self,
                      input_ids: torch.Tensor,
                      attention_mask: torch.Tensor,
-                     input_pixels: torch.Tensor):
+                     input_pixels: list[list[torch.Tensor]]):
 
         embeds = []
         if self.image_encoder_dim > 0:
-            image_embeds = self.encode_images(input_pixels)
+            image_embeds = self.encode_images(input_pixels, device=input_ids.device)
             logger.debug("Image embeddings shape: %s", image_embeds.shape)
             embeds.append(image_embeds)
 
@@ -106,6 +123,12 @@ class ImageLatentTransformer(nn.Module):
 
         concatenated_embeds = torch.cat(embeds, dim=-1)
         logger.debug("Concatenated embeddings shape: %s", concatenated_embeds.shape)
+
+        # For dropout, scale embedding by number of zeros in the concatenated embeddings
+        if len(embeds) > 1 and self.modality_dropout > 0:
+            percent_zeros = (concatenated_embeds == 0).sum(dim=-1) / concatenated_embeds.numel()
+            scale_factor = 1.0 / (1.0 - percent_zeros)
+            concatenated_embeds *= scale_factor.clamp(min=1).unsqueeze(-1)
 
         return self.encoder_mapping(concatenated_embeds)
 
@@ -125,7 +148,7 @@ class ImageLatentTransformer(nn.Module):
     def forward(self,
                 input_ids: torch.Tensor,
                 attention_mask: torch.Tensor,
-                input_pixels: torch.Tensor,
+                input_pixels: list[list[torch.Tensor]],
                 labels_input: Optional[torch.Tensor] = None,
                 labels_attention_mask: Optional[torch.Tensor] = None,
                 labels_output: Optional[torch.Tensor] = None):
@@ -133,7 +156,7 @@ class ImageLatentTransformer(nn.Module):
         Args:
             input_ids: (BATCH, LENGTH, INPUT_TOKENS)
             attention_mask: (BATCH, LENGTH, INPUT_TOKENS)
-            input_pixels: (BATCH, LENGTH, CHANNELS, HEIGHT, WIDTH)
+            input_pixels: List of lists of images, where each inner list contains images for one sample
             labels_input: (BATCH, LENGTH, OUTPUT_TOKENS) - Input tokens for bytes decoder
             labels_attention_mask: (BATCH, LENGTH, OUTPUT_TOKENS) - Attention mask for labels
             labels_output: (BATCH, LENGTH, OUTPUT_TOKENS) - Target tokens for language modeling
