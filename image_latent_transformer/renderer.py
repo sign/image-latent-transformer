@@ -6,6 +6,7 @@ import numpy as np
 import torch
 from PIL import Image
 from transformers import AutoImageProcessor
+import re
 
 gi.require_version("Pango", "1.0")
 gi.require_version("PangoCairo", "1.0")
@@ -30,6 +31,9 @@ def render_texts(texts: Union[list[str], str],
     """
     if not isinstance(texts, list):
         texts = [texts]
+
+    # Special visual handling for new line characters
+    texts = [re.sub(r'\r\n|\r|\n', '↵', text) for text in texts]
 
     # Scale font size by DPI
     scaled_font_size = (dpi / 72) * font_size
@@ -120,7 +124,7 @@ def deconstruct_images(image_tensor: torch.Tensor, num_words: int, channels_firs
 
 if __name__ == "__main__":
     # Example: render multiple lines of text
-    texts = ["hello🤗🤗🤗🤗🤗🤗", "world", "multiple lines"]
+    texts = ["hello🤗🤗🤗🤗🤗🤗\r", "world", "multiple lines"]
     image = render_texts(texts, line_height=32, dpi=120, font_size=12)
 
     # Save the example

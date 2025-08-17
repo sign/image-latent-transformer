@@ -115,6 +115,19 @@ class TestRenderer(unittest.TestCase):
 
         assert are_identical, "Rendering the same text should produce identical results"
 
+    def test_newline_text_has_black_pixels(self):
+        texts = ["\n"]
+        image = render_texts(texts, line_height=32, dpi=120, font_size=12)
+
+        # Convert to numpy array
+        img_array = np.array(image)
+
+        # Check if there are any black pixels (0, 0, 0) in RGB
+        # Since the background is white (255, 255, 255), any text should create non-white pixels
+        has_black_pixels = np.any(img_array < 255)
+
+        assert has_black_pixels, "Rendered text should contain black pixels"
+
 
 if __name__ == '__main__':
     unittest.main()

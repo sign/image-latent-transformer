@@ -1,5 +1,11 @@
 # Design Choices
 
+### Rendering Words
+
+Words are rendered as they are, on a single line of text.
+Newlines are problematic, as they can cause the text to be rendered in multiple lines, and thus we replace them 
+with the Downwards Arrow with Corner Leftwards (↵) character (U+21B5) to indicate a newline.
+
 ### Bytes Decoder
 
 Originally, we would have liked to use cross-attention in the bytes decoder,
