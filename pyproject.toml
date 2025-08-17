@@ -20,7 +20,10 @@ dev = [
 ]
 
 train = [
-    "modal"
+    "modal",
+    "accelerate",
+    "datasets",
+    "evaluate"
 ]
 
 [tool.setuptools]
@@ -41,7 +44,6 @@ select = [
     "N", # pep8-naming
     "UP", # pyupgrade
     "B", # flake8-bugbear
-    "C4", # flake8-comprehensions
     "PT", # flake8-pytest-style
     "W605", # invalid escape sequence
     "BLE", # flake8-blind-except

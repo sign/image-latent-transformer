@@ -10,7 +10,7 @@ def generation_model_setup():
     """Setup the generation model with trained weights."""
 
     # Setup the base model
-    model, image_processor, tokenizer, collator = setup_model()
+    model, processor, collator = setup_model()
 
     # Create the generation model from the base model
     generation_model = ImageLatentTransformerForTextGeneration(
@@ -26,23 +26,23 @@ def generation_model_setup():
     # Set to eval mode
     generation_model.eval()
 
-    return generation_model, image_processor, tokenizer, collator
+    return generation_model, processor, collator
 
 
-def predict_texts(texts: list[str], generation_model, image_processor, tokenizer, collator):
+def predict_texts(texts: list[str], generation_model, processor, collator):
     """Helper function to predict texts using the generation model."""
 
     print("-" * 30)
-    dataset = make_dataset(texts, image_processor, tokenizer)
-    batch = dataset_to_batch(generation_model, collator, dataset)
+    dataset = make_dataset(texts)
+    batch = dataset_to_batch(generation_model,processor, collator, dataset)
 
     with torch.no_grad():
         outputs = generation_model.generate(
             input_ids=batch["input_ids"],
             attention_mask=batch["attention_mask"],
             input_pixels=batch["input_pixels"],
-            tokenizer=tokenizer,
-            image_processor=image_processor,
+            tokenizer=processor.tokenizer,
+            image_processor=processor.image_processor,
             max_generated_words=5,
             max_word_length=5
         )
@@ -54,7 +54,7 @@ def predict_texts(texts: list[str], generation_model, image_processor, tokenizer
 
 def test_batch_interference(generation_model_setup):
     """Test that generation of a batch does not interfere between texts."""
-    generation_model, image_processor, tokenizer, collator = generation_model_setup
+    generation_model, processor, collator = generation_model_setup
 
     print("\n=== Testing batch interference ===")
     batches = [
@@ -64,7 +64,7 @@ def test_batch_interference(generation_model_setup):
         ["a", "b", "a_long_word"],
         ["a", "a"]
     ]
-    outputs = [predict_texts(batch, generation_model, image_processor, tokenizer, collator) for batch in batches]
+    outputs = [predict_texts(batch, generation_model, processor, collator) for batch in batches]
 
     single = outputs[0][0]  # Single result for "a"
     print(f"Single result for 'a': '{outputs[0][0]}'")
@@ -86,19 +86,19 @@ def test_batch_interference(generation_model_setup):
 
 def test_same_text_in_batch(generation_model_setup):
     """Test that same text in batch returns same output."""
-    generation_model, image_processor, tokenizer, collator = generation_model_setup
+    generation_model, processor, collator = generation_model_setup
 
     print("\n=== Testing same text in batch returns same output ===")
 
     # Test with 4 times "a"
-    batch_a = predict_texts(["a", "a", "a", "a"], generation_model, image_processor, tokenizer, collator)
+    batch_a = predict_texts(["a", "a", "a", "a"], generation_model, processor, collator)
     print(f"\nBatch with 4x 'a': {batch_a}")
     assert all(
         result == batch_a[0] for result in batch_a), f"Same text 'a' in batch produced different outputs: {batch_a}"
     print("✅ All 'a' inputs in batch produced same output")
 
     # Test with 4 times "b"
-    batch_b = predict_texts(["b", "b", "b", "b"], generation_model, image_processor, tokenizer, collator)
+    batch_b = predict_texts(["b", "b", "b", "b"], generation_model, processor, collator)
     print(f"\nBatch with 4x 'b': {batch_b}")
     assert all(
         result == batch_b[0] for result in batch_b), f"Same text 'b' in batch produced different outputs: {batch_b}"

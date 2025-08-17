@@ -6,8 +6,8 @@ from tests.test_model_overfitting import train_model
 
 def test_model_setup_is_deterministic():
     """Test that model setup is deterministic - creates identical models when called twice."""
-    model1, image_processor1, tokenizer1, collator1 = setup_tiny_model()
-    model2, image_processor2, tokenizer2, collator2 = setup_tiny_model()
+    model1, processor1, collator1 = setup_tiny_model()
+    model2, processor2, collator2 = setup_tiny_model()
 
     # Compare all parameters between the two models
     model1_state_dict = model1.state_dict()
@@ -39,8 +39,8 @@ def test_train_model_is_deterministic():
 
     print("Predicting losses for test texts using both models...")
     test_texts = ["a b", "b a", "a cat", "a dog"]
-    losses = [predict_dataset(test_texts, model, image_processor, tokenizer, collator)[0]
-              for model, image_processor, tokenizer, collator in models]
+    losses = [predict_dataset(test_texts, model, processor, collator)[0]
+              for model, processor, collator in models]
 
     # Compare losses - they should be identical
     tolerance = 1e-4

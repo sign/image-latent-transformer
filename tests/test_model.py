@@ -1,9 +1,11 @@
+import os
+import tempfile
 
 import pytest
 import torch
+from datasets import load_dataset
 from transformers.modeling_outputs import CausalLMOutput
 
-from image_latent_transformer.dataset import TextImageDataset
 from image_latent_transformer.model_utils import setup_model
 
 
@@ -11,38 +13,42 @@ def setup_tiny_model():
     """Set up a tiny version of the ImageLatentTransformer model for testing, the tinyer the better."""
     return setup_model(
         image_encoder_name="WinKawaks/vit-tiny-patch16-224",
-        byte_encoder_name="prajjwal1/bert-tiny",
+        bytes_encoder_name="prajjwal1/bert-tiny",
         latent_transformer_name="sbintuitions/tiny-lm",
-        byte_decoder_name="sbintuitions/tiny-lm"
+        bytes_decoder_name="sbintuitions/tiny-lm"
     )
 
 
-def make_dataset(texts: list[str], image_processor, tokenizer, max_word_length=32):
+def make_dataset(texts: list[str]):
     """Create a dataset from a list of texts."""
-    return TextImageDataset(
-        texts_dataset=texts,
-        image_processor=image_processor,
-        tokenizer=tokenizer,
-        max_seq_length=128,
-        max_word_length=max_word_length
-    )
+
+    data_as_csv = "text\n" + "\n".join([f"{text}" for text in texts])
+
+    # Write to a temporary CSV file
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".csv")
+    temp_file.write(data_as_csv.encode('utf-8'))
+    temp_file.close()
+
+    # Load the dataset from the temporary CSV file
+    dataset = load_dataset("csv", data_files=temp_file.name, split="train")
+    os.unlink(temp_file.name)  # Clean up the temporary file
+
+    return dataset
 
 
-def dataset_to_batch(model, collator, dataset):
+def dataset_to_batch(model, processor, collator, dataset):
     # Compute losses for each sequence - process entire batch at once
     device = next(model.parameters()).device
+    dataset = dataset.with_transform(processor)
     batch = collator([dataset[i] for i in range(len(dataset))])
     # Move batch to the same device as the model
     return {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
 
 
-def predict_dataset(texts: list[str], model, image_processor, tokenizer, collator, dataset_kwargs=None):
+def predict_dataset(texts: list[str], model, processor, collator):
     """Predict a dataset and return the logits."""
-    if dataset_kwargs is None:
-        dataset_kwargs = {}
-    dataset = make_dataset(texts, image_processor, tokenizer, **dataset_kwargs)
-
-    batch = dataset_to_batch(model, collator, dataset)
+    dataset = make_dataset(texts)
+    batch = dataset_to_batch(model, processor, collator, dataset)
 
     with torch.no_grad():
         outputs = model(**batch)
@@ -56,10 +62,10 @@ def predict_dataset(texts: list[str], model, image_processor, tokenizer, collato
         # Compute cross entropy loss for this item
         item_loss = torch.nn.functional.cross_entropy(input=logits[i].reshape(-1, logits.size(-1)),
                                                       target=labels[i].reshape(-1),
-                                                      ignore_index=tokenizer.pad_token_type_id,
+                                                      ignore_index=processor.tokenizer.pad_token_type_id,
                                                       reduction='none')
         # Reduce loss based on ignore_index
-        losses[text] = item_loss.sum().item() / (labels[i] != tokenizer.pad_token_type_id).sum().item()
+        losses[text] = item_loss.sum().item() / (labels[i] != processor.tokenizer.pad_token_type_id).sum().item()
         print(f"Loss for '{text}': {losses[text]:.4f}")
 
         output_per_text[text] = CausalLMOutput(
@@ -74,17 +80,17 @@ def predict_dataset(texts: list[str], model, image_processor, tokenizer, collato
 
 def test_attention_no_look_ahead():
     """Test that attention does not look ahead - causal masking is working correctly."""
-    model, image_processor, tokenizer, collator = setup_model()
+    model, processor, collator = setup_model()
     model.eval()
 
     # Test sequences that share prefixes
     texts = ["a b c", "a b d"]
 
-    _, outputs = predict_dataset(texts, model, image_processor, tokenizer, collator, dataset_kwargs={
-        # Force every word to predict a single byte (and EOS)
-        # "a <eos>, b <eos>, c <eos>, <eos> <pad>" and "a <eos>, b <eos>, d <eos>, <eos> <pad>"
-        "max_word_length": 1
-    })
+    # Force every word to predict a single byte (and EOS)
+    # "a <eos>, b <eos>, c <eos>, <eos> <pad>" and "a <eos>, b <eos>, d <eos>, <eos> <pad>"
+    processor.max_word_length = 1
+
+    _, outputs = predict_dataset(texts, model, processor, collator)
     for text in texts:
         print(f"Loss for '{text}':", outputs[text].loss.cpu().numpy())
 
@@ -96,17 +102,17 @@ def test_attention_no_look_ahead():
 
 def test_attention_does_look_back():
     """Test that attention does look back - model uses previous context."""
-    model, image_processor, tokenizer, collator = setup_model()
+    model, processor, collator = setup_model()
     model.eval()
 
     # Test sequences with shared suffix but different prefix
     texts = ["c b a", "d b a"]
 
-    _, outputs = predict_dataset(texts, model, image_processor, tokenizer, collator, dataset_kwargs={
-        # Force every word to predict a single byte (and EOS)
-        # "c <eos>, b <eos>, a <eos>, <eos> <pad>" and "d <eos>, b <eos>, a <eos>, <eos> <pad>"
-        "max_word_length": 1
-    })
+    # Force every word to predict a single byte (and EOS)
+    # "a <eos>, b <eos>, c <eos>, <eos> <pad>" and "a <eos>, b <eos>, d <eos>, <eos> <pad>"
+    processor.max_word_length = 1
+
+    _, outputs = predict_dataset(texts, model, processor, collator)
     for text in texts:
         print(f"Loss for '{text}':", outputs[text].loss.cpu().numpy())
 
@@ -120,7 +126,7 @@ def test_attention_does_look_back():
 
 def test_loss_is_independent_of_batch():
     """Test that loss at first position is identical regardless of other items in batch."""
-    model, image_processor, tokenizer, collator = setup_model()
+    model, processor, collator = setup_model()
     model.eval()
 
     # TODO: turn it back on once https://github.com/sign/image-latent-transformer/issues/1 is fixed
@@ -134,7 +140,7 @@ def test_loss_is_independent_of_batch():
         # Run third batch with "a" and additional longer text
         ["a", "two words"],
     ]
-    outputs = [predict_dataset(batch, model, image_processor, tokenizer, collator)[1] for batch in batches]
+    outputs = [predict_dataset(batch, model, processor, collator)[1] for batch in batches]
 
     # Get the loss for "a" from both batches
     losses = [outputs[i]["a"].loss[0].item() for i in range(len(outputs))]

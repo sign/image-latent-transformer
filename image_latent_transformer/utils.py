@@ -14,6 +14,10 @@ def stack_pad_tensors(tensors, pad_value=0):
     and pads them with zeros to the maximum size.
     """
 
+    # Early return if not tensors
+    if not hasattr(tensors[0], 'shape'):
+        return tensors
+
     # Check if all tensors have the same shape
     shapes = [tensor.shape for tensor in tensors]
     if len(set(shapes)) == 1:

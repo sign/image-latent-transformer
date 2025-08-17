@@ -3,28 +3,17 @@ import tempfile
 import pytest
 from transformers import Trainer, TrainingArguments
 
-from image_latent_transformer.dataset import TextImageDataset
 from image_latent_transformer.model_utils import setup_model
-from tests.test_model import predict_dataset
+from tests.test_model import make_dataset, predict_dataset
 
 
 def train_model(setup_function,
                 num_epochs=10,
                 train_texts=None):
-    model, image_processor, tokenizer, collator = setup_function()
+    model, processor, collator = setup_function()
 
     if train_texts is None:
         train_texts = ["a b", "b a", "a cat", "a dog"]
-
-    def make_dataset(texts: list[str]):
-        """Create a dataset from a list of texts."""
-        return TextImageDataset(
-            texts_dataset=texts,
-            image_processor=image_processor,
-            tokenizer=tokenizer,
-            max_seq_length=128,
-            max_word_length=32
-        )
 
     # Setup training arguments with more epochs for overfitting
     training_args = TrainingArguments(
@@ -46,7 +35,8 @@ def train_model(setup_function,
     trainer = Trainer(
         model=model,
         args=training_args,
-        train_dataset=make_dataset(train_texts),
+        processing_class=processor,
+        train_dataset=make_dataset(train_texts).with_transform(processor),
         data_collator=collator,
     )
 
@@ -57,7 +47,7 @@ def train_model(setup_function,
     # Set to eval mode
     model.eval()
 
-    return model, image_processor, tokenizer, collator
+    return model, processor, collator
 
 
 @pytest.fixture(scope="module")
@@ -69,7 +59,7 @@ def trained_model():
 @pytest.fixture
 def model_configuration(request, trained_model):
     """Configure model based on the test parameter."""
-    model, image_processor, tokenizer, collator = trained_model
+    model, processor, collator = trained_model
     config_name = request.param
 
     # Store original encoders
@@ -88,7 +78,7 @@ def model_configuration(request, trained_model):
         model.image_encoder = None
 
     # Yield the configured model
-    yield model, image_processor, tokenizer, collator
+    yield model, processor, collator
 
     # Restore original encoders after test
     model.bytes_encoder = original_bytes_encoder
@@ -102,12 +92,12 @@ def model_configuration(request, trained_model):
 ], indirect=True)
 def test_character_level_conditioning(model_configuration):
     """Test 1: Character-level conditioning (a b vs a a, b a vs b b)"""
-    model, image_processor, tokenizer, collator = model_configuration
+    model, processor, collator = model_configuration
 
     print("\n=== Test 1: Character-level conditioning ===")
 
     test_texts_char = ["a b", "b a", "a a", "b b"]
-    losses, predictions = predict_dataset(test_texts_char, model, image_processor, tokenizer, collator)
+    losses, predictions = predict_dataset(test_texts_char, model, processor, collator)
 
     # Check conditioning: trained sequences should have lower loss
     assert losses['a b'] < losses['a a'], \
@@ -126,12 +116,12 @@ def test_character_level_conditioning(model_configuration):
 ], indirect=True)
 def test_word_level_conditioning(model_configuration):
     """Test 2: Word-level conditioning (a cat vs a dat, a dog vs a cog)"""
-    model, image_processor, tokenizer, collator = model_configuration
+    model, processor, collator = model_configuration
 
     print("\n=== Test 2: Word-level conditioning ===")
 
     test_texts_word = ["a cat", "a dog", "a dat", "a cog", "a bat", "a fog"]
-    losses, predictions = predict_dataset(test_texts_word, model, image_processor, tokenizer, collator)
+    losses, predictions = predict_dataset(test_texts_word, model, processor, collator)
 
     # Check conditioning: trained sequences should have lower loss
     assert losses['a cat'] < losses['a dat'], \
@@ -150,7 +140,7 @@ def test_word_level_conditioning(model_configuration):
 ], indirect=True)
 def test_byte_level_conditioning(model_configuration):
     """Test 3: Byte-level conditioning within words"""
-    model, image_processor, tokenizer, collator = model_configuration
+    model, processor, collator = model_configuration
 
     print("\n=== Test 3: Byte-level conditioning within words ===")
 
@@ -159,7 +149,7 @@ def test_byte_level_conditioning(model_configuration):
 
     # Create a special test to check conditional probabilities
     test_conditional = ["a cat", "a cog", "a dog", "a dat"]
-    losses, predictions = predict_dataset(test_conditional, model, image_processor, tokenizer, collator)
+    losses, predictions = predict_dataset(test_conditional, model, processor, collator)
 
     # After 'a c', 'cat' should be more likely than 'cog'
     assert losses['a cat'] < losses['a cog'], \
