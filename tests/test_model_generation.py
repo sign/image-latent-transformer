@@ -2,7 +2,7 @@ import pytest
 import torch
 
 from image_latent_transformer.ilt_generation import ImageLatentTransformerForTextGeneration
-from image_latent_transformer.test_model import dataset_to_batch, make_dataset, setup_model
+from tests.test_model import dataset_to_batch, make_dataset, setup_model
 
 
 @pytest.fixture(scope="module")

@@ -4,11 +4,17 @@ import pytest
 from transformers import Trainer, TrainingArguments
 
 from image_latent_transformer.dataset import TextImageDataset
-from image_latent_transformer.test_model import predict_dataset, setup_model
+from image_latent_transformer.model_utils import setup_model
+from tests.test_model import predict_dataset
 
 
-def train_model(setup_function, num_epochs=10):
+def train_model(setup_function,
+                num_epochs=10,
+                train_texts=None):
     model, image_processor, tokenizer, collator = setup_function()
+
+    if train_texts is None:
+        train_texts = ["a b", "b a", "a cat", "a dog"]
 
     def make_dataset(texts: list[str]):
         """Create a dataset from a list of texts."""
@@ -19,9 +25,6 @@ def train_model(setup_function, num_epochs=10):
             max_seq_length=128,
             max_word_length=32
         )
-
-    # Create training data - all four texts for better testing
-    train_texts = ["a b", "b a", "a cat", "a dog"]
 
     # Setup training arguments with more epochs for overfitting
     training_args = TrainingArguments(

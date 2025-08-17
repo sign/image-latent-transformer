@@ -1,3 +1,4 @@
+import re
 from typing import Union
 
 import cairo
@@ -6,7 +7,6 @@ import numpy as np
 import torch
 from PIL import Image
 from transformers import AutoImageProcessor
-import re
 
 gi.require_version("Pango", "1.0")
 gi.require_version("PangoCairo", "1.0")
