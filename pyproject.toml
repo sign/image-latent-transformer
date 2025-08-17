@@ -20,10 +20,12 @@ dev = [
 ]
 
 train = [
-    "modal",
-    "accelerate",
-    "datasets",
-    "evaluate"
+    "modal", # Used to run training jobs
+    "hf_transfer", # For HF_HUB_ENABLE_HF_TRANSFER
+    "accelerate", # For distributed training
+    "datasets", # For dataset loading and processing
+    "evaluate", # For evaluation metrics
+    "scikit-learn", # For "accuracy" metric in evaluate
 ]
 
 [tool.setuptools]

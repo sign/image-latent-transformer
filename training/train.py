@@ -10,9 +10,9 @@ from typing import Optional
 
 import datasets
 import evaluate
-import torch
 import transformers
 from datasets import IterableDataset, IterableDatasetDict, load_dataset
+from safetensors.torch import load_model
 from transformers import (
     HfArgumentParser,
     Trainer,
@@ -126,8 +126,7 @@ def init_model(model_args: ModelArguments, seed: int, device: str):
 
     # Load the model from a local path if provided
     if model_args.model_name_or_path:
-        state_dict = torch.load(model_args.model_name_or_path, map_location=device)
-        model.load_state_dict(state_dict)
+        load_model(model, model_args.model_name_or_path)
 
     return model, processor, collator
 
@@ -346,7 +345,6 @@ def train(args: Optional[dict]):  # noqa: C901
     # block_size = min(data_args.block_size or math.inf, max_pos_embeddings)
     # TODO: packing the texts into blocks of size `block_size` is not implemented yet.
 
-
     def preprocess_logits_for_metrics(logits, labels):
         if isinstance(logits, tuple):
             # Depending on the model and config, logits may contain extra tensors,
@@ -357,14 +355,13 @@ def train(args: Optional[dict]):  # noqa: C901
     metric = evaluate.load("accuracy", cache_dir=cache_dir)
 
     def compute_metrics(eval_preds):
+        # TODO: this doesn't work at all for our setup
         preds, labels = eval_preds
         # preds have the same shape as the labels, after the argmax(-1) has been calculated
         # by preprocess_logits_for_metrics but we need to shift the labels
         labels = labels[:, 1:].reshape(-1)
         preds = preds[:, :-1].reshape(-1)
         return metric.compute(predictions=preds, references=labels)
-
-    # TODO: processing_class should be our tokenizer + image processor
 
     # Transform the datasets to the format expected by the model
     if train_dataset:

@@ -3,7 +3,13 @@ from typing import Optional, Union
 
 import torch
 import torch.nn as nn
-from transformers import AutoModelForCausalLM, AutoModelForImageClassification, AutoModelForMaskedLM, PretrainedConfig
+from transformers import (
+    AutoModelForCausalLM,
+    AutoModelForImageClassification,
+    AutoModelForMaskedLM,
+    PretrainedConfig,
+    PreTrainedModel,
+)
 from transformers.modeling_outputs import CausalLMOutput
 
 from image_latent_transformer.utils import accepts, collate_images, image_encoder_size
@@ -11,7 +17,7 @@ from image_latent_transformer.utils import accepts, collate_images, image_encode
 logger = logging.getLogger(__name__)
 
 
-class ImageLatentTransformer(nn.Module):
+class ImageLatentTransformer(PreTrainedModel):
     def __init__(self,
                  image_encoder: Optional[AutoModelForImageClassification],
                  bytes_encoder: Optional[Union[AutoModelForMaskedLM, AutoModelForCausalLM]],
@@ -19,9 +25,13 @@ class ImageLatentTransformer(nn.Module):
                  bytes_decoder: AutoModelForCausalLM,
                  padding_index: int = 0,
                  modality_dropout: float = 0.15):
-        super().__init__()
-
         assert bytes_encoder is not None or image_encoder is not None, "At least one encoder must be provided"
+
+        config = PretrainedConfig(
+            is_decoder=True,
+            pad_token_id=padding_index
+        )
+        super().__init__(config=config)
 
         self.image_encoder = image_encoder
         self.bytes_encoder = bytes_encoder
@@ -37,14 +47,12 @@ class ImageLatentTransformer(nn.Module):
         self.encoder_mapping = nn.Linear(self.bytes_encoder_dim + self.image_encoder_dim, model_dim)
         self.decoder_mapping = nn.Linear(model_dim, bytes_decoder.config.hidden_size)
 
-        self.config = PretrainedConfig(
-            is_decoder=True,
+        self.config.update(dict(
             image_encoder=self.image_encoder.config if image_encoder else None,
             bytes_encoder=self.bytes_encoder.config if bytes_encoder else None,
             latent_transformer=self.latent_transformer.config,
             bytes_decoder=self.bytes_decoder.config,
-            pad_token_id=padding_index,
-        )
+        ))
 
     def _should_drop_modality(self):
         if not self.training or self.modality_dropout == 0:

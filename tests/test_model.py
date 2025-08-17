@@ -4,6 +4,7 @@ import tempfile
 import pytest
 import torch
 from datasets import load_dataset
+from safetensors.torch import save_model
 from transformers.modeling_outputs import CausalLMOutput
 
 from image_latent_transformer.model_utils import setup_model
@@ -159,6 +160,12 @@ def test_loss_is_independent_of_batch():
 
     print(f"✓ Loss at first position is batch-independent: {losses[0]:.4f}")
 
+def test_model_save_works():
+    """Test that the model can be saved and loaded without issues."""
+    model, processor, collator = setup_tiny_model()
+
+    with tempfile.NamedTemporaryFile(suffix=".safetensors") as temp_file:
+        save_model(model, temp_file.name)
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

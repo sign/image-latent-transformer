@@ -32,7 +32,7 @@ def setup_model(
         seed=42
 ):
     set_seed(seed, deterministic=True)
-    enable_full_determinism(seed=seed)
+    enable_full_determinism(seed=seed, warn_only=True)
 
     """Set up the ImageLatentTransformer model like in image_model.py."""
     from_args = dict(
@@ -55,6 +55,7 @@ def setup_model(
     # Bytes Encoder (~111M parameters)
     byte_encoder = AutoModelForMaskedLM.from_pretrained(bytes_encoder_name, **from_args)
     byte_encoder.resize_token_embeddings(len(tokenizer))
+    byte_encoder.cls = torch.nn.Identity() # delete the decoder head
     print_model_summary("Bytes MLM", byte_encoder)
 
     # Latent Transformer

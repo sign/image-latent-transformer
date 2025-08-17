@@ -17,10 +17,11 @@ image = (
         channels=["conda-forge"],
     )
     .add_local_file(library_path / "pyproject.toml", "/app/pyproject.toml", copy=True)
-    .add_local_dir(library_path / "image_latent_transformer", "/app/image_latent_transformer", copy=True)
+    .run_commands("mkdir -p /app/image_latent_transformer")
     .workdir("/app")
     .pip_install(".[train]")
     .env({"HF_HUB_ENABLE_HF_TRANSFER": "1"})  # turn on faster downloads from HF
+    .add_local_dir(library_path / "image_latent_transformer", "/app/image_latent_transformer")
     .add_local_dir(library_path / "training", "/app/training")
 )
 
@@ -55,16 +56,16 @@ def main():
         "--dataset_name", "wikitext",
         "--dataset_config_name", "wikitext-2-raw-v1",
         "--remove_unused_columns", "False",
-        "--per_device_train_batch_size", "1",
-        "--per_device_eval_batch_size", "1",
+        "--per_device_train_batch_size", "16",
+        "--per_device_eval_batch_size", "16",
         "--do_train", "True",
         "--do_eval", "True",
         "--output_dir", "/tmp/test-clm",
         "--logging_steps", "1",
         "--logging_strategy", "steps",
-        "--max_steps", "100",
-        "--max_sequence_length", "32",
-        "--max_word_length", "8",
+        "--max_steps", "1000",
+        "--max_sequence_length", "128",
+        "--max_word_length", "32",
     ]
 
     train.remote(args)
