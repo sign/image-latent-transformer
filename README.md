@@ -11,7 +11,6 @@ Finally, we render the predicted bytes as an image, which is then fed to the mod
 
 ![Model Architecture](./assets/architecture.png)
 
-
 ## Environment
 
 ```shell
@@ -54,14 +53,8 @@ You can also turn off a specific encoder after training has completed, for testi
 
 ## Training
 
-> [!NOTE]  
-> Our generic collator `collate_fn` in [utils.py](./image_latent_transformer/utils.py) can be improved.
-
-- [ ] Make our setup compatible with
-  the [run_clm](https://github.com/huggingface/transformers/tree/main/examples/pytorch/language-modeling) example
-  script, and train a small language model on
-  the [Hebrew FineWeb dataset](https://huggingface.co/datasets/HuggingFaceFW/fineweb-2/viewer/heb_Hebr).
-
+Training instructions are available in the [training/README.md](./training/README.md).
+There, you can select the model architectures you want to use for each component, and the dataset you want to train on.
 
 ## Inference
 
