@@ -1,7 +1,6 @@
 import pytest
 import torch
 
-from image_latent_transformer.ilt_generation import ImageLatentTransformerForTextGeneration
 from tests.test_model import dataset_to_batch, make_dataset, setup_model
 
 
@@ -12,32 +11,24 @@ def generation_model_setup():
     # Setup the base model
     model, processor, collator = setup_model()
 
-    # Create the generation model from the base model
-    generation_model = ImageLatentTransformerForTextGeneration(
-        image_encoder=model.image_encoder,
-        bytes_encoder=model.bytes_encoder,
-        latent_transformer=model.latent_transformer,
-        bytes_decoder=model.bytes_decoder
-    )
-
     # TODO: turn it back on once https://github.com/sign/image-latent-transformer/issues/1 is fixed
-    generation_model.image_encoder = None
+    model.image_encoder = None
 
     # Set to eval mode
-    generation_model.eval()
+    model.eval()
 
-    return generation_model, processor, collator
+    return model, processor, collator
 
 
-def predict_texts(texts: list[str], generation_model, processor, collator):
+def predict_texts(texts: list[str], model, processor, collator):
     """Helper function to predict texts using the generation model."""
 
     print("-" * 30)
     dataset = make_dataset(texts)
-    batch = dataset_to_batch(generation_model,processor, collator, dataset)
+    batch = dataset_to_batch(model,processor, collator, dataset)
 
     with torch.no_grad():
-        outputs = generation_model.generate(
+        outputs = model.generate(
             input_ids=batch["input_ids"],
             attention_mask=batch["attention_mask"],
             input_pixels=batch["input_pixels"],
@@ -54,7 +45,7 @@ def predict_texts(texts: list[str], generation_model, processor, collator):
 
 def test_batch_interference(generation_model_setup):
     """Test that generation of a batch does not interfere between texts."""
-    generation_model, processor, collator = generation_model_setup
+    model, processor, collator = generation_model_setup
 
     print("\n=== Testing batch interference ===")
     batches = [
@@ -64,7 +55,7 @@ def test_batch_interference(generation_model_setup):
         ["a", "b", "a_long_word"],
         ["a", "a"]
     ]
-    outputs = [predict_texts(batch, generation_model, processor, collator) for batch in batches]
+    outputs = [predict_texts(batch, model, processor, collator) for batch in batches]
 
     single = outputs[0][0]  # Single result for "a"
     print(f"Single result for 'a': '{outputs[0][0]}'")
@@ -86,19 +77,19 @@ def test_batch_interference(generation_model_setup):
 
 def test_same_text_in_batch(generation_model_setup):
     """Test that same text in batch returns same output."""
-    generation_model, processor, collator = generation_model_setup
+    model, processor, collator = generation_model_setup
 
     print("\n=== Testing same text in batch returns same output ===")
 
     # Test with 4 times "a"
-    batch_a = predict_texts(["a", "a", "a", "a"], generation_model, processor, collator)
+    batch_a = predict_texts(["a", "a", "a", "a"], model, processor, collator)
     print(f"\nBatch with 4x 'a': {batch_a}")
     assert all(
         result == batch_a[0] for result in batch_a), f"Same text 'a' in batch produced different outputs: {batch_a}"
     print("✅ All 'a' inputs in batch produced same output")
 
     # Test with 4 times "b"
-    batch_b = predict_texts(["b", "b", "b", "b"], generation_model, processor, collator)
+    batch_b = predict_texts(["b", "b", "b", "b"], model, processor, collator)
     print(f"\nBatch with 4x 'b': {batch_b}")
     assert all(
         result == batch_b[0] for result in batch_b), f"Same text 'b' in batch produced different outputs: {batch_b}"

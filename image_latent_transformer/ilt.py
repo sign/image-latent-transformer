@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Union
+from typing import Optional, Any
 
 import torch
 import torch.nn as nn
@@ -7,57 +7,70 @@ from transformers import (
     AutoModelForCausalLM,
     AutoModelForImageClassification,
     AutoModelForMaskedLM,
-    PretrainedConfig,
-    PreTrainedModel,
+    PreTrainedModel, AutoImageProcessor, GenerationConfig,
 )
 from transformers.modeling_outputs import CausalLMOutput
 
+from image_latent_transformer.config import ImageLatentTransformerConfig
+from image_latent_transformer.renderer import render_texts_torch
+from image_latent_transformer.tokenizer import ByteTokenizer
 from image_latent_transformer.utils import accepts, collate_images, image_encoder_size
 
 logger = logging.getLogger(__name__)
 
 
 class ImageLatentTransformer(PreTrainedModel):
-    def __init__(self,
-                 image_encoder: Optional[AutoModelForImageClassification],
-                 bytes_encoder: Optional[Union[AutoModelForMaskedLM, AutoModelForCausalLM]],
-                 latent_transformer: AutoModelForCausalLM,
-                 bytes_decoder: AutoModelForCausalLM,
-                 padding_index: int = 0,
-                 modality_dropout: float = 0.15):
-        assert bytes_encoder is not None or image_encoder is not None, "At least one encoder must be provided"
+    config_class = ImageLatentTransformerConfig
 
-        config = PretrainedConfig(
-            is_decoder=True,
-            pad_token_id=padding_index
-        )
+    def __init__(self, config: ImageLatentTransformerConfig):
         super().__init__(config=config)
 
-        self.image_encoder = image_encoder
-        self.bytes_encoder = bytes_encoder
-        self.latent_transformer = latent_transformer
-        self.bytes_decoder = bytes_decoder
-        self.padding_index = padding_index
-        self.modality_dropout = modality_dropout if image_encoder is not None or bytes_encoder is not None else 0.0
+        # Image Encoder
+        if config.image_encoder:
+            self.image_encoder = AutoModelForImageClassification.from_config(config.image_encoder)
+            self.image_encoder.classifier = torch.nn.Identity()
+            self.image_encoder_dim = image_encoder_size(self.image_encoder)
+        else:
+            self.image_encoder = None
+            self.image_encoder_dim = 0
 
-        self.bytes_encoder_dim = bytes_encoder.config.hidden_size if bytes_encoder is not None else 0
-        self.image_encoder_dim = image_encoder_size(image_encoder)
+        # Bytes Encoder
+        if config.bytes_encoder:
+            self.bytes_encoder = AutoModelForMaskedLM.from_config(config.bytes_encoder)
+            self.bytes_encoder.resize_token_embeddings(config.num_tokens)
+            self.bytes_encoder.cls = torch.nn.Identity()  # delete the decoder head
+            self.bytes_encoder_dim = self.bytes_encoder.config.hidden_size
+        else:
+            self.bytes_encoder = None
+            self.bytes_encoder_dim = 0
 
-        model_dim = latent_transformer.config.hidden_size
-        self.encoder_mapping = nn.Linear(self.bytes_encoder_dim + self.image_encoder_dim, model_dim)
-        self.decoder_mapping = nn.Linear(model_dim, bytes_decoder.config.hidden_size)
+        # Latent Transformer
+        self.latent_transformer = AutoModelForCausalLM.from_config(config.latent_transformer)
+        self.latent_transformer.resize_token_embeddings(0)
+        model_dim = self.latent_transformer.config.hidden_size
 
-        self.config.update(dict(
-            image_encoder=self.image_encoder.config if image_encoder else None,
-            bytes_encoder=self.bytes_encoder.config if bytes_encoder else None,
-            latent_transformer=self.latent_transformer.config,
-            bytes_decoder=self.bytes_decoder.config,
-        ))
+        # Small Language Model
+        self.bytes_decoder = AutoModelForCausalLM.from_config(config.bytes_decoder)
+        self.bytes_decoder.resize_token_embeddings(config.num_tokens)
+        bytes_decoder_dim = self.bytes_decoder.config.hidden_size
+
+        # Mapping layers
+        encoder_dim = self.bytes_encoder_dim + self.image_encoder_dim
+        self.encoder_mapping = nn.Linear(encoder_dim, model_dim, dtype=self.latent_transformer.dtype)
+        self.decoder_mapping = nn.Linear(model_dim, bytes_decoder_dim, dtype=self.bytes_decoder.dtype)
+
+        print("image_encoder", self.image_encoder.dtype)
+        print("bytes_encoder", self.bytes_encoder.dtype)
+        print("latent_transformer", self.latent_transformer.dtype)
+        print("bytes_decoder", self.bytes_decoder.dtype)
+        print("encoder_mapping", self.encoder_mapping.weight.dtype)
+        print("decoder_mapping", self.decoder_mapping.weight.dtype)
+
 
     def _should_drop_modality(self):
-        if not self.training or self.modality_dropout == 0:
+        if not self.training or self.config.modality_dropout == 0:
             return False
-        return torch.rand(1).item() < self.modality_dropout
+        return torch.rand(1).item() < self.config.modality_dropout
 
     def encode_images(self, input_pixels: list[list[torch.Tensor]], device: torch.device) -> torch.Tensor:
         """
@@ -119,6 +132,17 @@ class ImageLatentTransformer(PreTrainedModel):
         text_embeds = text_embeds.sum(dim=1) / sequence_lengths
         return text_embeds.view(B, L, -1)
 
+    def _ensure_type(self, param, module):
+        if isinstance(module, torch.nn.Linear):
+            dtype = module.weight.dtype
+        else:
+            dtype = module.dtype
+
+        if param.dtype != dtype:
+            param = param.to(dtype)
+
+        return param
+
     def encode_input(self,
                      input_ids: torch.Tensor,
                      attention_mask: torch.Tensor,
@@ -141,10 +165,13 @@ class ImageLatentTransformer(PreTrainedModel):
         logger.debug("Concatenated embeddings shape: %s", concatenated_embeds.shape)
 
         # For dropout, scale embedding by number of zeros in the concatenated embeddings
-        if len(embeds) > 1 and self.modality_dropout > 0:
+        if len(embeds) > 1 and self.config.modality_dropout > 0:
             percent_zeros = (concatenated_embeds == 0).sum(dim=-1) / concatenated_embeds.numel()
             scale_factor = 1.0 / (1.0 - percent_zeros)
             concatenated_embeds *= scale_factor.clamp(min=1).unsqueeze(-1)
+
+        # TODO: investigate why this is needed
+        concatenated_embeds = self._ensure_type(concatenated_embeds, self.encoder_mapping)
 
         return self.encoder_mapping(concatenated_embeds)
 
@@ -206,7 +233,7 @@ class ImageLatentTransformer(PreTrainedModel):
             flat_labels = labels_output.reshape(-1)
 
             # Compute cross entropy loss
-            loss = torch.nn.functional.cross_entropy(flat_logits, flat_labels, ignore_index=self.padding_index)
+            loss = torch.nn.functional.cross_entropy(flat_logits, flat_labels, ignore_index=self.config.pad_token_id)
 
         return CausalLMOutput(
             loss=loss,
@@ -270,3 +297,186 @@ class ImageLatentTransformer(PreTrainedModel):
         logits = char_logits.view(B, L, T, -1)
 
         return logits
+
+    def _generate_latents(self, latent_past_key_values, encoded_input: torch.Tensor,
+                          attention_mask: torch.Tensor,
+                          num_words: torch.Tensor) -> tuple[Any, torch.Tensor]:
+        latent_output = self.latent_transformer(
+            inputs_embeds=encoded_input,
+            attention_mask=attention_mask,
+            # TODO: past_key_values can improve efficiency, but currently fails tests.
+            # past_key_values=latent_past_key_values,
+            use_cache=True,
+            output_hidden_states=True
+        )
+
+        # Get the last latent state for the new word
+        latents = latent_output.hidden_states[-1]  # (B, L, hidden_dim)
+
+        assert len(latents.shape) == 3, "Latents should be of shape (B, L, latent_dim)"
+
+        batch_indices = torch.arange(latents.size(0), device=latents.device)
+        last_latents = latents[batch_indices, num_words - 1].unsqueeze(1)  # (B, 1, latent_dim)
+
+        # Map latent state to bytes decoder dimension
+        mapped_latent = self.decoder_mapping(last_latents)  # (B, 1, bytes_decoder_dim)
+
+        return latent_output.past_key_values, mapped_latent
+
+    def _generate_word_bytes(
+            self,
+            latents: torch.Tensor,
+            tokenizer: ByteTokenizer,
+            max_word_length: Optional[int] = None,
+            bytes_generation_config: Optional[GenerationConfig] = None,
+            **bytes_generation_kwargs
+    ) -> torch.Tensor:
+        # Prepare generation config
+        if bytes_generation_config is None:
+            bytes_generation_config = GenerationConfig(
+                max_new_tokens=max_word_length,
+                do_sample=False,
+                pad_token_id=tokenizer.pad_token_id,
+                eos_token_id=tokenizer.stop_tokens,
+            )
+
+        # Add stop tokens to generation config
+        bytes_generation_config.eos_token_id = tokenizer.stop_tokens
+
+        # Start generation with BOS token
+        current_input_ids = torch.full((len(latents), 1), tokenizer.bos_token_id,
+                                       dtype=torch.long, device=latents.device)
+        current_input_embeds = self.bytes_decoder.get_input_embeddings()(current_input_ids)
+
+        inputs_embeds = torch.cat([latents, current_input_embeds], dim=1)  # (B, 2, bytes_decoder_dim)
+
+        # Generate bytes for this word
+        return self.bytes_decoder.generate(
+            inputs_embeds=inputs_embeds,
+            generation_config=bytes_generation_config,
+            **bytes_generation_kwargs
+        )
+
+    def prepare_next_inputs(self, words: list[str],
+                            words_indexes: torch.Tensor,
+                            tokenizer: ByteTokenizer,
+                            image_processor: AutoImageProcessor,
+                            encoded_input: torch.Tensor) -> torch.Tensor:
+        tokenized_words = tokenizer(
+            words,
+            return_tensors="pt",
+            padding=True,
+            truncation=True,
+            add_special_tokens=False
+        )
+        new_input_ids = tokenized_words["input_ids"].to(encoded_input.device)
+        new_attention_mask = tokenized_words["attention_mask"].to(encoded_input.device)
+
+        images = render_texts_torch(words, image_processor=image_processor)
+        new_input_pixels = [[image] for image in images]
+
+        new_encoded_input = self.encode_input(new_input_ids.unsqueeze(1),
+                                              new_attention_mask.unsqueeze(1),
+                                              new_input_pixels)
+
+        # Extend the encoded input with an empty tensor
+        empty_word = torch.zeros_like(encoded_input[:, 0:1])
+        encoded_input = torch.cat([encoded_input, empty_word], dim=1)
+
+        # Apply the new words' indexes to the encoded input
+        batch_indices = torch.arange(encoded_input.size(0), device=encoded_input.device)
+        encoded_input[batch_indices, words_indexes] = new_encoded_input.squeeze(1)
+
+        return encoded_input
+
+    @torch.no_grad()
+    def generate(
+            self,
+            input_pixels: list[list[torch.Tensor]],
+            input_ids: torch.Tensor,
+            attention_mask: torch.Tensor,
+            tokenizer: ByteTokenizer,
+            image_processor: AutoImageProcessor,
+            max_generated_words: int = 50,
+            max_word_length: int = None,
+            bytes_generation_config: Optional[GenerationConfig] = None):
+        """
+        Generate text sequences using iterative latent-then-bytes generation.
+
+        This method implements a two-level generation process:
+        1. Latent transformer generates latent states (greedy only for now)
+        2. Bytes decoder generates words using full HuggingFace generation capabilities
+
+        In practice, this means:
+        1. self.encode_input(input_ids, attention_mask, input_pixels)
+        2. self.latent_transformer.generate(...) to get latent states
+        3. self.bytes_decoder.generate(...) to generate a single word from latent states (sequence of bytes)
+        4. Detokenize the generated bytes to get the final word
+        5. Create a new input_ids tensor for the new bytes. new attention_mask,
+            and an input_pixels tensor only for the new word (using render_texts())
+        6. Call self.encode_input() again with the new input_ids, attention_mask, and input_pixels
+        7. Concatenate the encoded input with the previous encoded input to form the
+            new input for the next word generation
+        8. Repeat from step 2 until max_generated_words is reached, or the generated word is just an EOS token.
+
+        We utilize the HuggingFace generation cache to efficiently generate.
+
+        Args:
+            input_pixels: List of lists of images, where each inner list contains images for one sample
+            input_ids: Text input tokens (B, L, T) for encoding
+            attention_mask: Attention mask for text inputs (B, L, T)
+            tokenizer: ByteTokenizer instance
+            image_processor: AutoImageProcessor for processing images
+            max_generated_words: Maximum number of words to generate
+            max_word_length: Maximum number of characters to generate per word
+            bytes_generation_config: Generation config for bytes_decoder
+        """
+        if bytes_generation_config:
+            bytes_generation_config.max_new_tokens = max_word_length
+
+        num_words = self._num_words_per_datum(attention_mask)
+
+        # Track generated words per sample
+        all_generated_words = [[] for _ in range(len(input_pixels))]
+
+        # Step 1: Encode initial input
+        encoded_input = self.encode_input(input_ids, attention_mask, input_pixels)
+
+        past_key_values = None  # Initialize past key values for caching
+
+        # Main generation loop
+        for _ in range(max_generated_words):
+            # Step 2: Generate next latent state
+            words_attention_mask = self._words_sequence_attention_mask(num_words)
+            past_key_values, latents = self._generate_latents(past_key_values, encoded_input,
+                                                              attention_mask=words_attention_mask,
+                                                              num_words=num_words)
+
+            # Step 3: Generate bytes for this word
+            generated_bytes = self._generate_word_bytes(
+                latents=latents,
+                tokenizer=tokenizer,
+                max_word_length=max_word_length,
+                bytes_generation_config=bytes_generation_config
+            )
+
+            # Step 4: Process generated bytes
+            words = tokenizer.batch_decode(generated_bytes, skip_special_tokens=True)
+            batch_finished = all(len(word) == 0 for word in words)
+
+            if batch_finished:
+                break
+
+            for word, generated_words in zip(words, all_generated_words):
+                if len(generated_words) == 0 or len(generated_words[-1]) > 0:
+                    # Only add words if not EOS
+                    generated_words.append(word)
+
+            # Step 5, 6, 7: Create next inputs and encode them\
+            encoded_input = self.prepare_next_inputs(words, num_words, tokenizer, image_processor, encoded_input)
+
+            num_words += 1
+
+        # Step 8: Return generated texts
+        texts = ["".join(generated_words) for generated_words in all_generated_words]
+        return texts
