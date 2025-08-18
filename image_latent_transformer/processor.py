@@ -1,4 +1,5 @@
 import re
+from typing import Union
 
 import torch
 from transformers import AutoImageProcessor, ProcessorMixin
@@ -8,25 +9,34 @@ from image_latent_transformer.tokenizer import ByteTokenizer
 
 
 class TextImageProcessor(ProcessorMixin):
-    # attributes = ["image_processor", "tokenizer"]
-    # optional_attributes = ["max_seq_length", "max_word_length"]
-    # image_processor_class = "AutoImageProcessor"
-    # tokenizer_class = "ByteTokenizer"
-    attributes = []  # TODO support attributes in ProcessorMixin
+    name = "text-image-processor"
+
+    attributes = ["image_processor", "tokenizer"]
+    image_processor_class = "AutoImageProcessor"
+    tokenizer_class = "ByteTokenizer"
+    optional_attributes = ["max_seq_length", "max_word_length"]
 
     def __init__(self,
                  image_processor: AutoImageProcessor,
                  tokenizer: ByteTokenizer,
                  max_seq_length: int = 128,
                  max_word_length: int = 32):
-        super().__init__()
+        super().__init__(image_processor=image_processor,
+                         tokenizer=tokenizer,
+                         max_seq_length=max_seq_length,
+                         max_word_length=max_word_length)
+
+        assert tokenizer.bos_token_id is not None, "Tokenizer must have a BOS token"
+        assert tokenizer.eos_token_id is not None, "Tokenizer must have an EOS token"
+
         self.image_processor = image_processor
         self.tokenizer = tokenizer
         self.max_word_length = max_word_length
         self.max_seq_length = max_seq_length
 
-        assert tokenizer.bos_token_id is not None, "Tokenizer must have a BOS token"
-        assert tokenizer.eos_token_id is not None, "Tokenizer must have an EOS token"
+        # Not used in this processor, but necessary for "from_pretrained" compatibility
+        self.chat_template = None
+        self.audio_tokenizer = None
 
     def get_words_and_labels(self, text: str) -> tuple[list[str], list[str]]:
         text = ("<> " + text).strip()  # Add BOS token "<>" at the start
@@ -82,7 +92,13 @@ class TextImageProcessor(ProcessorMixin):
             "labels_output": tokenized_labels.input_ids[:, 1:]  # Remove BOS token from output labels
         }
 
-    def __call__(self, batch: dict[str, list[str]]) -> dict[str, torch.Tensor]:
+    def __call__(self, batch: Union[dict[str, list[str]], str, list[str]]) -> dict[str, torch.Tensor]:
+        if isinstance(batch, str):
+            batch = {"text": [batch]}
+
+        if isinstance(batch, list):
+            batch = {"text": batch}
+
         dicts = [self.process_single_example(t) for t in batch["text"]]
 
         new_batch = {}

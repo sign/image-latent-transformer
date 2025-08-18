@@ -21,13 +21,16 @@ python -m training.train \
     --per_device_train_batch_size 1 \
     --per_device_eval_batch_size 1 \
     --do_train \
-    --do_eval \
+    --max_eval_samples 2 \
     --output_dir /tmp/test-clm \
     --logging_steps 1 \
     --logging_strategy steps \
-    --max_steps 100 \
+    --max_steps 50 \
     --max_sequence_length 32 \
-    --max_word_length 8
+    --max_word_length 8 \
+    --dataloader_num_workers 4 \
+    --include_tokens_per_second True \
+    --include_num_input_tokens_seen True
 ```
 
 ## Using Modal.com
@@ -43,4 +46,14 @@ Training:
 modal run training/train_modal.py
 ```
 
+Download trained model:
+```bash
+mkdir -p output
+modal volume get model-output / output
+```
 
+### Training Quirks
+
+`num_input_tokens_seen` and `train_tokens_per_second` are calculated based on the number of bytes the model decodes.
+That means that in practice, if `max_word_length=32`, a rough estimate of
+the real number of **words** the model sees should be divided by 32.

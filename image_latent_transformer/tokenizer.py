@@ -1,7 +1,7 @@
 import warnings
 from functools import cached_property
 
-from transformers import ByT5Tokenizer
+from transformers import ByT5Tokenizer, AutoTokenizer
 
 
 class ByteTokenizer(ByT5Tokenizer):
@@ -22,7 +22,7 @@ class ByteTokenizer(ByT5Tokenizer):
             )
             return token_ids
 
-        return  [self.bos_token_id] + token_ids
+        return [self.bos_token_id] + token_ids
 
     @cached_property
     def stop_tokens(self) -> list[int]:
@@ -50,6 +50,9 @@ class ByteTokenizer(ByT5Tokenizer):
 
         # Combine EOS and whitespace tokens
         return [eos_token_id] + whitespace_token_ids
+
+
+AutoTokenizer.register(ByteTokenizer, slow_tokenizer_class=ByteTokenizer)
 
 if __name__ == "__main__":
     tokenizer = ByteTokenizer()

@@ -294,8 +294,42 @@ def limit_dataset_size(dataset, max_samples: Optional[int] = None, streaming: bo
             dataset = dataset.select(range(max_train_samples))
     return dataset
 
+def setup_evaluation_functions(training_args: TrainingArguments, cache_dir=None):
+    # Include everything for the metrics calculation
+    training_args.include_for_metrics = ["inputs", "loss"]
 
-def train(args: Optional[dict]):  # noqa: C901
+    def preprocess_logits_for_metrics(logits, labels):
+        print("preprocess_logits_for_metrics")
+        print("logits", logits)
+        print("labels", labels)
+
+        if isinstance(logits, tuple):
+            # Depending on the model and config, logits may contain extra tensors,
+            # like past_key_values, but logits always come first
+            logits = logits[0]
+        return logits.argmax(dim=-1)
+
+    metric = evaluate.load("accuracy", cache_dir=cache_dir)
+
+    def compute_metrics(eval_preds):
+        print("compute_metrics", list(vars(eval_preds).keys()))
+        print(vars(eval_preds))
+
+        # TODO: this doesn't work at all for our setup
+        preds, labels = eval_preds
+        # preds have the same shape as the labels, after the argmax(-1) has been calculated
+        # by preprocess_logits_for_metrics but we need to shift the labels
+        labels = labels[:, 1:].reshape(-1)
+        preds = preds[:, :-1].reshape(-1)
+        return metric.compute(predictions=preds, references=labels)
+
+    return (
+        compute_metrics if training_args.do_eval and not is_torch_xla_available() else None,
+        preprocess_logits_for_metrics if training_args.do_eval and not is_torch_xla_available() else None
+    )
+
+
+def train(args: Optional[dict] = None):  # noqa: C901
     cache_dir = None  # Use the default cache directory / Environment variable
 
     model_args, data_args, training_args = parse_args_into_dataclasses(args)
@@ -318,6 +352,9 @@ def train(args: Optional[dict]):  # noqa: C901
         processor.max_seq_length = data_args.max_sequence_length
     if data_args.max_word_length is not None:
         processor.max_word_length = data_args.max_word_length
+
+    # Save the processor to the output directory
+    processor.save_pretrained(save_directory=training_args.output_dir, push_to_hub=False)
 
     # Load the datasets
     text_datasets = init_datasets(data_args,
@@ -345,24 +382,6 @@ def train(args: Optional[dict]):  # noqa: C901
     # block_size = min(data_args.block_size or math.inf, max_pos_embeddings)
     # TODO: packing the texts into blocks of size `block_size` is not implemented yet.
 
-    def preprocess_logits_for_metrics(logits, labels):
-        if isinstance(logits, tuple):
-            # Depending on the model and config, logits may contain extra tensors,
-            # like past_key_values, but logits always come first
-            logits = logits[0]
-        return logits.argmax(dim=-1)
-
-    metric = evaluate.load("accuracy", cache_dir=cache_dir)
-
-    def compute_metrics(eval_preds):
-        # TODO: this doesn't work at all for our setup
-        preds, labels = eval_preds
-        # preds have the same shape as the labels, after the argmax(-1) has been calculated
-        # by preprocess_logits_for_metrics but we need to shift the labels
-        labels = labels[:, 1:].reshape(-1)
-        preds = preds[:, :-1].reshape(-1)
-        return metric.compute(predictions=preds, references=labels)
-
     # Transform the datasets to the format expected by the model
     if train_dataset:
         train_dataset = train_dataset.with_transform(processor)
@@ -370,6 +389,7 @@ def train(args: Optional[dict]):  # noqa: C901
         eval_dataset = eval_dataset.with_transform(processor)
 
     # Initialize our Trainer
+    compute_metrics, preprocess_logits_for_metrics = setup_evaluation_functions(training_args, cache_dir)
     trainer = Trainer(
         model=model,
         args=training_args,
@@ -377,9 +397,9 @@ def train(args: Optional[dict]):  # noqa: C901
         eval_dataset=eval_dataset,
         # Data collator will default to DataCollatorWithPadding, so we change it.
         data_collator=collator,
-        compute_metrics=compute_metrics if training_args.do_eval and not is_torch_xla_available() else None,
-        preprocess_logits_for_metrics=preprocess_logits_for_metrics
-        if training_args.do_eval and not is_torch_xla_available() else None,
+        # Compute metrics
+        compute_metrics=compute_metrics,
+        preprocess_logits_for_metrics=preprocess_logits_for_metrics,
     )
 
     # Training

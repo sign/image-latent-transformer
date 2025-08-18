@@ -6,6 +6,8 @@ from training.train import train as local_train
 
 app = modal.App("image-latent-transformer")
 
+MODEL_OUTPUT_DIR = "/output"
+
 # Copy the entire project into the image
 library_path = Path(__file__).parent.parent
 image = (
@@ -16,8 +18,9 @@ image = (
         "manimpango",
         channels=["conda-forge"],
     )
-    .add_local_file(library_path / "pyproject.toml", "/app/pyproject.toml", copy=True)
+    .apt_install("git")
     .run_commands("mkdir -p /app/image_latent_transformer")
+    .add_local_file(library_path / "pyproject.toml", "/app/pyproject.toml", copy=True)
     .workdir("/app")
     .pip_install(".[train]")
     .env({"HF_HUB_ENABLE_HF_TRANSFER": "1"})  # turn on faster downloads from HF
@@ -30,13 +33,14 @@ image = (
     image=image,
     gpu="A10G",
     volumes={
-        "/root/.cache/huggingface": modal.Volume.from_name("huggingface-cache", create_if_missing=True)
+        "/root/.cache/huggingface": modal.Volume.from_name("huggingface-cache", create_if_missing=True),
+        MODEL_OUTPUT_DIR: modal.Volume.from_name("model-output", create_if_missing=True),
     },
     secrets=[
         modal.Secret.from_name("huggingface-secret", required_keys=["HF_TOKEN"])
     ],
-    timeout=600,  # 10 minutes
-    retries=0 # Do not retry on failure
+    timeout=3600,  # 1 hour
+    retries=0  # Do not retry on failure
 )
 def train(args: dict):
     import subprocess
@@ -59,13 +63,16 @@ def main():
         "--per_device_train_batch_size", "16",
         "--per_device_eval_batch_size", "16",
         "--do_train", "True",
-        "--do_eval", "True",
-        "--output_dir", "/tmp/test-clm",
-        "--logging_steps", "1",
+        # "--do_eval", "True",
+        "--output_dir", MODEL_OUTPUT_DIR,
+        "--logging_steps", "10",
         "--logging_strategy", "steps",
-        "--max_steps", "1000",
+        "--max_steps", "5000",
         "--max_sequence_length", "128",
         "--max_word_length", "32",
+        "--dataloader_num_workers", "4",
+        "--include_tokens_per_second", "True",
+        "--include_num_input_tokens_seen", "True",
     ]
 
     train.remote(args)
