@@ -3,15 +3,15 @@ import unittest
 import numpy as np
 import torch
 
-from image_latent_transformer.renderer import deconstruct_images, render_texts
+from image_latent_transformer.renderer import render_text
 
 
 class TestRenderer(unittest.TestCase):
 
     def test_single_text_has_black_pixels(self):
         """Test that rendering a single text produces black pixels in the image."""
-        texts = ["Hello World"]
-        image = render_texts(texts, line_height=32, dpi=120, font_size=12)
+        text = "Hello World"
+        image = render_text(text, line_height=32, dpi=120, font_size=12)
 
         # Convert to numpy array
         img_array = np.array(image)
@@ -24,8 +24,7 @@ class TestRenderer(unittest.TestCase):
 
     def test_empty_text_no_black_pixels(self):
         """Test that rendering empty text produces no black pixels (all white)."""
-        texts = [""]
-        image = render_texts(texts, line_height=32, dpi=120, font_size=12)
+        image = render_text("", line_height=32, dpi=120, font_size=12)
 
         # Convert to numpy array
         img_array = np.array(image)
@@ -35,21 +34,16 @@ class TestRenderer(unittest.TestCase):
 
         assert all_white, "Empty text should produce an all-white image"
 
-    def test_multiple_different_texts_deconstruction(self):
+    def test_multiple_different_texts_are_different(self):
         """Test that different texts produce different deconstructions."""
         texts = ["a", "b"]
-        image = render_texts(texts, line_height=32, dpi=120, font_size=12)
-
-        # Convert to tensor format expected by deconstruct_images
-        img_array = np.array(image)
-        img_tensor = torch.tensor(img_array)  # [H, W, C]
-
-        # Deconstruct the image
-        deconstructed = deconstruct_images(img_tensor, num_words=2)
+        renders = [render_text(text, line_height=32, dpi=120, font_size=12) for text in texts]
+        img_array = [np.array(render) for render in renders]
+        img_tensor = [torch.tensor(arr) for arr in img_array]
 
         # Each text should produce a different deconstruction
-        line_a = deconstructed[0]  # First line containing "a"
-        line_b = deconstructed[1]  # Second line containing "b"
+        line_a = img_tensor[0]  # First line containing "a"
+        line_b = img_tensor[1]  # Second line containing "b"
 
         # Check that the two lines are different
         are_different = not torch.equal(line_a, line_b)
@@ -59,52 +53,28 @@ class TestRenderer(unittest.TestCase):
     def test_multiple_identical_texts_deconstruction(self):
         """Test that identical texts produce identical deconstructions."""
         texts = ["a", "a", "a", "a"]
-        image = render_texts(texts, line_height=32, dpi=120, font_size=12)
+        renders = [render_text(text, line_height=32, dpi=120, font_size=12) for text in texts]
+        img_array = [np.array(render) for render in renders]
+        img_tensor = [torch.tensor(arr) for arr in img_array]
 
-        # Convert to tensor format expected by deconstruct_images
-        img_array = np.array(image)
-        img_tensor = torch.tensor(img_array)  # [H, W, C]
-
-        # Deconstruct the image
-        deconstructed = deconstruct_images(img_tensor, num_words=4)
-
-        # All lines should be identical since they contain the same text
+        # All images should be identical since they contain the same text
         all_same = True
-        first_line = deconstructed[0]
+        first_line = img_tensor[0]
 
-        for i in range(1, 4):
-            if not torch.equal(first_line, deconstructed[i]):
+        for i in range(1, len(texts)):
+            if not torch.equal(first_line, img_tensor[i]):
                 all_same = False
                 break
 
         assert all_same, "Identical texts 'a' should produce identical deconstructions"
 
-    def test_deconstruct_shape(self):
-        """Test that deconstruct_images produces the correct output shape."""
-        texts = ["line1", "line2", "line3"]
-        num_words = len(texts)
-        line_height = 32
-
-        image = render_texts(texts, line_height=line_height, dpi=120, font_size=12)
-
-        # Convert to tensor format
-        img_array = np.array(image)
-        img_tensor = torch.tensor(img_array)  # [H, W, C]
-
-        # Deconstruct the image
-        deconstructed = deconstruct_images(img_tensor, num_words=num_words)
-
-        # Check output shape
-        expected_shape = (num_words, 3, line_height, img_tensor.shape[1])  # 3 channels (RGB)
-        assert deconstructed.shape == expected_shape, f"Expected shape {expected_shape}, got {deconstructed.shape}"
-
     def test_render_consistency(self):
         """Test that rendering the same text multiple times produces consistent results."""
-        texts = ["consistent test"]
+        text = "consistent test"
 
         # Render the same text twice
-        image1 = render_texts(texts, line_height=32, dpi=120, font_size=12)
-        image2 = render_texts(texts, line_height=32, dpi=120, font_size=12)
+        image1 = render_text(text, line_height=32, dpi=120, font_size=12)
+        image2 = render_text(text, line_height=32, dpi=120, font_size=12)
 
         # Convert to arrays
         array1 = np.array(image1)
@@ -116,8 +86,7 @@ class TestRenderer(unittest.TestCase):
         assert are_identical, "Rendering the same text should produce identical results"
 
     def test_newline_text_has_black_pixels(self):
-        texts = ["\n"]
-        image = render_texts(texts, line_height=32, dpi=120, font_size=12)
+        image = render_text("\n", line_height=32, dpi=120, font_size=12)
 
         # Convert to numpy array
         img_array = np.array(image)
