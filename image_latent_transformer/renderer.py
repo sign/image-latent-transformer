@@ -4,6 +4,8 @@ import cairo
 import gi
 import numpy as np
 from PIL import Image
+from signwriting.formats.swu import is_swu
+from signwriting.visualizer.visualize import signwriting_to_image
 from transformers import AutoImageProcessor
 
 gi.require_version("Pango", "1.0")
@@ -11,8 +13,12 @@ gi.require_version("PangoCairo", "1.0")
 from gi.repository import Pango, PangoCairo  # noqa: E402
 
 
+def dim_to_block_size(value: int, block_size: int) -> int:
+    return ((value + block_size - 1) // block_size) * block_size
+
+
 def render_text(text: str,
-                line_height: int = 32,
+                block_size: int = 32,
                 dpi: int = 120,
                 font_size: int = 12) -> Image.Image:
     """
@@ -20,13 +26,15 @@ def render_text(text: str,
 
     Args:
         text (str): The text to render on a single line
-        line_height (int): Height of each line in pixels (default: 32)
+        block_size (int): Height of each line in pixels, and width scale (default: 32)
         dpi (int): DPI resolution (default: 120)
         font_size (int): Font size (default: 12)
 
     Returns:
         PIL.Image: Rendered image with text lines
     """
+    if is_swu(text):
+        return render_signwriting(text, block_size=block_size)
 
     # Special visual handling for new line characters
     text = re.sub(r'\r\n|\r|\n', '↵', text)
@@ -48,8 +56,9 @@ def render_text(text: str,
     text_width, text_height = layout.get_pixel_size()
 
     # Add padding and round up to nearest multiple of 32
-    width = text_width + 10
-    width = ((width + 31) // 32) * 32
+    width = dim_to_block_size(text_width + 10, block_size=block_size)
+
+    line_height = block_size
 
     # Create final surface
     surface = cairo.ImageSurface(cairo.FORMAT_RGB24, width, line_height)
@@ -83,6 +92,16 @@ def render_text(text: str,
     return img
 
 
+def render_signwriting(text: str, block_size: int = 32) -> Image.Image:
+    image = signwriting_to_image(text, trust_box=False)
+    width = dim_to_block_size(image.width + 10, block_size=block_size)
+    height = dim_to_block_size(image.height + 10, block_size=block_size)
+    new_image = Image.new("RGB", (width, height), color=(255, 255, 255))
+    padding = (width - image.width) // 2, (height - image.height) // 2
+    new_image.paste(image, padding, image)
+    return new_image
+
+
 def render_text_torch(text: str, image_processor: AutoImageProcessor, **kwargs):
     image = render_text(text, **kwargs)
     image = image_processor(image, do_center_crop=False, do_resize=False, return_tensors="pt")
@@ -94,13 +113,22 @@ def render_texts_torch(texts: list[str], image_processor: AutoImageProcessor, **
 
 
 def main():
-    # Example: render multiple lines of text
+    # Example: render mixed text with emojis and newlines
     text = "hello🤗🤗🤗🤗🤗🤗\r"
-    image = render_text(text, line_height=32, dpi=120, font_size=12)
+    image = render_text(text, block_size=32, dpi=120, font_size=12)
 
     # Save the example
     image.save("hello_example.png")
     print(f"Rendered {text} and saved as 'hello_example.png'")
+    print(f"Image size: {image.size}")
+
+    # Example: render SignWriting
+    text = "𝠀񀀒񀀚񋚥񋛩𝠃𝤟𝤩񋛩𝣵𝤐񀀒𝤇𝣤񋚥𝤐𝤆񀀚𝣮𝣭"
+    image = render_text(text, block_size=32)
+
+    # Save the example
+    image.save("swu_example.png")
+    print(f"Rendered {text} and saved as 'swu_example.png'")
     print(f"Image size: {image.size}")
 
 

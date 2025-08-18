@@ -11,6 +11,7 @@ dependencies = [
     "datasets",
     "Pillow", # For AutoImageProcessor
     "torchvision", # For use_fast=True
+    "signwriting @ git+https://github.com/sign-language-processing/signwriting", # To render SignWriting images
 ]
 
 [project.optional-dependencies]
