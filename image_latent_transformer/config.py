@@ -32,10 +32,8 @@ class ImageLatentTransformerConfig(PretrainedConfig):
         self.bytes_decoder = bytes_decoder
 
         torch_dtype = kwargs.get("torch_dtype", None)
-        self.fix_sub_config("image_encoder", torch_dtype=torch_dtype)
-        self.fix_sub_config("bytes_encoder", torch_dtype=torch_dtype)
-        self.fix_sub_config("latent_transformer", torch_dtype=torch_dtype)
-        self.fix_sub_config("bytes_decoder", torch_dtype=torch_dtype)
+        for name in self.sub_configs.keys():
+            self.fix_sub_config(name, torch_dtype=torch_dtype)
 
         self.modality_dropout = modality_dropout
         self.num_tokens = num_tokens
@@ -44,7 +42,7 @@ class ImageLatentTransformerConfig(PretrainedConfig):
             warnings.warn("Image encoder and bytes encoder are not provided, setting modality_dropout to 0.0")
             self.modality_dropout = 0.0
 
-
+    # TODO: remove if resolved in https://github.com/huggingface/transformers/issues/40266
     def fix_sub_config(self, name: str, torch_dtype=None):
         config = getattr(self, name, None)
         if isinstance(config, dict):
@@ -52,6 +50,8 @@ class ImageLatentTransformerConfig(PretrainedConfig):
             config_cls = CONFIG_MAPPING[model_type] if model_type else PretrainedConfig
             config = config_cls(**config)
             setattr(self, name, config)
+
         if torch_dtype is not None:
+            # TODO: remove if resolved in https://github.com/huggingface/transformers/issues/40264
             config.torch_dtype = torch_dtype
         setattr(self, name, config)

@@ -75,7 +75,7 @@ class ImageLatentTransformer(PreTrainedModel):
         Returns:
             torch.Tensor: (BATCH, LENGTH, HIDDEN_DIM) - Image embeddings
         """
-        # TODO: handle padding
+        # TODO: handle padding https://github.com/sign/image-latent-transformer/issues/1
         input_pixels = collate_images(input_pixels)
         input_pixels = input_pixels.to(device)
 

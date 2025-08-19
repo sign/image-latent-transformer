@@ -1,13 +1,15 @@
 # Image Latent Transformer (ILT)
 
-We believe that language modeling can be enhanced by treating text as images,
+We believe that language modeling can be enhanced by modeling "words", ideally both as text and as images,
 leveraging the visual structure of written language.
 
 We perform whitespace segmentation and then encode each "token" as an image, and as a sequence of bytes.
 The "tokens" go into a large transformer model, which predicts a representation of the next token.
-Conditioned on this representation and all previous ones, we decode the next token as a sequence of bytes.
+Conditioned on this representation, we decode the next token as a sequence of bytes.
 
 Finally, we render the predicted bytes as an image, which is then fed to the model as input for the next prediction.
+
+In other words, we have a hierarchical encoder, and a hierarchical decoder.
 
 ![Model Architecture](./assets/architecture.png)
 
@@ -69,6 +71,13 @@ and supporting decoding algorithms like beam-search is not trivial.
 
 Thus, on the latent-transformer level, we only support greedy decoding for now.
 On the bytes decoder level, we support all classical decoding algorithms supported by HuggingFace Transformers.
+
+## Other Issues
+
+We make sure to track our issues on GitHub, and link them from the codebase 
+[here](https://github.com/search?q=repo%3Asign%2Fimage-latent-transformer+%22%2Fissues%2F%22&type=code).
+
+We can not recommend a real training run until all issues are resolved.
 
 ## Cite
 

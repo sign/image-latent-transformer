@@ -381,6 +381,7 @@ def train(args: Optional[dict] = None):  # noqa: C901
     # max_pos_embeddings = getattr(model.latent_transformer.config, "max_position_embeddings", 1024)
     # block_size = min(data_args.block_size or math.inf, max_pos_embeddings)
     # TODO: packing the texts into blocks of size `block_size` is not implemented yet.
+    #  https://github.com/sign/image-latent-transformer/issues/4
 
     # Transform the datasets to the format expected by the model
     if train_dataset:

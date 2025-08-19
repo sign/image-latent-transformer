@@ -43,6 +43,7 @@ class TextImageProcessor(ProcessorMixin):
 
         # TODO: Ensure all texts end with a space. this is a model quirk and needs to be handled generally
         #  if the text does not end with a space, the model should continue generating the last word directly
+        #  https://github.com/sign/image-latent-transformer/issues/2
         text += " "
 
         words = re.findall(r'\S+\s*', text)  # Split text into words, keeping spaces
