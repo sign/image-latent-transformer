@@ -25,6 +25,9 @@ class ImageLatentTransformer(PreTrainedModel):
     def __init__(self, config: ImageLatentTransformerConfig):
         super().__init__(config=config)
 
+        assert config.bytes_encoder is not None or config.image_encoder is not None, \
+            "At least one encoder must be provided"
+
         # Image Encoder
         if config.image_encoder:
             self.image_encoder = AutoModelForImageClassification.from_config(config.image_encoder)
@@ -58,14 +61,6 @@ class ImageLatentTransformer(PreTrainedModel):
         encoder_dim = self.bytes_encoder_dim + self.image_encoder_dim
         self.encoder_mapping = nn.Linear(encoder_dim, model_dim, dtype=self.latent_transformer.dtype)
         self.decoder_mapping = nn.Linear(model_dim, bytes_decoder_dim, dtype=self.bytes_decoder.dtype)
-
-        print("image_encoder", self.image_encoder.dtype)
-        print("bytes_encoder", self.bytes_encoder.dtype)
-        print("latent_transformer", self.latent_transformer.dtype)
-        print("bytes_decoder", self.bytes_decoder.dtype)
-        print("encoder_mapping", self.encoder_mapping.weight.dtype)
-        print("decoder_mapping", self.decoder_mapping.weight.dtype)
-
 
     def _should_drop_modality(self):
         if not self.training or self.config.modality_dropout == 0:
@@ -132,22 +127,10 @@ class ImageLatentTransformer(PreTrainedModel):
         text_embeds = text_embeds.sum(dim=1) / sequence_lengths
         return text_embeds.view(B, L, -1)
 
-    def _ensure_type(self, param, module):
-        if isinstance(module, torch.nn.Linear):
-            dtype = module.weight.dtype
-        else:
-            dtype = module.dtype
-
-        if param.dtype != dtype:
-            param = param.to(dtype)
-
-        return param
-
     def encode_input(self,
                      input_ids: torch.Tensor,
                      attention_mask: torch.Tensor,
                      input_pixels: list[list[torch.Tensor]]):
-
         embeds = []
         if self.image_encoder_dim > 0:
             image_embeds = self.encode_images(input_pixels, device=input_ids.device)
@@ -164,14 +147,11 @@ class ImageLatentTransformer(PreTrainedModel):
         concatenated_embeds = torch.cat(embeds, dim=-1)
         logger.debug("Concatenated embeddings shape: %s", concatenated_embeds.shape)
 
-        # For dropout, scale embedding by number of zeros in the concatenated embeddings
-        if len(embeds) > 1 and self.config.modality_dropout > 0:
-            percent_zeros = (concatenated_embeds == 0).sum(dim=-1) / concatenated_embeds.numel()
-            scale_factor = 1.0 / (1.0 - percent_zeros)
-            concatenated_embeds *= scale_factor.clamp(min=1).unsqueeze(-1)
-
-        # TODO: investigate why this is needed
-        concatenated_embeds = self._ensure_type(concatenated_embeds, self.encoder_mapping)
+        # # For dropout, scale embedding by number of zeros in the concatenated embeddings
+        # if len(embeds) > 1 and self.training and self.config.modality_dropout > 0:
+        #     percent_zeros = (concatenated_embeds == 0).sum(dim=-1) / concatenated_embeds.numel()
+        #     scale_factor = 1.0 / (1.0 - percent_zeros)
+        #     concatenated_embeds *= scale_factor.clamp(min=1).unsqueeze(-1)
 
         return self.encoder_mapping(concatenated_embeds)
 

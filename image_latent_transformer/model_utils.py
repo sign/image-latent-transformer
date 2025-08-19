@@ -1,5 +1,6 @@
 from functools import partial
 
+import torch
 from transformers import (
     AutoImageProcessor,
     enable_full_determinism,
@@ -25,7 +26,7 @@ def setup_model(
         latent_transformer_name="EleutherAI/pythia-70m",
         bytes_decoder_name="EleutherAI/pythia-70m",
         trust_remote_code=False,
-        torch_dtype=None,
+        torch_dtype=torch.float32,
         seed=42
 ):
     set_seed(seed, deterministic=True)

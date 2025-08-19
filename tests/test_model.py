@@ -161,21 +161,34 @@ def test_loss_is_independent_of_batch():
 
     print(f"✓ Loss at first position is batch-independent: {losses[0]:.4f}")
 
+def num_model_params(model):
+    return sum(p.numel() for p in model.parameters())
+
 def test_model_save_and_load_works():
     """Test that the model can be saved and loaded without issues."""
     model, processor, collator = setup_tiny_model()
 
     with tempfile.NamedTemporaryFile(suffix=".safetensors") as temp_file:
+        original_num_parameters = num_model_params(model)
         save_model(model, temp_file.name)
         load_model(model, temp_file.name)
+        loaded_num_parameters = num_model_params(model)
+        assert original_num_parameters == loaded_num_parameters, \
+            f"Number of parameters mismatch: {original_num_parameters:,} vs {loaded_num_parameters:,}"
 
 def test_model_from_pretrained_works():
     """Test that the model can be saved and loaded without issues."""
     model, processor, collator = setup_tiny_model()
 
     with tempfile.TemporaryDirectory() as temp_dir:
+        original_num_parameters = num_model_params(model)
         model.save_pretrained(save_directory=temp_dir, push_to_hub=False)
-        ImageLatentTransformer.from_pretrained(temp_dir)
+
+        new_model = ImageLatentTransformer.from_pretrained(temp_dir)
+        loaded_num_parameters = num_model_params(new_model)
+
+        assert original_num_parameters == loaded_num_parameters, \
+            f"Number of parameters mismatch: {original_num_parameters:,} vs {loaded_num_parameters:,}"
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
