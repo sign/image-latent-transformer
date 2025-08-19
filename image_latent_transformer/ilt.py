@@ -1,13 +1,16 @@
 import logging
-from typing import Optional, Any
+import warnings
+from typing import Any, Optional
 
 import torch
 import torch.nn as nn
 from transformers import (
+    AutoImageProcessor,
     AutoModelForCausalLM,
     AutoModelForImageClassification,
     AutoModelForMaskedLM,
-    PreTrainedModel, AutoImageProcessor, GenerationConfig,
+    GenerationConfig,
+    PreTrainedModel,
 )
 from transformers.modeling_outputs import CausalLMOutput
 
@@ -27,6 +30,11 @@ class ImageLatentTransformer(PreTrainedModel):
 
         assert config.bytes_encoder is not None or config.image_encoder is not None, \
             "At least one encoder must be provided"
+
+        if config.image_encoder is None or config.bytes_encoder is None:
+            warnings.warn("Image encoder and bytes encoder are not provided, setting modality_dropout to 0.0",
+                          stacklevel=2)
+            config.modality_dropout = 0.0
 
         # Image Encoder
         if config.image_encoder:

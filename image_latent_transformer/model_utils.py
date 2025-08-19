@@ -2,9 +2,10 @@ from functools import partial
 
 import torch
 from transformers import (
+    AutoConfig,
     AutoImageProcessor,
     enable_full_determinism,
-    set_seed, AutoConfig,
+    set_seed,
 )
 
 from image_latent_transformer.config import ImageLatentTransformerConfig

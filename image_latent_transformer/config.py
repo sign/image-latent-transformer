@@ -1,7 +1,6 @@
-import warnings
-from typing import Union, Optional
+from typing import Optional, Union
 
-from transformers import PretrainedConfig, AutoConfig, CONFIG_MAPPING
+from transformers import CONFIG_MAPPING, AutoConfig, PretrainedConfig
 
 
 class ImageLatentTransformerConfig(PretrainedConfig):
@@ -37,10 +36,6 @@ class ImageLatentTransformerConfig(PretrainedConfig):
 
         self.modality_dropout = modality_dropout
         self.num_tokens = num_tokens
-
-        if image_encoder is None or bytes_encoder is None:
-            warnings.warn("Image encoder and bytes encoder are not provided, setting modality_dropout to 0.0")
-            self.modality_dropout = 0.0
 
     # TODO: remove if resolved in https://github.com/huggingface/transformers/issues/40266
     def fix_sub_config(self, name: str, torch_dtype=None):

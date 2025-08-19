@@ -4,7 +4,7 @@ import tempfile
 import pytest
 import torch
 from datasets import load_dataset
-from safetensors.torch import save_model, load_model
+from safetensors.torch import load_model, save_model
 from transformers.modeling_outputs import CausalLMOutput
 
 from image_latent_transformer.ilt import ImageLatentTransformer

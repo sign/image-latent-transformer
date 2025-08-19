@@ -1,7 +1,7 @@
 import warnings
 from functools import cached_property
 
-from transformers import ByT5Tokenizer, AutoTokenizer
+from transformers import AutoTokenizer, ByT5Tokenizer
 
 
 class ByteTokenizer(ByT5Tokenizer):
