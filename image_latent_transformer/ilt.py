@@ -10,6 +10,7 @@ from transformers import (
     AutoModelForImageClassification,
     AutoModelForMaskedLM,
     GenerationConfig,
+    PretrainedConfig,
     PreTrainedModel,
 )
 from transformers.modeling_outputs import CausalLMOutput
@@ -22,10 +23,22 @@ from image_latent_transformer.utils import accepts, collate_images, image_encode
 logger = logging.getLogger(__name__)
 
 
+def model_from_config(config: PretrainedConfig,
+                      cls: type[PreTrainedModel],
+                      dtype: torch.dtype = torch.float32,
+                      load_pretrained: bool = False) -> PreTrainedModel:
+    """Load pretrained model or initialize from config with new weights."""
+    if load_pretrained:
+        name_or_path = getattr(config, "_name_or_path", None)
+        return cls.from_pretrained(name_or_path, config=config, torch_dtype=dtype)
+
+    return cls.from_config(config, torch_dtype=dtype)
+
+
 class ImageLatentTransformer(PreTrainedModel):
     config_class = ImageLatentTransformerConfig
 
-    def __init__(self, config: ImageLatentTransformerConfig):
+    def __init__(self, config: ImageLatentTransformerConfig, load_pretrained: bool = False):
         super().__init__(config=config)
 
         assert config.bytes_encoder is not None or config.image_encoder is not None, \
@@ -38,7 +51,8 @@ class ImageLatentTransformer(PreTrainedModel):
 
         # Image Encoder
         if config.image_encoder:
-            self.image_encoder = AutoModelForImageClassification.from_config(config.image_encoder)
+            self.image_encoder = model_from_config(config.image_encoder, AutoModelForImageClassification,
+                                                   config.torch_dtype, load_pretrained)
             self.image_encoder.classifier = torch.nn.Identity()
             self.image_encoder_dim = image_encoder_size(self.image_encoder)
         else:
@@ -47,7 +61,8 @@ class ImageLatentTransformer(PreTrainedModel):
 
         # Bytes Encoder
         if config.bytes_encoder:
-            self.bytes_encoder = AutoModelForMaskedLM.from_config(config.bytes_encoder)
+            self.bytes_encoder = model_from_config(config.bytes_encoder, AutoModelForMaskedLM,
+                                                   config.torch_dtype, load_pretrained)
             self.bytes_encoder.resize_token_embeddings(config.num_tokens)
             self.bytes_encoder.cls = torch.nn.Identity()  # delete the decoder head
             self.bytes_encoder_dim = self.bytes_encoder.config.hidden_size
@@ -56,12 +71,14 @@ class ImageLatentTransformer(PreTrainedModel):
             self.bytes_encoder_dim = 0
 
         # Latent Transformer
-        self.latent_transformer = AutoModelForCausalLM.from_config(config.latent_transformer)
+        self.latent_transformer = model_from_config(config.latent_transformer, AutoModelForCausalLM,
+                                                    config.torch_dtype, load_pretrained)
         self.latent_transformer.resize_token_embeddings(0)
         model_dim = self.latent_transformer.config.hidden_size
 
         # Small Language Model
-        self.bytes_decoder = AutoModelForCausalLM.from_config(config.bytes_decoder)
+        self.bytes_decoder = model_from_config(config.bytes_decoder, AutoModelForCausalLM,
+                                               config.torch_dtype, load_pretrained)
         self.bytes_decoder.resize_token_embeddings(config.num_tokens)
         bytes_decoder_dim = self.bytes_decoder.config.hidden_size
 
@@ -319,15 +336,6 @@ class ImageLatentTransformer(PreTrainedModel):
             bytes_generation_config: Optional[GenerationConfig] = None,
             **bytes_generation_kwargs
     ) -> torch.Tensor:
-        # Prepare generation config
-        if bytes_generation_config is None:
-            bytes_generation_config = GenerationConfig(
-                max_new_tokens=max_word_length,
-                do_sample=False,
-                pad_token_id=tokenizer.pad_token_id,
-                eos_token_id=tokenizer.stop_tokens,
-            )
-
         # Add stop tokens to generation config
         bytes_generation_config.eos_token_id = tokenizer.stop_tokens
 
@@ -377,6 +385,24 @@ class ImageLatentTransformer(PreTrainedModel):
 
         return encoded_input
 
+    def _prep_bytes_generation_config(self,
+                                     max_word_length: int,
+                                     tokenizer: ByteTokenizer,
+                                     bytes_generation_config: Optional[GenerationConfig] = None) -> GenerationConfig:
+        default_generation_config_args = dict(
+            max_new_tokens=max_word_length,
+            bos_token_id=tokenizer.bos_token_id,
+            pad_token_id=tokenizer.pad_token_id,
+            eos_token_id=tokenizer.stop_tokens,
+        )
+        if bytes_generation_config is None:
+            return GenerationConfig(**default_generation_config_args)
+
+        for key, value in default_generation_config_args.items():
+            setattr(bytes_generation_config, key, value)
+
+        return bytes_generation_config
+
     @torch.no_grad()
     def generate(
             self,
@@ -419,8 +445,8 @@ class ImageLatentTransformer(PreTrainedModel):
             max_word_length: Maximum number of characters to generate per word
             bytes_generation_config: Generation config for bytes_decoder
         """
-        if bytes_generation_config:
-            bytes_generation_config.max_new_tokens = max_word_length
+        bytes_generation_config = self._prep_bytes_generation_config(max_word_length, tokenizer,
+                                                                     bytes_generation_config)
 
         num_words = self._num_words_per_datum(attention_mask)
 

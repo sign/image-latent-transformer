@@ -53,7 +53,7 @@ def setup_model(
     )
 
     # Combine the models
-    model = ImageLatentTransformer(config)
+    model = ImageLatentTransformer(config, load_pretrained=True)
     print_model_summary("Image Encoder", model.image_encoder)
     print_model_summary("Bytes Encoder", model.bytes_encoder)
     print_model_summary("Latent Transformer", model.latent_transformer)
