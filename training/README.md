@@ -21,8 +21,8 @@ python -m training.train \
     --per_device_train_batch_size 1 \
     --per_device_eval_batch_size 1 \
     --do_train \
-    --max_eval_samples 2 \
-    --output_dir /tmp/test-clm \
+    --save_steps 10 \
+    --output_dir training/output \
     --logging_steps 1 \
     --logging_strategy steps \
     --max_steps 50 \
@@ -30,7 +30,8 @@ python -m training.train \
     --max_word_length 8 \
     --dataloader_num_workers 4 \
     --include_tokens_per_second True \
-    --include_num_input_tokens_seen True
+    --include_num_input_tokens_seen True \
+    --max_train_samples 16
 ```
 
 ## Using Modal.com
@@ -43,13 +44,14 @@ modal setup
 
 Training:
 ```bash
-modal run training/train_modal.py
+modal run -m training.modal::train
+modal run -m training.modal::predict   
 ```
 
 Download trained model:
 ```bash
 mkdir -p output
-modal volume get model-output / output
+modal volume get model-output / training/output
 ```
 
 ### Training Quirks

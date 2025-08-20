@@ -289,10 +289,11 @@ def limit_dataset_size(dataset, max_samples: Optional[int] = None, streaming: bo
     if max_samples is not None:
         if streaming:
             dataset = dataset.take(max_samples)
-        else:
-            max_train_samples = min(len(dataset), max_samples)
-            dataset = dataset.select(range(max_train_samples))
+        elif max_samples < len(dataset):
+            dataset = dataset.select(range(max_samples))
+
     return dataset
+
 
 def setup_evaluation_functions(training_args: TrainingArguments, cache_dir=None):
     # Include everything for the metrics calculation

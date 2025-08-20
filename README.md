@@ -76,7 +76,8 @@ On the bytes decoder level, we support all classical decoding algorithms support
 
 We make sure to track our issues on GitHub, and link them from the codebase 
 [here](https://github.com/search?q=repo%3Asign%2Fimage-latent-transformer+%22%2Fissues%2F%22&type=code).
-
+Generally, to track our TODOs, we use the `TODO` tag in the codebase, and they can be found 
+[here](https://github.com/search?q=repo%3Asign%2Fimage-latent-transformer%20TODO&type=code).
 We can not recommend a real training run until all issues are resolved.
 
 ## Cite
