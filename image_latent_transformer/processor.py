@@ -6,6 +6,7 @@ from transformers import AutoImageProcessor, ProcessorMixin
 
 from image_latent_transformer.renderer import render_texts_torch
 from image_latent_transformer.tokenizer import ByteTokenizer
+from image_latent_transformer.utils import collate_fn
 
 
 class TextImageProcessor(ProcessorMixin):
@@ -39,7 +40,7 @@ class TextImageProcessor(ProcessorMixin):
         self.audio_tokenizer = None
 
     def get_words_and_labels(self, text: str) -> tuple[list[str], list[str]]:
-        text = ("<> " + text).strip()  # Add BOS token "<>" at the start
+        text = ("<> " + text.lstrip()).strip()  # Add BOS token "<>" at the start
 
         # TODO: Ensure all texts end with a space. this is a model quirk and needs to be handled generally
         #  if the text does not end with a space, the model should continue generating the last word directly
@@ -93,7 +94,9 @@ class TextImageProcessor(ProcessorMixin):
             "labels_output": tokenized_labels.input_ids[:, 1:]  # Remove BOS token from output labels
         }
 
-    def __call__(self, batch: Union[dict[str, list[str]], str, list[str]]) -> dict[str, torch.Tensor]:
+    def __call__(self,
+                 batch: Union[dict[str, list[str]], str, list[str]],
+                 collated=False) -> dict[str, torch.Tensor]:
         if isinstance(batch, str):
             batch = {"text": [batch]}
 
@@ -101,6 +104,9 @@ class TextImageProcessor(ProcessorMixin):
             batch = {"text": batch}
 
         dicts = [self.process_single_example(t) for t in batch["text"]]
+
+        if collated:
+            return collate_fn(dicts)
 
         new_batch = {}
         for key in dicts[0].keys():

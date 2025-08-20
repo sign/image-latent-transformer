@@ -7,6 +7,7 @@ from image_latent_transformer.model_utils import setup_model
 from tests.test_model import make_dataset, predict_dataset
 
 
+# TODO: this training is flaky due to https://github.com/huggingface/transformers/issues/40219
 def train_model(setup_function,
                 num_epochs=10,
                 train_texts=None):
