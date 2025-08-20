@@ -13,6 +13,7 @@ class ImageLatentTransformerConfig(PretrainedConfig):
         "bytes_decoder": AutoConfig,
     }
 
+
     def __init__(self,
                  image_encoder: Optional[Union[AutoConfig, dict]] = None,
                  bytes_encoder: Optional[Union[AutoConfig, dict]] = None,
@@ -30,23 +31,16 @@ class ImageLatentTransformerConfig(PretrainedConfig):
         self.latent_transformer = latent_transformer
         self.bytes_decoder = bytes_decoder
 
-        torch_dtype = kwargs.get("torch_dtype", None)
         for name in self.sub_configs.keys():
-            self.fix_sub_config(name, torch_dtype=torch_dtype)
+            self.init_sub_config(name)
 
         self.modality_dropout = modality_dropout
         self.num_tokens = num_tokens
 
-    # TODO: remove if resolved in https://github.com/huggingface/transformers/issues/40266
-    def fix_sub_config(self, name: str, torch_dtype=None):
+    def init_sub_config(self, name: str):
         config = getattr(self, name, None)
         if isinstance(config, dict):
-            model_type = getattr(config, "model_type", None)
+            model_type = config.get("model_type", None)
             config_cls = CONFIG_MAPPING[model_type] if model_type else PretrainedConfig
             config = config_cls(**config)
             setattr(self, name, config)
-
-        if torch_dtype is not None:
-            # TODO: remove if resolved in https://github.com/huggingface/transformers/issues/40264
-            config.torch_dtype = torch_dtype
-        setattr(self, name, config)
