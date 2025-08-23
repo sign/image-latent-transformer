@@ -80,7 +80,7 @@ The paper gives the LeetSpeak example for `really` vs `rea11y` (1 token vs 3 tok
 > In multilingual models, the same meaning can take far more tokens in some languages, 
 > penalizing users of underrepresented languages with worse performance and higher API costs.
 
-[![Tokenization Parity](./assets/tokenization-parity.png)](https://www.linkedin.com/posts/sina-ahmadi-aba470287_dont-speak-english-you-must-pay-more-activity-7360959825893036035-vnFN)
+[![Tokenization Parity](assets/parity/tokenization-parity.png)](https://www.linkedin.com/posts/sina-ahmadi-aba470287_dont-speak-english-you-must-pay-more-activity-7360959825893036035-vnFN)
 
 Let's consider the same example, for whitespace pre-tokenization parity:
 
@@ -90,8 +90,11 @@ Let's consider the same example, for whitespace pre-tokenization parity:
 | Italian | I tour sono più economici per i gruppi più numerosi, quindi se sei da solo o con un solo amico, prova a incontrare altre persone e a formare un gruppo da quattro a sei persone per ottenere una tariffa più conveniente a persona. | 230 | 58 | 43 |
 | German | Touren sind für größere Gruppen günstiger. Wenn Sie also alleine oder mit nur einem Freund unterwegs sind, versuchen Sie, andere Leute kennenzulernen und eine Gruppe von vier bis sechs Personen zu bilden, um einen besseren Preis pro Person zu erhalten. | 256 | 64 | 40 |
 | Finnish | Retket ovat halvempia suuremmille ryhmille, joten jos olet yksin tai vain yhden ystävän kanssa, yritä tavata muita ihmisiä ja muodosta neljän tai kuuden hengen ryhmä saadaksesi paremman hinnan per henkilö. | 212 | 79 | 30 |
+| Russian | Туры обходятся дешевле для больших групп, поэтому, если вы одни или с одним другом, постарайтесь познакомиться с другими людьми и сформировать группу из четырех-шести человек, чтобы получить более выгодную цену на человека. | 409 | 100 | 32 |
 | Arabic | تكون الجولات أرخص بالنسبة للمجموعات الكبيرة، لذلك إذا كنت بمفردك أو مع صديق واحد فقط، فحاول مقابلة أشخاص آخرين وتشكيل مجموعة مكونة من أربعة إلى ستة أشخاص للحصول على سعر أفضل للشخص الواحد. | 341 | 140 | 33 |
 | Hebrew | סיורים זולים יותר לקבוצות גדולות יותר, כך שאם אתם לבד או עם חבר אחד בלבד, נסו לפגוש אנשים אחרים וליצור קבוצה של ארבעה עד שישה אנשים לקבלת מחיר טוב יותר לאדם. | 281 | 151 | 31 |
+| Tamil | பெரிய குழுக்களுக்கு சுற்றுலாக்கள் மலிவானவை, எனவே நீங்கள் தனியாகவோ அல்லது ஒரு நண்பருடனோ இருந்தால், மற்றவர்களைச் சந்தித்து நான்கு முதல் ஆறு பேர் கொண்ட குழுவை உருவாக்கி, ஒரு நபருக்கு சிறந்த விலையைப் பெற முயற்சிக்கவும். | 587 | 293 | 26 |
+| Kannada | ದೊಡ್ಡ ಗುಂಪುಗಳಿಗೆ ಪ್ರವಾಸಗಳು ಅಗ್ಗವಾಗಿರುತ್ತವೆ, ಆದ್ದರಿಂದ ನೀವು ಒಬ್ಬಂಟಿಯಾಗಿ ಅಥವಾ ಒಬ್ಬ ಸ್ನೇಹಿತನೊಂದಿಗೆ ಇದ್ದರೆ, ಇತರ ಜನರನ್ನು ಭೇಟಿ ಮಾಡಲು ಪ್ರಯತ್ನಿಸಿ ಮತ್ತು ಪ್ರತಿ ವ್ಯಕ್ತಿಗೆ ಉತ್ತಮ ದರಕ್ಕಾಗಿ ನಾಲ್ಕರಿಂದ ಆರು ಜನರ ಗುಂಪನ್ನು ರಚಿಸಿ. | 565 | 361 | 26 |
 | Shan | ၶၢဝ်းတၢင်း တႃႇၸုမ်းယႂ်ႇၼၼ်ႉ ၵႃႈၶၼ်မၼ်း ထုၵ်ႇလိူဝ်လႄႈ သင်ဝႃႈ ၸဝ်ႈၵဝ်ႇ ယူႇႁင်းၵူၺ်း ဢမ်ႇၼၼ် မီးဢူၺ်းၵေႃႉ ၵေႃႉလဵဝ်ၵွႆးၼႆၸိုင် ၶတ်းၸႂ် ႁူပ်ႉထူပ်း ၵူၼ်းတၢင်ႇၵေႃႉသေ ႁဵတ်းၸုမ်း 4 ၵေႃႉ တေႃႇထိုင် 6 ၵေႃႉ ႁႂ်ႈလႆႈ ၵႃႈၶၼ် ၼိုင်ႈၵေႃႉ ဢၼ်လီလိူဝ်ၼၼ်ႉယဝ်ႉ။ | 669 | 531 | 23 |
 
 #### Bytes Efficiency
@@ -117,3 +120,5 @@ the token count increases significantly (up to 13x for Shan).
 Assuming whitespace tokenization as a proxy for words, we see that English is not the most efficient language.
 This makes sense, from a language efficiency perspective, that there is no computational bias towards English.
 Languages distribute between 23 and 43 words for the same sentence, with English right in the middle with 34.
+
+![Tokenization Parity - Words](assets/parity/tokenization-parity-words.png)
