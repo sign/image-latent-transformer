@@ -1,5 +1,7 @@
 # Image Latent Transformer (ILT)
 
+[Motivational Examples](./MOTIVATION.md)
+
 We believe that language modeling can be enhanced by modeling "words", ideally both as text and as images,
 leveraging the visual structure of written language.
 
@@ -12,6 +14,7 @@ Finally, we render the predicted bytes as an image, which is then fed to the mod
 In other words, we have a hierarchical encoder, and a hierarchical decoder.
 
 ![Model Architecture](./assets/architecture.png)
+
 
 ## Environment
 
@@ -27,13 +30,10 @@ pip install ".[dev]"
 
 ## Model Setup
 
-- **Bytes Encoder** - You can use any language model as the bytes encoder,
-  such as causal LMs (e.g. `HuggingFaceTB/SmolLM2-135M`) or Masked LM (e.g. `answerdotai/ModernBERT-base`).
-- **Image Encoder** - You can use any image encoder, from
-  tiny (27m parameters; [Microsoft's SwinV2](https://huggingface.co/microsoft/swinv2-tiny-patch4-window16-256)) to
-  large (272m parameters; [Apple's FastViT-HD](https://huggingface.co/kevin510/fast-vit-hd)).
-- **Latent Transformer** - You can use any causal LM, such as `HuggingFaceTB/SmolLM2-360M`.
-- **Bytes Decoder** - You can use any causal LM as the bytes decoder, such as `HuggingFaceTB/SmolLM2-135M`.
+- **Bytes Encoder** - You can use any language model as the bytes encoder (causal or masked).
+- **Image Encoder** - You can use any image encoder.
+- **Latent Transformer** - You can use any causal LM (recommended: large).
+- **Bytes Decoder** - You can use any causal LM (recommended: small).
 
 For language models, the parameter count is lower than reported, due to removing the embedding layers.
 
@@ -69,7 +69,8 @@ There, you can select the model architectures you want to use for each component
 Since we have two decoders, the autoregressive prediction logic is a bit more complex than the usual,
 and supporting decoding algorithms like beam-search is not trivial.
 
-Thus, on the latent-transformer level, we only support greedy decoding for now.
+Thus, on the latent-transformer level, 
+[we only support greedy decoding](https://github.com/sign/image-latent-transformer/issues/5) for now.
 On the bytes decoder level, we support all classical decoding algorithms supported by HuggingFace Transformers.
 
 ## Other Issues
