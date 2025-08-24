@@ -54,7 +54,7 @@ def train_model(setup_function,
 @pytest.fixture(scope="module")
 def trained_model():
     """Train the model once and reuse for all tests."""
-    return train_model(setup_model, num_epochs=70)
+    return train_model(setup_model, num_epochs=100)
 
 
 @pytest.fixture
