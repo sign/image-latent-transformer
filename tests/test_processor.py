@@ -49,5 +49,59 @@ def test_processor_object_format_collated(processor):
     assert all(key in inputs for key in expected_keys)
     assert all(isinstance(inputs[key], torch.Tensor) for key in expected_tensor_keys)
 
+
+def test_processor_packed_vs_unpacked_labels(processor):
+    text = "hello world test"
+
+    # Test packed=True (default)
+    inputs_packed = processor(text, collated=True, packed=True)
+
+    # Test packed=False
+    inputs_unpacked = processor(text, collated=True, packed=False)
+
+    # Both should have same structure
+    assert all(key in inputs_packed for key in expected_keys)
+    assert all(key in inputs_unpacked for key in expected_keys)
+
+    # Input tokens should be the same
+    assert torch.equal(inputs_packed["input_ids"], inputs_unpacked["input_ids"])
+    assert torch.equal(inputs_packed["attention_mask"], inputs_unpacked["attention_mask"])
+
+    # Labels should be different due to different packing strategies
+    assert not torch.equal(inputs_packed["labels_input"], inputs_unpacked["labels_input"])
+    assert not torch.equal(inputs_packed["labels_output"], inputs_unpacked["labels_output"])
+
+
+def test_processor_packed_true_default_behavior(processor):
+    text = "example text for testing"
+
+    # Default should be packed=True
+    inputs_default = processor(text, collated=True)
+    inputs_explicit_packed = processor(text, collated=True, packed=True)
+
+    # Should be identical
+    assert torch.equal(inputs_default["labels_input"], inputs_explicit_packed["labels_input"])
+    assert torch.equal(inputs_default["labels_output"], inputs_explicit_packed["labels_output"])
+
+
+def test_get_words_and_labels_packed_vs_unpacked(processor):
+    text = "hello world test"
+
+    # Test packed=True
+    words_packed, labels_packed = processor.get_words_and_labels(text, pack=True)
+
+    # Test packed=False
+    words_unpacked, labels_unpacked = processor.get_words_and_labels(text, pack=False)
+
+    # Words should be the same
+    assert words_packed == words_unpacked
+
+    # Labels should be different
+    assert labels_packed != labels_unpacked
+
+    assert labels_packed == ['hello world test', 'world test', 'test', '']
+    assert labels_unpacked == ['hello ', 'world ', 'test ', '']
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
