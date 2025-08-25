@@ -9,7 +9,7 @@ from transformers import (
 )
 
 from image_latent_transformer.config import ImageLatentTransformerConfig
-from image_latent_transformer.ilt import ImageLatentTransformer
+from image_latent_transformer.model import ImageLatentTransformerForCausalLM
 from image_latent_transformer.processor import TextImageProcessor
 from image_latent_transformer.tokenizer import ByteTokenizer
 from image_latent_transformer.utils import collate_fn
@@ -27,6 +27,7 @@ def setup_model(
         latent_transformer_name="EleutherAI/pythia-70m",
         bytes_decoder_name="EleutherAI/pythia-70m",
         trust_remote_code=False,
+        modality_dropout=0.15,
         torch_dtype=torch.float32,
         seed=42
 ):
@@ -43,6 +44,7 @@ def setup_model(
         latent_transformer=AutoConfig.from_pretrained(latent_transformer_name),
         bytes_decoder=AutoConfig.from_pretrained(bytes_decoder_name),
         # Other configuration parameters
+        modality_dropout=modality_dropout,
         tokenizer_class=tokenizer.__class__.__name__,
         bos_token_id=tokenizer.bos_token_id,
         pad_token_id=tokenizer.pad_token_id,
@@ -53,7 +55,7 @@ def setup_model(
     )
 
     # Combine the models
-    model = ImageLatentTransformer(config, load_pretrained=True)
+    model = ImageLatentTransformerForCausalLM(config, load_pretrained=True)
     print_model_summary("Image Encoder", model.image_encoder)
     print_model_summary("Bytes Encoder", model.bytes_encoder)
     print_model_summary("Latent Transformer", model.latent_transformer)

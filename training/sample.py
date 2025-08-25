@@ -3,7 +3,7 @@ from pathlib import Path
 from transformers import GenerationConfig
 from transformers.trainer_utils import get_last_checkpoint
 
-from image_latent_transformer.ilt import ImageLatentTransformer
+from image_latent_transformer.model import ImageLatentTransformer
 from image_latent_transformer.processor import TextImageProcessor
 
 

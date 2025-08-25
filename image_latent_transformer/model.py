@@ -6,10 +6,12 @@ import torch
 import torch.nn as nn
 from transformers import (
     AutoImageProcessor,
+    AutoModel,
     AutoModelForCausalLM,
     AutoModelForImageClassification,
     AutoModelForMaskedLM,
     GenerationConfig,
+    GenerationMixin,
     PretrainedConfig,
     PreTrainedModel,
 )
@@ -303,6 +305,9 @@ class ImageLatentTransformer(PreTrainedModel):
 
         return logits
 
+
+class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin):
+
     def _generate_latents(self, latent_past_key_values, encoded_input: torch.Tensor,
                           attention_mask: torch.Tensor,
                           num_words: torch.Tensor) -> tuple[Any, torch.Tensor]:
@@ -386,9 +391,9 @@ class ImageLatentTransformer(PreTrainedModel):
         return encoded_input
 
     def _prep_bytes_generation_config(self,
-                                     max_word_length: int,
-                                     tokenizer: ByteTokenizer,
-                                     bytes_generation_config: Optional[GenerationConfig] = None) -> GenerationConfig:
+                                      max_word_length: int,
+                                      tokenizer: ByteTokenizer,
+                                      bytes_generation_config: Optional[GenerationConfig] = None) -> GenerationConfig:
         default_generation_config_args = dict(
             max_new_tokens=max_word_length,
             bos_token_id=tokenizer.bos_token_id,
@@ -494,3 +499,10 @@ class ImageLatentTransformer(PreTrainedModel):
         # Step 8: Return generated texts
         texts = ["".join(generated_words) for generated_words in all_generated_words]
         return texts
+
+
+AutoModel.register(ImageLatentTransformerConfig, ImageLatentTransformer)
+AutoModelForCausalLM.register(ImageLatentTransformerConfig, ImageLatentTransformerForCausalLM)
+
+ImageLatentTransformer.register_for_auto_class("AutoModel")
+ImageLatentTransformerForCausalLM.register_for_auto_class("AutoModelForCausalLM")

@@ -7,7 +7,7 @@ from datasets import load_dataset
 from safetensors.torch import load_model, save_model
 from transformers.modeling_outputs import CausalLMOutput
 
-from image_latent_transformer.ilt import ImageLatentTransformer
+from image_latent_transformer.model import ImageLatentTransformer
 from image_latent_transformer.model_utils import setup_model
 
 
@@ -17,7 +17,7 @@ def setup_tiny_model():
         image_encoder_name="WinKawaks/vit-tiny-patch16-224",
         bytes_encoder_name="prajjwal1/bert-tiny",
         latent_transformer_name="sbintuitions/tiny-lm",
-        bytes_decoder_name="sbintuitions/tiny-lm"
+        bytes_decoder_name="sbintuitions/tiny-lm",
     )
 
 
