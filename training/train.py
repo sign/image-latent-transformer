@@ -26,6 +26,7 @@ from transformers.utils import send_example_telemetry
 from image_latent_transformer.model_utils import setup_model
 from training.args_data import DataTrainingArguments
 from training.args_model import ModelArguments
+from training.freeze_callback import FreezeWarmupCallback
 
 logger = logging.getLogger(__name__)
 
@@ -403,6 +404,9 @@ def train(args: Optional[dict] = None):  # noqa: C901
         compute_metrics=compute_metrics,
         preprocess_logits_for_metrics=preprocess_logits_for_metrics,
     )
+
+    # Freeze the pretrained models for some steps
+    trainer.add_callback(FreezeWarmupCallback(steps=model_args.warmup_freeze_steps, model=model))
 
     # Training
     if training_args.do_train:

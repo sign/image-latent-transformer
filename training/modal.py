@@ -64,16 +64,18 @@ def train():
         "--per_device_eval_batch_size", "16",
         "--do_train", "True",
         # "--do_eval", "True",
-        "--output_dir", MODEL_OUTPUT_DIR,
+        "--output_dir", f"{MODEL_OUTPUT_DIR}/frozen_test3",
         "--logging_steps", "10",
         "--logging_strategy", "steps",
-        "--max_steps", "5000",
+        "--max_steps", "500",
+        "--warmup_freeze_steps", "100",
         "--max_sequence_length", "128",
         "--max_word_length", "32",
         "--dataloader_num_workers", "4",
         "--include_tokens_per_second", "True",
         "--include_num_input_tokens_seen", "True",
         "--max_train_samples", "16",
+        "--learning_rate", "3e-4",
     ]
 
     train_remote.remote(args)

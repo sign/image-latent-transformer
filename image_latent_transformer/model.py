@@ -37,6 +37,10 @@ def model_from_config(config: PretrainedConfig,
     return cls.from_config(config, torch_dtype=dtype)
 
 
+def set_module_trainable(module, trainable: bool = True):
+    for p in module.parameters():
+        p.requires_grad = trainable
+
 class ImageLatentTransformer(PreTrainedModel):
     config_class = ImageLatentTransformerConfig
 
@@ -304,6 +308,24 @@ class ImageLatentTransformer(PreTrainedModel):
         logits = char_logits.view(B, L, T, -1)
 
         return logits
+
+    def freeze_pretrained_models(self):
+        """Freeze everything, then enable just the requested submodules."""
+        set_module_trainable(self, False)
+
+        # Enable newly created embeddings, LM head, mapping layers
+        if self.bytes_encoder is not None:
+            set_module_trainable(self.bytes_encoder.get_input_embeddings())
+
+        set_module_trainable(self.bytes_decoder.get_input_embeddings())
+        set_module_trainable(self.bytes_decoder.get_output_embeddings())
+
+        set_module_trainable(self.encoder_mapping)
+        set_module_trainable(self.decoder_mapping)
+
+    def unfreeze(self):
+        """Unfreeze everything."""
+        set_module_trainable(self, True)
 
 
 class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin):

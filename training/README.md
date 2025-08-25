@@ -22,7 +22,7 @@ python -m training.train \
     --per_device_eval_batch_size 1 \
     --do_train \
     --save_steps 10 \
-    --output_dir training/output \
+    --output_dir output \
     --logging_steps 1 \
     --logging_strategy steps \
     --max_steps 50 \
@@ -31,8 +31,12 @@ python -m training.train \
     --dataloader_num_workers 4 \
     --include_tokens_per_second True \
     --include_num_input_tokens_seen True \
-    --max_train_samples 16
+    --max_train_samples 16 \
+    --warmup_freeze_steps 10
 ```
+
+Use `warmup_freeze_steps=N` to freeze the pretrained modules for the first N steps 
+([#7](https://github.com/sign/image-latent-transformer/issues/7)).
 
 ## Using Modal.com
 
@@ -51,7 +55,7 @@ modal run -m training.modal::predict
 Download trained model:
 ```bash
 mkdir -p output
-modal volume get model-output / training/output
+modal volume get model-output / output
 ```
 
 ### Training Quirks

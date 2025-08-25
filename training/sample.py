@@ -1,16 +1,20 @@
 from pathlib import Path
 
+import torch
 from transformers import GenerationConfig
 from transformers.trainer_utils import get_last_checkpoint
 
-from image_latent_transformer.model import ImageLatentTransformer
+from image_latent_transformer.model import ImageLatentTransformerForCausalLM
 from image_latent_transformer.processor import TextImageProcessor
 
 
+@torch.no_grad()
 def sample(model_path: Path):
     last_checkpoint = get_last_checkpoint(model_path)
-    model = ImageLatentTransformer.from_pretrained(last_checkpoint)
+    model = ImageLatentTransformerForCausalLM.from_pretrained(last_checkpoint)
     processor = TextImageProcessor.from_pretrained(model_path)
+
+    model.eval()
 
     texts = [
         "The",

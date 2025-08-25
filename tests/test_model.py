@@ -190,5 +190,23 @@ def test_model_from_pretrained_works():
         assert original_num_parameters == loaded_num_parameters, \
             f"Number of parameters mismatch: {original_num_parameters:,} vs {loaded_num_parameters:,}"
 
+def test_freeze_unfreeze_model_works():
+    """Test that freezing the model works correctly."""
+    model, processor, collator = setup_tiny_model()
+
+    model.freeze_pretrained_models()
+
+    for name, param in model.latent_transformer.named_parameters():
+        assert not param.requires_grad, f"Parameter {name} should be frozen but is unfrozen."
+
+    for layer in [model.encoder_mapping, model.decoder_mapping]:
+        for name, param in layer.named_parameters():
+            assert param.requires_grad, f"Parameter {name} should be unfrozen but is frozen."
+
+    model.unfreeze()
+
+    for name, param in model.named_parameters():
+        assert param.requires_grad, f"Parameter {name} should be unfrozen but is frozen."
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
