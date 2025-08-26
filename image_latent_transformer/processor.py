@@ -12,7 +12,7 @@ from image_latent_transformer.utils import collate_fn
 class TextImageProcessor(ProcessorMixin):
     name = "text-image-processor"
 
-    attributes = ["image_processor", "tokenizer"]
+    attributes = ["tokenizer", "image_processor"]
     image_processor_class = "AutoImageProcessor"
     tokenizer_class = "ByteTokenizer"
     optional_attributes = ["max_seq_length", "max_word_length"]

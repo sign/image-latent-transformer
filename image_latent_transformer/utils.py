@@ -103,8 +103,9 @@ def image_encoder_size(image_encoder: Optional[AutoModelForImageClassification])
     # https://huggingface.co/docs/transformers/model_doc/mobilevit#transformers.MobileViTModel
     # If expand_output, the model will apply an additional 1x1 convolution to expand the output channels
     # from config.neck_hidden_sizes[5] to config.neck_hidden_sizes[6].
-    # When loading the model, it does not expand_output=True.
     if hasattr(config, 'neck_hidden_sizes'):
+        if getattr(image_encoder, 'expand_output', False):
+            return config.neck_hidden_sizes[-1]
         return config.neck_hidden_sizes[-2]
 
     if hasattr(config, 'hidden_sizes'):
