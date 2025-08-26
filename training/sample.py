@@ -25,7 +25,7 @@ def sample(model_path: Path):
         "Helsinki is the capital of",
     ]
 
-    inputs = processor(texts, collated=True)
+    inputs = processor(texts, collated=True, packed=False)
 
     outputs = model.generate(
         input_pixels=inputs["input_pixels"],

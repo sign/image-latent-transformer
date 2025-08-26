@@ -18,20 +18,20 @@ class TextImageProcessor(ProcessorMixin):
     optional_attributes = ["max_seq_length", "max_word_length"]
 
     def __init__(self,
-                 image_processor: AutoImageProcessor,
                  tokenizer: ByteTokenizer,
+                 image_processor: AutoImageProcessor,
                  max_seq_length: int = 128,
                  max_word_length: int = 32):
-        super().__init__(image_processor=image_processor,
-                         tokenizer=tokenizer,
+        super().__init__(tokenizer=tokenizer,
+                         image_processor=image_processor,
                          max_seq_length=max_seq_length,
                          max_word_length=max_word_length)
 
         assert tokenizer.bos_token_id is not None, "Tokenizer must have a BOS token"
         assert tokenizer.eos_token_id is not None, "Tokenizer must have an EOS token"
 
-        self.image_processor = image_processor
         self.tokenizer = tokenizer
+        self.image_processor = image_processor
         self.max_word_length = max_word_length
         self.max_seq_length = max_seq_length
 
@@ -62,6 +62,8 @@ class TextImageProcessor(ProcessorMixin):
         else:
             # Next word as label, last word has no label
             labels = words[1:] + [""]
+            # Truncate labels to max_word_length
+            labels = [label[:self.max_word_length] for label in labels]
 
         return words, labels
 

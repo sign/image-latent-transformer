@@ -17,6 +17,9 @@ from image_latent_transformer.utils import collate_fn
 
 def print_model_summary(name: str, model):
     """Print a summary of the model's architecture."""
+    if model is None:
+        print(name, "is None")
+        return
     total_params = sum(p.numel() for p in model.parameters())
     print(name, f"Total parameters: {total_params:,}")
 
@@ -34,18 +37,23 @@ def setup_model(
     set_seed(seed, deterministic=True)
     enable_full_determinism(seed=seed, warn_only=True)
 
-    image_processor = AutoImageProcessor.from_pretrained(image_encoder_name, use_fast=True)
+    if image_encoder_name is not None:
+        image_processor = AutoImageProcessor.from_pretrained(image_encoder_name, use_fast=True)
+    else:
+        image_processor = None
+
     tokenizer = ByteTokenizer()
 
     config = ImageLatentTransformerConfig(
         # All sub-configs are loaded from the respective model names
-        image_encoder=AutoConfig.from_pretrained(image_encoder_name),
-        bytes_encoder=AutoConfig.from_pretrained(bytes_encoder_name),
+        image_encoder=AutoConfig.from_pretrained(image_encoder_name) if image_encoder_name else None,
+        bytes_encoder=AutoConfig.from_pretrained(bytes_encoder_name) if bytes_encoder_name else None,
         latent_transformer=AutoConfig.from_pretrained(latent_transformer_name),
         bytes_decoder=AutoConfig.from_pretrained(bytes_decoder_name),
         # Other configuration parameters
         modality_dropout=modality_dropout,
         tokenizer_class=tokenizer.__class__.__name__,
+        num_tokens=len(tokenizer),
         bos_token_id=tokenizer.bos_token_id,
         pad_token_id=tokenizer.pad_token_id,
         eos_token_id=tokenizer.eos_token_id,
@@ -63,8 +71,8 @@ def setup_model(
     print_model_summary("Final Model", model)
 
     processor = TextImageProcessor(
-        image_processor=image_processor,
         tokenizer=tokenizer,
+        image_processor=image_processor,
         max_seq_length=config.latent_transformer.max_position_embeddings,
         max_word_length=config.bytes_decoder.max_position_embeddings,
     )

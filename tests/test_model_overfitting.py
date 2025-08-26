@@ -16,6 +16,8 @@ def train_model(setup_function,
     if train_texts is None:
         train_texts = ["a b", "b a", "a cat", "a dog"]
 
+    train_dataset = make_dataset(train_texts).with_transform(processor)
+
     # Setup training arguments with more epochs for overfitting
     training_args = TrainingArguments(
         output_dir=tempfile.mktemp(),
@@ -37,7 +39,7 @@ def train_model(setup_function,
         model=model,
         args=training_args,
         processing_class=processor,
-        train_dataset=make_dataset(train_texts).with_transform(processor),
+        train_dataset=train_dataset,
         data_collator=collator,
     )
 

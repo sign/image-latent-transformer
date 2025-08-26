@@ -1,9 +1,8 @@
-import os
 import tempfile
 
 import pytest
 import torch
-from datasets import load_dataset
+from datasets import Dataset
 from safetensors.torch import load_model, save_model
 from transformers.modeling_outputs import CausalLMOutput
 
@@ -23,19 +22,7 @@ def setup_tiny_model():
 
 def make_dataset(texts: list[str]):
     """Create a dataset from a list of texts."""
-
-    data_as_csv = "text\n" + "\n".join([f"{text}" for text in texts])
-
-    # Write to a temporary CSV file
-    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".csv")
-    temp_file.write(data_as_csv.encode('utf-8'))
-    temp_file.close()
-
-    # Load the dataset from the temporary CSV file
-    dataset = load_dataset("csv", data_files=temp_file.name, split="train")
-    os.unlink(temp_file.name)  # Clean up the temporary file
-
-    return dataset
+    return Dataset.from_dict({"text": texts})
 
 
 def dataset_to_batch(model, processor, collator, dataset):

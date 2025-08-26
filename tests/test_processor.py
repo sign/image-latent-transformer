@@ -19,7 +19,10 @@ expected_keys = expected_tensor_keys + ["input_pixels"]
 def test_processor_save_and_load_works(processor):
     with tempfile.TemporaryDirectory() as temp_dir:
         processor.save_pretrained(save_directory=temp_dir, push_to_hub=False)
-        TextImageProcessor.from_pretrained(temp_dir)
+        new_processor = TextImageProcessor.from_pretrained(temp_dir)
+
+        assert new_processor.tokenizer is not None
+        assert new_processor.image_processor is not None
 
 
 def test_processor_single_text_collated(processor):
@@ -101,6 +104,24 @@ def test_get_words_and_labels_packed_vs_unpacked(processor):
 
     assert labels_packed == ['hello world test', 'world test', 'test', '']
     assert labels_unpacked == ['hello ', 'world ', 'test ', '']
+
+def test_get_words_and_labels_packed_vs_unpacked_respect_max_word_length(processor):
+    text = "this is a long-test"
+
+    new_processor = TextImageProcessor(
+        tokenizer=processor.tokenizer,
+        image_processor=processor.image_processor,
+        max_word_length=3
+    )
+
+    # Test packed=True
+    words_packed, labels_packed = new_processor.get_words_and_labels(text, pack=True)
+
+    # Test packed=False
+    words_unpacked, labels_unpacked = new_processor.get_words_and_labels(text, pack=False)
+
+    assert labels_packed == ['thi', 'is', 'a l', 'lon', '']
+    assert labels_unpacked == ['thi', 'is ', 'a ', 'lon', '']
 
 
 if __name__ == "__main__":
