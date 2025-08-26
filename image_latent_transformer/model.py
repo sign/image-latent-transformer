@@ -17,10 +17,11 @@ from transformers import (
 )
 from transformers.modeling_outputs import CausalLMOutput
 
+from image_latent_transformer.batch_image_encoder import encode_images
 from image_latent_transformer.config import ImageLatentTransformerConfig
 from image_latent_transformer.renderer import render_texts_torch
 from image_latent_transformer.tokenizer import ByteTokenizer
-from image_latent_transformer.utils import accepts, collate_images, image_encoder_size
+from image_latent_transformer.utils import image_encoder_size
 
 logger = logging.getLogger(__name__)
 
@@ -107,28 +108,14 @@ class ImageLatentTransformer(PreTrainedModel):
         Returns:
             torch.Tensor: (BATCH, LENGTH, HIDDEN_DIM) - Image embeddings
         """
-        # TODO: handle padding https://github.com/sign/image-latent-transformer/issues/1
-        input_pixels = collate_images(input_pixels)
-        input_pixels = input_pixels.to(device)
-
-        B, L, C, H, W = input_pixels.shape  # noqa: N806
+        B = len(input_pixels) # noqa: N806
+        L = max(len(images) for images in input_pixels) # noqa: N806
 
         # If image encoder is None, return zeros
         if self.image_encoder is None or self._should_drop_modality():
-            return torch.zeros(B, L, self.image_encoder_dim, device=input_pixels.device, dtype=input_pixels.dtype)
+            return torch.zeros(B, L, self.image_encoder_dim, device=device, dtype=self.config.torch_dtype)
 
-        # Flatten batch and length dimensions
-        input_pixels = input_pixels.view(B * L, C, H, W)
-        # Encode images using the image encoder
-        kwargs = {}
-        if accepts(self.image_encoder.forward, 'interpolate_pos_encoding'):
-            kwargs['interpolate_pos_encoding'] = True
-
-        encoded_image = self.image_encoder(input_pixels, output_hidden_states=True, **kwargs)
-        image_embeds = encoded_image.hidden_states[-1]  # Use the last hidden state
-        # Pool channels dimension (e.g., mean pooling)
-        image_embeds = image_embeds.mean(dim=1)
-        return image_embeds.view(B, L, -1)
+        return encode_images(self.image_encoder, input_pixels=input_pixels, device=device)
 
     def encode_texts(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
         """

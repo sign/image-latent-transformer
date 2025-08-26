@@ -118,9 +118,6 @@ def test_loss_is_independent_of_batch():
     model, processor, collator = setup_model()
     model.eval()
 
-    # TODO: turn it back on once https://github.com/sign/image-latent-transformer/issues/1 is fixed
-    model.image_encoder = None
-
     batches = [
         # Run first batch with just "a"
         ["a"],

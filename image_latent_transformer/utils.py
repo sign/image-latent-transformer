@@ -88,6 +88,7 @@ class UnknownImageEncoderError(ValueError):
         super().__init__("Image encoder does not have a valid hidden size configuration.")
 
 
+@cache
 def image_encoder_size(image_encoder: Optional[AutoModelForImageClassification]) -> int:
     if image_encoder is None:
         return 0
@@ -98,6 +99,16 @@ def image_encoder_size(image_encoder: Optional[AutoModelForImageClassification])
 
     if hasattr(config, 'hidden_size'):
         return config.hidden_size
+
+    # https://huggingface.co/docs/transformers/model_doc/mobilevit#transformers.MobileViTModel
+    # If expand_output, the model will apply an additional 1x1 convolution to expand the output channels
+    # from config.neck_hidden_sizes[5] to config.neck_hidden_sizes[6].
+    # When loading the model, it does not expand_output=True.
+    if hasattr(config, 'neck_hidden_sizes'):
+        return config.neck_hidden_sizes[-2]
+
+    if hasattr(config, 'hidden_sizes'):
+        return config.hidden_sizes[-1]
 
     raise UnknownImageEncoderError()
 

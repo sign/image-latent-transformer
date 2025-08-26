@@ -11,9 +11,6 @@ def generation_model_setup():
     # Setup the base model
     model, processor, collator = setup_model()
 
-    # TODO: turn it back on once https://github.com/sign/image-latent-transformer/issues/1 is fixed
-    model.image_encoder = None
-
     # Set to eval mode
     model.eval()
 

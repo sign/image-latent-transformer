@@ -10,6 +10,7 @@ from typing import Optional
 
 import datasets
 import evaluate
+import torch
 import transformers
 from datasets import IterableDataset, IterableDatasetDict, load_dataset
 from safetensors.torch import load_model
@@ -29,6 +30,11 @@ from training.args_model import ModelArguments
 from training.freeze_callback import FreezeWarmupCallback
 
 logger = logging.getLogger(__name__)
+
+
+def enable_optimizations():
+    torch.backends.cudnn.benchmark = True
+    torch.backends.cuda.matmul.allow_tf32 = True
 
 
 def split_streaming_dataset(
@@ -333,6 +339,8 @@ def setup_evaluation_functions(training_args: TrainingArguments, cache_dir=None)
 
 def train(args: Optional[dict] = None):  # noqa: C901
     cache_dir = None  # Use the default cache directory / Environment variable
+
+    enable_optimizations()
 
     model_args, data_args, training_args = parse_args_into_dataclasses(args)
 

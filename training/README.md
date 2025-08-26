@@ -1,5 +1,8 @@
 # Training
 
+> [!CAUTION]
+> The [image encoder](../image_latent_transformer/batch_image_encoder.py) tends to work sequentially, 
+> and slow down training.
 
 Setup with:
 
@@ -13,7 +16,7 @@ Run:
 python -m training.train \
     --image_encoder_model_name_or_path "WinKawaks/vit-tiny-patch16-224" \
     --bytes_encoder_model_name_or_path "prajjwal1/bert-tiny" \
-    --latent_transformer_model_name_or_path "EleutherAI/pythia-70m" \
+    --latent_transformer_model_name_or_path "sbintuitions/tiny-lm" \
     --bytes_decoder_model_name_or_path "sbintuitions/tiny-lm" \
     --dataset_name wikitext \
     --dataset_config_name wikitext-2-raw-v1 \
@@ -48,8 +51,8 @@ modal setup
 
 Training:
 ```bash
-modal run -m training.modal::train
-modal run -m training.modal::predict   
+modal run --detach -m training.modal::train
+modal run -m training.modal::predict
 ```
 
 Download trained model:
