@@ -100,8 +100,7 @@ def train():
     volumes={
         MODEL_MNT_DIR: modal.Volume.from_name("model-output", create_if_missing=True),
     },
-    timeout=60,  # 60 seconds
-    retries=0  # Do not retry on failure
+    timeout=240
 )
 def sample_remote():
     sample(Path(MODEL_OUTPUT_DIR))

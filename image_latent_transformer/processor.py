@@ -4,9 +4,9 @@ from typing import Union
 import torch
 from transformers import AutoImageProcessor, ProcessorMixin
 
+from image_latent_transformer.collator import collate_fn
 from image_latent_transformer.renderer import render_texts_torch
 from image_latent_transformer.tokenizer import ByteTokenizer
-from image_latent_transformer.utils import collate_fn
 
 
 class TextImageProcessor(ProcessorMixin):
