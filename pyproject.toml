@@ -27,6 +27,7 @@ train = [
     "datasets", # For dataset loading and processing
     "evaluate", # For evaluation metrics
     "scikit-learn", # For "accuracy" metric in evaluate
+    "wandb", # For experiment tracking
 ]
 
 [tool.setuptools]

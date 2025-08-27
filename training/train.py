@@ -129,6 +129,7 @@ def init_model(model_args: ModelArguments, seed: int, device: str):
         trust_remote_code=model_args.trust_remote_code,
         torch_dtype=model_args.torch_dtype,
         seed=seed,
+        load_pretrained=False
     )
 
     # Load the model from a local path if provided
@@ -266,7 +267,9 @@ def init_datasets(data_args: DataTrainingArguments,  # noqa: C901
     text_column_name = "text" if "text" in column_names else column_names[0]
 
     def mapping_function(x):
-        return {text_column_name: x[text_column_name]}
+        text = data_args.dataset_text_template.format(**x) \
+            if data_args.dataset_text_template else x[text_column_name]
+        return {"text": text}
 
     map_args = {}
     if not data_args.streaming:
@@ -278,13 +281,13 @@ def init_datasets(data_args: DataTrainingArguments,  # noqa: C901
     text_datasets = raw_datasets.map(
         mapping_function,
         remove_columns=column_names,
-        desc="Keep only the text column",
+        desc="Keep only the text column & apply template",
         **map_args
     )
 
     # Filter out empty texts
     text_datasets = text_datasets.filter(
-        lambda x: len(x[text_column_name]) > 0,
+        lambda x: len(x["text"]) > 0,
         desc="Filter out empty texts",
         **map_args
     )

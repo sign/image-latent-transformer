@@ -17,12 +17,18 @@ def sample(model_path: Path):
     model.eval()
 
     texts = [
-        "The",
-        "The game",
-        "The game began",
-        "The game began development in 2010",
-        "Barack Obama is",
-        "Helsinki is the capital of",
+        "<en>", # Generate the english and hebrew
+        # Texts from validation set
+        "<en> What's wrong? <he>",
+        "<en> YOu dOn't know the half Of it. <he>", # look! mixed case
+        "<en> - No, just said that you were acting... aggressive. <he>",
+        "<en> -l'm a deputy. <he>", # look! "l" instead of "I", no space.
+        "<en> Well, the good news is Joe wasn't cheating on you. <he>",
+        "<en> - Mm-hmm. No wonder women won't flirt with me. <he>",
+        "<en> You understand you'll be working with your father. <he>",
+        "<en> You wanted freedom, you got it. <he>",
+        # Not from validation set, just wanted to try a long named entity
+        "<en> Alexander Hamilton <he>",
     ]
 
     inputs = processor(texts, collated=True, packed=False)

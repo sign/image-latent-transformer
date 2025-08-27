@@ -18,14 +18,16 @@ python -m training.train \
     --bytes_encoder_model_name_or_path "prajjwal1/bert-tiny" \
     --latent_transformer_model_name_or_path "sbintuitions/tiny-lm" \
     --bytes_decoder_model_name_or_path "sbintuitions/tiny-lm" \
-    --dataset_name wikitext \
-    --dataset_config_name wikitext-2-raw-v1 \
+    --dataset_name Helsinki-NLP/opus-100 \
+    --dataset_config_name en-he \
+    --dataset_text_template "<en> {translation[en]} <he> {translation[he]}" \
     --remove_unused_columns False \
     --per_device_train_batch_size 1 \
     --per_device_eval_batch_size 1 \
     --do_train \
     --save_steps 10 \
     --output_dir output \
+    --overwrite_output_dir \
     --logging_steps 1 \
     --logging_strategy steps \
     --max_steps 50 \
@@ -66,3 +68,4 @@ modal volume get model-output / output
 `num_input_tokens_seen` and `train_tokens_per_second` are calculated based on the number of bytes the model decodes.
 That means that in practice, if `max_word_length=32`, a rough estimate of
 the real number of **words** the model sees should be divided by 32.
+

@@ -16,6 +16,17 @@ class DataTrainingArguments:
     dataset_config_name: Optional[str] = field(
         default=None, metadata={"help": "The configuration name of the dataset to use (via the datasets library)."}
     )
+    dataset_text_template: Optional[str] = field(
+        default=None,
+        metadata={
+            "help": (
+                "A template to extract the text column from the dataset. "
+                "The string {text} will be replaced by the actual text column name. "
+                "For example, if the text column is named 'sentence', "
+                "the template could be 'translate {sentence} to fr'."
+            )
+        },
+    )
     train_file: Optional[str] = field(default=None, metadata={"help": "The input training data file (a text file)."})
     validation_file: Optional[str] = field(
         default=None,
