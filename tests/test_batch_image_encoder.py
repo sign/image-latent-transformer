@@ -2,7 +2,7 @@ from functools import cache
 
 import pytest
 import torch
-from transformers import AutoModelForImageClassification, AutoConfig
+from transformers import AutoConfig, AutoModelForImageClassification
 
 from image_latent_transformer.batch_image_encoder import (
     encode_images,
