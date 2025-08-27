@@ -13,7 +13,6 @@ class ImageLatentTransformerConfig(PretrainedConfig):
         "bytes_decoder": AutoConfig,
     }
 
-
     def __init__(self,
                  image_encoder: Optional[Union[AutoConfig, dict]] = None,
                  bytes_encoder: Optional[Union[AutoConfig, dict]] = None,

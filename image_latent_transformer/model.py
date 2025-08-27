@@ -17,11 +17,10 @@ from transformers import (
 )
 from transformers.modeling_outputs import CausalLMOutput
 
-from image_latent_transformer.batch_image_encoder import encode_images
+from image_latent_transformer.batch_image_encoder import encode_images, image_encoder_size
 from image_latent_transformer.config import ImageLatentTransformerConfig
 from image_latent_transformer.renderer import render_texts_torch
 from image_latent_transformer.tokenizer import ByteTokenizer
-from image_latent_transformer.utils import image_encoder_size
 
 logger = logging.getLogger(__name__)
 
@@ -113,7 +112,8 @@ class ImageLatentTransformer(PreTrainedModel):
 
         # If image encoder is None, return zeros
         if self.image_encoder is None or self._should_drop_modality():
-            return torch.zeros(B, L, self.image_encoder_dim, device=device, dtype=self.config.torch_dtype)
+            dtype = getattr(self.image_encoder, "dtype", self.latent_transformer.dtype)
+            return torch.zeros((B, L, self.image_encoder_dim), device=device, dtype=dtype)
 
         return encode_images(self.image_encoder, input_pixels=input_pixels, device=device)
 
@@ -129,7 +129,8 @@ class ImageLatentTransformer(PreTrainedModel):
 
         # If bytes encoder is None, return zeros
         if self.bytes_encoder is None or self._should_drop_modality():
-            return torch.zeros(B, L, self.bytes_encoder_dim, device=input_ids.device, dtype=torch.float32)
+            dtype = getattr(self.bytes_encoder, "dtype", self.latent_transformer.dtype)
+            return torch.zeros(B, L, self.bytes_encoder_dim, device=input_ids.device, dtype=dtype)
 
         # Flatten batch and length dimensions
         input_ids = input_ids.view(B * L, T)

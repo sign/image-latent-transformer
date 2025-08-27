@@ -8,19 +8,22 @@ from image_latent_transformer.batch_image_encoder import (
     encode_images,
     encode_images_batch,
     encode_images_sequentially,
+    image_encoder_size,
     model_args_dict,
 )
 
-MODEL_NAMES = [
-    "WinKawaks/vit-tiny-patch16-224",
-    "microsoft/swinv2-tiny-patch4-window16-256",
-    "google/vit-base-patch16-224",
-    "microsoft/resnet-18",
-    "apple/mobilevit-xx-small",
+MODELS = {
+    "WinKawaks/vit-tiny-patch16-224": 192,
+    "microsoft/swinv2-tiny-patch4-window16-256": 768,
+    "google/vit-base-patch16-224": 768,
+    "microsoft/resnet-18": 512,
+    "apple/mobilevit-xx-small": 80,
     # TODO: support once huggingface releases a new version
     # "facebook/dinov3-vits16-pretrain-lvd1689m",
     # "facebook/dinov3-convnext-tiny-pretrain-lvd1689m"
-]
+}
+
+MODEL_NAMES = list(MODELS.keys())
 
 
 @cache
@@ -33,6 +36,15 @@ def image_encoder(model_name):
 def create_random_image(height, width, channels=3):
     """Create a random image tensor."""
     return torch.randn(channels, height, width)
+
+
+@pytest.mark.parametrize("model_name", MODEL_NAMES)
+def test_image_encoder_size(model_name):
+    """Test that image_encoder_size returns the expected hidden size for each model."""
+    model = image_encoder(model_name)
+    expected_size = MODELS[model_name]
+    actual_size = image_encoder_size(model)
+    assert actual_size == expected_size, f"Expected {expected_size}, got {actual_size} for {model_name}"
 
 
 @pytest.mark.parametrize("model_name", MODEL_NAMES)
@@ -66,11 +78,14 @@ def test_encode_images_batched_or_sequential(model_name):
     """Make sure the batch implementation and the sequential implementation return the same result"""
     model = image_encoder(model_name)
 
-    images = [[create_random_image(64, 64), create_random_image(64, 64)]]
+    images = [create_random_image(64, 64), create_random_image(64, 64)]
 
     model_args = model_args_dict(model)
+
     embeddings1 = encode_images_batch(model, images, model_args)
+
     embeddings2 = encode_images_sequentially(model, images, model_args)
+    embeddings2 = torch.cat(embeddings2, dim=0)
 
     assert embeddings1.shape == embeddings2.shape
 

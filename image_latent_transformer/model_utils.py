@@ -8,11 +8,11 @@ from transformers import (
     set_seed,
 )
 
+from image_latent_transformer.collator import collate_fn
 from image_latent_transformer.config import ImageLatentTransformerConfig
 from image_latent_transformer.model import ImageLatentTransformerForCausalLM
 from image_latent_transformer.processor import TextImageProcessor
 from image_latent_transformer.tokenizer import ByteTokenizer
-from image_latent_transformer.utils import collate_fn
 
 
 def print_model_summary(name: str, model):
@@ -32,7 +32,8 @@ def setup_model(
         trust_remote_code=False,
         modality_dropout=0.15,
         torch_dtype=torch.float32,
-        seed=42
+        seed=42,
+        load_pretrained=True,
 ):
     set_seed(seed, deterministic=True)
     enable_full_determinism(seed=seed, warn_only=True)
@@ -63,7 +64,7 @@ def setup_model(
     )
 
     # Combine the models
-    model = ImageLatentTransformerForCausalLM(config, load_pretrained=True)
+    model = ImageLatentTransformerForCausalLM(config, load_pretrained=load_pretrained)
     print_model_summary("Image Encoder", model.image_encoder)
     print_model_summary("Bytes Encoder", model.bytes_encoder)
     print_model_summary("Latent Transformer", model.latent_transformer)
