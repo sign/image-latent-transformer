@@ -17,6 +17,7 @@ def setup_tiny_model():
         bytes_encoder_name="prajjwal1/bert-tiny",
         latent_transformer_name="sbintuitions/tiny-lm",
         bytes_decoder_name="sbintuitions/tiny-lm",
+        load_pretrained=False
     )
 
 

@@ -2,7 +2,7 @@ from functools import cache
 
 import pytest
 import torch
-from transformers import AutoModelForImageClassification
+from transformers import AutoModelForImageClassification, AutoConfig
 
 from image_latent_transformer.batch_image_encoder import (
     encode_images,
@@ -28,7 +28,8 @@ MODEL_NAMES = list(MODELS.keys())
 
 @cache
 def image_encoder(model_name):
-    model = AutoModelForImageClassification.from_pretrained(model_name)
+    config = AutoConfig.from_pretrained(model_name)
+    model = AutoModelForImageClassification.from_config(config)
     model.eval()
     return model
 
