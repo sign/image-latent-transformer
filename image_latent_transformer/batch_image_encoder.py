@@ -88,9 +88,9 @@ def encode_images(image_encoder: AutoModelForImageClassification,
 
     idx = 0
     for i, inner_images in enumerate(input_pixels):
-        for j, _image in enumerate(inner_images):
-            embeds[i, j] = embeddings[idx]
-            idx += 1
+        num_images = len(inner_images)
+        embeds[i, range(num_images)] = embeddings[idx:idx + num_images]
+        idx += num_images
 
     return embeds
 
@@ -127,7 +127,7 @@ def encode_images_batch(image_encoder: AutoModelForImageClassification,
 def encode_images_sequentially(image_encoder: AutoModelForImageClassification,
                                images: list[torch.Tensor],
                                model_args: dict,
-                               device: torch.device = None) -> list[torch.Tensor]:
+                               device: torch.device = None) -> torch.Tensor:
     if device is not None:
         images = [image.to(device) for image in images]
 
@@ -138,4 +138,4 @@ def encode_images_sequentially(image_encoder: AutoModelForImageClassification,
     hidden_size = image_encoder_size(image_encoder)
     hidden_states = [pool_hidden_dim(state, hidden_size) for state in hidden_states]
 
-    return hidden_states
+    return torch.cat(hidden_states, dim=0)

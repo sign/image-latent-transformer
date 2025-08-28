@@ -82,11 +82,8 @@ def test_encode_images_batched_or_sequential(model_name):
     images = [create_random_image(64, 64), create_random_image(64, 64)]
 
     model_args = model_args_dict(model)
-
     embeddings1 = encode_images_batch(model, images, model_args)
-
     embeddings2 = encode_images_sequentially(model, images, model_args)
-    embeddings2 = torch.cat(embeddings2, dim=0)
 
     assert embeddings1.shape == embeddings2.shape
 
