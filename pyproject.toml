@@ -16,8 +16,9 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "ruff",
     "pytest",
-    "ruff"
+    "pytest-xdist", # For parallel test execution
 ]
 
 train = [

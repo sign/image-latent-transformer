@@ -36,4 +36,4 @@ jobs:
 
       - name: Test Code
         shell: bash -l {0}
-        run: pytest .
+        run: pytest -n auto --dist loadscope
