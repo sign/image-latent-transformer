@@ -8,6 +8,7 @@ authors = [
 readme = "README.md"
 dependencies = [
     "transformers[torch]",
+    "trl", # For huggingface implementation of pack_dataset
     "datasets",
     "Pillow", # For AutoImageProcessor
     "torchvision", # For use_fast=True

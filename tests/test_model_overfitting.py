@@ -2,6 +2,7 @@ import tempfile
 
 import pytest
 from transformers import Trainer, TrainingArguments
+from trl import pack_dataset
 
 from image_latent_transformer.model_utils import setup_model
 from tests.test_model import make_dataset, predict_dataset
@@ -10,13 +11,20 @@ from tests.test_model import make_dataset, predict_dataset
 # TODO: this training is flaky due to https://github.com/huggingface/transformers/issues/40219
 def train_model(setup_function,
                 num_epochs=10,
-                train_texts=None):
+                train_texts=None,
+                packing=False):
     model, processor, collator = setup_function()
 
     if train_texts is None:
         train_texts = ["a b", "b a", "a cat", "a dog"]
 
-    train_dataset = make_dataset(train_texts).with_transform(processor)
+    train_dataset = make_dataset(train_texts)
+
+    if packing:
+        train_dataset = processor.pretokenize_dataset(train_dataset)
+        train_dataset = pack_dataset(train_dataset, seq_length=7)
+
+    train_dataset = train_dataset.with_transform(processor)
 
     # Setup training arguments with more epochs for overfitting
     training_args = TrainingArguments(
@@ -54,16 +62,20 @@ def train_model(setup_function,
 
 
 @pytest.fixture(scope="module")
-def trained_model():
+def trained_models():
     """Train the model once and reuse for all tests."""
-    return train_model(setup_model, num_epochs=100)
+    num_epochs = 100
+    return {
+        "packed": train_model(setup_model, num_epochs=num_epochs, packing=True),
+        "unpacked": train_model(setup_model, num_epochs=num_epochs, packing=False)
+    }
 
 
 @pytest.fixture
-def model_configuration(request, trained_model):
+def model_configuration(request, trained_models):
     """Configure model based on the test parameter."""
-    model, processor, collator = trained_model
-    config_name = request.param
+    model_type, config_name = request.param
+    model, processor, collator = trained_models[model_type]
 
     # Store original encoders
     original_bytes_encoder = model.bytes_encoder
@@ -88,11 +100,22 @@ def model_configuration(request, trained_model):
     model.image_encoder = original_image_encoder
 
 
-@pytest.mark.parametrize("model_configuration", [
-    "full_model",
-    "no_bytes_encoder",
-    "no_image_encoder"
-], indirect=True)
+MODEL_CONFIGURATIONS = [
+    # Packed setups
+    ("packed", "full_model"),
+    ("packed", "no_bytes_encoder"),
+    ("packed", "no_image_encoder"),
+
+    # Unpacked setups
+    ("unpacked", "full_model"),
+    ("unpacked", "no_bytes_encoder"),
+    ("unpacked", "no_image_encoder"),
+]
+
+MODEL_IDs = [f"{config} / {model_type}" for config, model_type in MODEL_CONFIGURATIONS]
+parameterization = pytest.mark.parametrize("model_configuration", MODEL_CONFIGURATIONS, indirect=True, ids=MODEL_IDs)
+
+@parameterization
 def test_character_level_conditioning(model_configuration):
     """Test 1: Character-level conditioning (a b vs a a, b a vs b b)"""
     model, processor, collator = model_configuration
@@ -112,11 +135,7 @@ def test_character_level_conditioning(model_configuration):
     print("✅ Character-level conditioning test passed!")
 
 
-@pytest.mark.parametrize("model_configuration", [
-    "full_model",
-    "no_bytes_encoder",
-    "no_image_encoder"
-], indirect=True)
+@parameterization
 def test_word_level_conditioning(model_configuration):
     """Test 2: Word-level conditioning (a cat vs a dat, a dog vs a cog)"""
     model, processor, collator = model_configuration
@@ -136,11 +155,7 @@ def test_word_level_conditioning(model_configuration):
     print("✅ Word-level conditioning test passed!")
 
 
-@pytest.mark.parametrize("model_configuration", [
-    "full_model",
-    "no_bytes_encoder",
-    "no_image_encoder"
-], indirect=True)
+@parameterization
 def test_byte_level_conditioning(model_configuration):
     """Test 3: Byte-level conditioning within words"""
     model, processor, collator = model_configuration

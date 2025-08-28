@@ -1,7 +1,5 @@
 # Heavily adapted from
 # https://github.com/huggingface/transformers/edit/main/examples/pytorch/language-modeling/run_clm.py
-
-
 import logging
 import math
 import os
@@ -23,6 +21,7 @@ from transformers import (
 )
 from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import send_example_telemetry
+from trl import pack_dataset
 
 from image_latent_transformer.model_utils import setup_model
 from training.args_data import DataTrainingArguments
@@ -391,10 +390,11 @@ def train(args: Optional[dict] = None):  # noqa: C901
                                           max_samples=data_args.max_eval_samples,
                                           streaming=data_args.streaming)
 
-    # max_pos_embeddings = getattr(model.latent_transformer.config, "max_position_embeddings", 1024)
-    # block_size = min(data_args.block_size or math.inf, max_pos_embeddings)
-    # TODO: packing the texts into blocks of size `block_size` is not implemented yet.
-    #  https://github.com/sign/image-latent-transformer/issues/4
+    # Sequence packing
+    if train_dataset:
+        block_size = min(data_args.block_size or math.inf, processor.max_seq_length)
+        train_dataset = processor.pretokenize_dataset(train_dataset)
+        train_dataset = pack_dataset(train_dataset, seq_length=block_size)
 
     # Transform the datasets to the format expected by the model
     if train_dataset:

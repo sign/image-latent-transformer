@@ -6,7 +6,8 @@ from transformers import AutoTokenizer, ByT5Tokenizer
 
 class ByteTokenizer(ByT5Tokenizer):
     def __init__(self, *args, **kwargs):
-        kwargs["bos_token"] = kwargs.get("bos_token", "<unk>")
+        kwargs["unk_token"] = kwargs.get("unk_token", "<bos>")
+        kwargs["bos_token"] = kwargs.get("bos_token", kwargs["unk_token"])
         # Aim for 256 bytes + 3 special tokens + 5 extra ids
         kwargs["extra_ids"] = kwargs.get("extra_ids", 5)
         super().__init__(*args, **kwargs)

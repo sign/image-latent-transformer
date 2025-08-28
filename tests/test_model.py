@@ -74,7 +74,7 @@ def test_attention_no_look_ahead():
     model.eval()
 
     # Test sequences that share prefixes
-    texts = ["a b c", "a b d"]
+    texts = ["a b c x y z", "a b d m"]
 
     # Force every word to predict a single byte (and EOS)
     # "a <eos>, b <eos>, c <eos>, <eos> <pad>" and "a <eos>, b <eos>, d <eos>, <eos> <pad>"

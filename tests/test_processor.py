@@ -2,6 +2,8 @@ import tempfile
 
 import pytest
 import torch
+from datasets import Dataset
+from trl.data_utils import pack_dataset
 
 from image_latent_transformer.processor import TextImageProcessor
 from tests.test_model import setup_tiny_model
@@ -12,7 +14,9 @@ def processor():
     model, processor, collator = setup_tiny_model()
     return processor
 
-expected_tensor_keys = ["input_ids", "attention_mask", "labels_input", "labels_attention_mask", "labels_output"]
+
+expected_tensor_keys = ["input_ids", "input_attention_mask", "attention_mask", "position_ids",
+                        "labels_input", "labels_attention_mask", "labels_output"]
 expected_keys = expected_tensor_keys + ["input_pixels"]
 
 
@@ -53,6 +57,39 @@ def test_processor_object_format_collated(processor):
     assert all(isinstance(inputs[key], torch.Tensor) for key in expected_tensor_keys)
 
 
+def test_processor_multiple_strings_collated_attention_mask(processor):
+    texts = ["one", "two words", "three word test"]
+    inputs = processor(texts, collated=True)
+    assert all(key in inputs for key in expected_keys)
+    assert all(isinstance(inputs[key], torch.Tensor) for key in expected_tensor_keys)
+
+    assert inputs["attention_mask"].shape == (3, 1, 4, 4)
+
+    expected = [
+        torch.tensor([
+            [True, False, False, False],
+            [True, True, False, False],
+            [False, False, False, False],
+            [False, False, False, False]
+        ]),
+        torch.tensor([
+            [True, False, False, False],
+            [True, True, False, False],
+            [True, True, True, False],
+            [False, False, False, False]
+        ]),
+        torch.tensor([
+            [True, False, False, False],
+            [True, True, False, False],
+            [True, True, True, False],
+            [True, True, True, True]
+        ])
+    ]
+
+    for mask, expected_mask in zip(inputs["attention_mask"], expected):
+        assert torch.equal(mask[0], expected_mask)
+
+
 def test_processor_packed_vs_unpacked_labels(processor):
     text = "hello world test"
 
@@ -89,24 +126,24 @@ def test_processor_packed_true_default_behavior(processor):
 
 def test_get_words_and_labels_packed_vs_unpacked(processor):
     text = "hello world test"
+    words = processor.pretokenize(text)
 
     # Test packed=True
-    words_packed, labels_packed = processor.get_words_and_labels(text, pack=True)
+    labels_packed = processor.get_sequence_labels(words, pack=True)
 
     # Test packed=False
-    words_unpacked, labels_unpacked = processor.get_words_and_labels(text, pack=False)
-
-    # Words should be the same
-    assert words_packed == words_unpacked
+    labels_unpacked = processor.get_sequence_labels(words, pack=False)
 
     # Labels should be different
     assert labels_packed != labels_unpacked
 
     assert labels_packed == ['hello world test', 'world test', 'test', '']
-    assert labels_unpacked == ['hello ', 'world ', 'test ', '']
+    assert labels_unpacked == ['hello ', 'world ', 'test', '']
+
 
 def test_get_words_and_labels_packed_vs_unpacked_respect_max_word_length(processor):
     text = "this is a long-test"
+    words = processor.pretokenize(text)
 
     new_processor = TextImageProcessor(
         tokenizer=processor.tokenizer,
@@ -115,13 +152,97 @@ def test_get_words_and_labels_packed_vs_unpacked_respect_max_word_length(process
     )
 
     # Test packed=True
-    words_packed, labels_packed = new_processor.get_words_and_labels(text, pack=True)
+    labels_packed = new_processor.get_sequence_labels(words, pack=True)
 
     # Test packed=False
-    words_unpacked, labels_unpacked = new_processor.get_words_and_labels(text, pack=False)
+    labels_unpacked = new_processor.get_sequence_labels(words, pack=False)
 
     assert labels_packed == ['thi', 'is', 'a l', 'lon', '']
     assert labels_unpacked == ['thi', 'is ', 'a ', 'lon', '']
+
+
+def test_pretokenize_dataset(processor):
+    texts = [
+        "hi!",
+        "hello world",
+    ]
+    dataset = Dataset.from_dict({"text": texts})
+    dataset = processor.pretokenize_dataset(dataset)
+
+    assert dataset[:] == {
+        'words': [
+            ['<bos> ', 'hi! '],
+            ['<bos> ', 'hello ', 'world '],
+        ],
+    }
+
+
+def test_packed_dataset(processor):
+    texts = [
+        "hi!",
+        "hello world",
+        "yes.",
+        "a b c"
+    ]
+    dataset = Dataset.from_dict({"text": texts})
+    dataset = processor.pretokenize_dataset(dataset)
+    packed_dataset = pack_dataset(dataset, seq_length=7)
+
+    assert packed_dataset[:] == {
+        'seq_lengths': [
+            [4, 3],
+            [2, 2],
+        ],
+        'words': [
+            [
+                '<bos> ', 'a ', 'b ', 'c ',
+                '<bos> ', 'hello ', 'world ',
+            ],
+            [
+                '<bos> ', 'hi! ',
+                '<bos> ', 'yes. ',
+            ],
+        ],
+    }
+
+
+def test_packed_dataset_labels_independent(processor):
+    texts = [
+        "a b",
+        "c d",
+    ]
+    dataset = Dataset.from_dict({"text": texts})
+    dataset = processor.pretokenize_dataset(dataset)
+    packed_dataset = pack_dataset(dataset, seq_length=8)
+
+    datum = next(iter(packed_dataset))
+    labels = processor.get_sequence_labels(datum["words"], datum["seq_lengths"], pack=True)
+
+    print("words", datum["words"])
+    print("seq_lengths", datum["seq_lengths"])
+    print(labels)
+
+    assert labels == [
+        'a b', 'b', '',
+        'c d', 'd', ''
+    ]
+
+
+def test_processor_works_on_packed_sequence(processor):
+    texts = [
+        "hi!",
+        "hello world",
+        "yes.",
+        "a b c"
+    ]
+    dataset = Dataset.from_dict({"text": texts})
+    dataset = processor.pretokenize_dataset(dataset)
+    packed_dataset = pack_dataset(dataset, seq_length=8)
+
+    transformed_dataset = packed_dataset.with_transform(processor)
+    for inputs in transformed_dataset:
+        assert all(key in inputs for key in expected_keys)
+        assert all(isinstance(inputs[key], torch.Tensor) for key in expected_tensor_keys)
 
 
 if __name__ == "__main__":

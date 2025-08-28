@@ -190,29 +190,33 @@ class ImageLatentTransformer(PreTrainedModel):
 
     def forward(self,
                 input_ids: torch.Tensor,
+                input_attention_mask: torch.Tensor,
                 attention_mask: torch.Tensor,
                 input_pixels: list[list[torch.Tensor]],
+                position_ids: Optional[torch.Tensor] = None,
                 labels_input: Optional[torch.Tensor] = None,
                 labels_attention_mask: Optional[torch.Tensor] = None,
                 labels_output: Optional[torch.Tensor] = None):
         """
         Args:
             input_ids: (BATCH, LENGTH, INPUT_TOKENS)
-            attention_mask: (BATCH, LENGTH, INPUT_TOKENS)
+            input_attention_mask: Attention within a word (BATCH, LENGTH, INPUT_TOKENS)
+            attention_mask: Attention across words (BATCH, 1, LENGTH, LENGTH)
             input_pixels: List of lists of images, where each inner list contains images for one sample
+            position_ids: (BATCH, LENGTH) - Position IDs for latent transformer (useful for sequence packing)
             labels_input: (BATCH, LENGTH, OUTPUT_TOKENS) - Input tokens for bytes decoder
             labels_attention_mask: (BATCH, LENGTH, OUTPUT_TOKENS) - Attention mask for labels
             labels_output: (BATCH, LENGTH, OUTPUT_TOKENS) - Target tokens for language modeling
         """
         # Embed images and texts
-        mapped_embeds = self.encode_input(input_ids, attention_mask, input_pixels)
+        mapped_embeds = self.encode_input(input_ids, input_attention_mask, input_pixels)
 
         # Process the sequence with the latent transformer
-        num_words = self._num_words_per_datum(attention_mask)
-        word_attention_mask = self._words_sequence_attention_mask(num_words)
+        print("attention_mask", attention_mask)
         latent_outputs = self.latent_transformer(
             inputs_embeds=mapped_embeds,
-            attention_mask=word_attention_mask,
+            position_ids=position_ids,
+            attention_mask=attention_mask,
             output_hidden_states=True
         )
         latent_vectors = latent_outputs.hidden_states[-1]  # (B, L, hidden_dim)
@@ -424,7 +428,7 @@ class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin)
             self,
             input_pixels: list[list[torch.Tensor]],
             input_ids: torch.Tensor,
-            attention_mask: torch.Tensor,
+            input_attention_mask: torch.Tensor,
             tokenizer: ByteTokenizer,
             image_processor: AutoImageProcessor,
             max_generated_words: int = 50,
@@ -454,7 +458,7 @@ class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin)
         Args:
             input_pixels: List of lists of images, where each inner list contains images for one sample
             input_ids: Text input tokens (B, L, T) for encoding
-            attention_mask: Attention mask for text inputs (B, L, T)
+            input_attention_mask: Attention within a word (B, L, T)
             tokenizer: ByteTokenizer instance
             image_processor: AutoImageProcessor for processing images
             max_generated_words: Maximum number of words to generate
@@ -464,13 +468,13 @@ class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin)
         bytes_generation_config = self._prep_bytes_generation_config(max_word_length, tokenizer,
                                                                      bytes_generation_config)
 
-        num_words = self._num_words_per_datum(attention_mask)
+        num_words = self._num_words_per_datum(input_attention_mask)
 
         # Track generated words per sample
         all_generated_words = [[] for _ in range(len(input_pixels))]
 
         # Step 1: Encode initial input
-        encoded_input = self.encode_input(input_ids, attention_mask, input_pixels)
+        encoded_input = self.encode_input(input_ids, input_attention_mask, input_pixels)
 
         past_key_values = None  # Initialize past key values for caching
 

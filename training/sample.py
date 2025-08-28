@@ -36,7 +36,7 @@ def sample(model_path: Path):
     outputs = model.generate(
         input_pixels=inputs["input_pixels"],
         input_ids=inputs["input_ids"],
-        attention_mask=inputs["attention_mask"],
+        input_attention_mask=inputs["input_attention_mask"],
         tokenizer=processor.tokenizer,
         image_processor=processor.image_processor,
         max_generated_words=32,

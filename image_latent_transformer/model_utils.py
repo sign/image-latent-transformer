@@ -71,11 +71,13 @@ def setup_model(
     print_model_summary("Bytes Decoder", model.bytes_decoder)
     print_model_summary("Final Model", model)
 
+    max_seq_length = getattr(model.latent_transformer.config, "max_position_embeddings", 1024)
+    max_word_length = getattr(model.bytes_decoder.config, "max_position_embeddings", 128)
     processor = TextImageProcessor(
         tokenizer=tokenizer,
         image_processor=image_processor,
-        max_seq_length=config.latent_transformer.max_position_embeddings,
-        max_word_length=config.bytes_decoder.max_position_embeddings,
+        max_seq_length=max_seq_length,
+        max_word_length=max_word_length,
     )
 
     collator = partial(collate_fn, pad_value=tokenizer.pad_token_type_id)
