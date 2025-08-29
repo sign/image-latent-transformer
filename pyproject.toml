@@ -35,6 +35,7 @@ train = [
 [tool.setuptools]
 packages = [
     "image_latent_transformer",
+    "image_latent_transformer.tokenizer",
 ]
 
 [tool.ruff]

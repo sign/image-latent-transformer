@@ -8,10 +8,17 @@ def stack_pad_tensors(tensors, pad_value=0):
     For each tensor field in the batch, finds dimensions that don't match
     and pads them with zeros to the maximum size.
     """
+    # Early return if empty
+    if len(tensors) == 0:
+        return tensors
 
     # Early return if not tensors
     if not hasattr(tensors[0], 'shape'):
         return tensors
+
+    # Early return if single tensor
+    if len(tensors) == 1:
+        return tensors[0].unsqueeze(0)
 
     # Check if all tensors have the same shape
     shapes = [tensor.shape for tensor in tensors]
@@ -59,7 +66,7 @@ def collate_images(images: list[list[torch.Tensor]], pad_value=0) -> torch.Tenso
     return stack_pad_tensors(images, pad_value=pad_value)
 
 
-def collate_fn(batch, pad_value=0):
+def collate_fn(batch: list, pad_value=0):
     if not batch:
         return batch
 

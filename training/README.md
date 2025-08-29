@@ -74,3 +74,4 @@ the real number of **words** the model sees should be divided by 32.
 To speed up the processor's image rendering and preprocessing, you can
 increase `processor.cache_size` to cache more preprocessed images in memory.
 (`cache_size=500_000` can take 25GB of RAM per process).
+Ideally, we make the renderer so fast it doesn't need caching at all.

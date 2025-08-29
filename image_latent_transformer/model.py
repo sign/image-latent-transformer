@@ -18,8 +18,9 @@ from transformers.modeling_outputs import CausalLMOutput
 
 from image_latent_transformer.batch_image_encoder import encode_images, image_encoder_size
 from image_latent_transformer.config import ImageLatentTransformerConfig
+from image_latent_transformer.tokenizer.utf8 import UTF8Tokenizer
+from image_latent_transformer.tokenizer.whitespace import WHITE_SPACE_CHARS
 from image_latent_transformer.processor import TextImageProcessor
-from image_latent_transformer.tokenizer import ByteTokenizer
 
 logger = logging.getLogger(__name__)
 
@@ -350,14 +351,10 @@ class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin)
     def _generate_word_bytes(
             self,
             latents: torch.Tensor,
-            tokenizer: ByteTokenizer,
-            max_word_length: Optional[int] = None,
+            tokenizer: UTF8Tokenizer,
             bytes_generation_config: Optional[GenerationConfig] = None,
             **bytes_generation_kwargs
     ) -> torch.Tensor:
-        # Add stop tokens to generation config
-        bytes_generation_config.eos_token_id = tokenizer.stop_tokens
-
         # Start generation with BOS token
         current_input_ids = torch.full((len(latents), 1), tokenizer.bos_token_id,
                                        dtype=torch.long, device=latents.device)
@@ -369,6 +366,7 @@ class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin)
         return self.bytes_decoder.generate(
             inputs_embeds=inputs_embeds,
             generation_config=bytes_generation_config,
+            tokenizer=tokenizer,
             **bytes_generation_kwargs
         )
 
@@ -396,13 +394,14 @@ class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin)
 
     def _prep_bytes_generation_config(self,
                                       max_word_length: int,
-                                      tokenizer: ByteTokenizer,
+                                      tokenizer: UTF8Tokenizer,
                                       bytes_generation_config: Optional[GenerationConfig] = None) -> GenerationConfig:
         default_generation_config_args = dict(
             max_new_tokens=max_word_length,
             bos_token_id=tokenizer.bos_token_id,
             pad_token_id=tokenizer.pad_token_id,
-            eos_token_id=tokenizer.stop_tokens,
+            eos_token_id=tokenizer.eos_token_id,
+            stop_strings=WHITE_SPACE_CHARS
         )
         if bytes_generation_config is None:
             return GenerationConfig(**default_generation_config_args)
@@ -478,7 +477,6 @@ class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin)
             generated_bytes = self._generate_word_bytes(
                 latents=latents,
                 tokenizer=processor.tokenizer,
-                max_word_length=max_word_length,
                 bytes_generation_config=bytes_generation_config
             )
 

@@ -12,7 +12,7 @@ from image_latent_transformer.collator import collate_fn
 from image_latent_transformer.config import ImageLatentTransformerConfig
 from image_latent_transformer.model import ImageLatentTransformerForCausalLM
 from image_latent_transformer.processor import TextImageProcessor
-from image_latent_transformer.tokenizer import ByteTokenizer
+from image_latent_transformer.tokenizer.utf8 import UTF8Tokenizer
 
 
 def print_model_summary(name: str, model):
@@ -43,7 +43,7 @@ def setup_model(
     else:
         image_processor = None
 
-    tokenizer = ByteTokenizer()
+    tokenizer = UTF8Tokenizer()
 
     config = ImageLatentTransformerConfig(
         # All sub-configs are loaded from the respective model names

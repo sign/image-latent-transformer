@@ -1,3 +1,4 @@
+import pickle
 import tempfile
 
 import pytest
@@ -29,6 +30,11 @@ def test_processor_save_and_load_works(processor):
         assert new_processor.image_processor is not None
 
 
+def test_processor_multiprocessing_pickle(processor):
+    # Processor should be pickleable for multiprocessing
+    pickle.dumps(processor)
+
+
 def test_processor_single_text_collated(processor):
     text = "example text for testing"
     inputs = processor(text, collated=True)
@@ -41,6 +47,17 @@ def test_processor_single_text_not_collated(processor):
     inputs = processor(text)
     assert all(key in inputs for key in expected_keys)
     assert all(isinstance(inputs[key], list) and len(inputs[key]) == 1 for key in expected_tensor_keys)
+
+
+def test_processor_single_text_value(processor):
+    text = "a b"
+    inputs = processor(text)
+    assert torch.equal(inputs["input_ids"][0], torch.tensor([[2, 2, 32, 3], [2, 97, 32, 3], [2, 98, 32, 3]]))
+    assert inputs["input_attention_mask"][0].shape == (3, 4)
+    assert inputs["attention_mask"][0].shape == (1, 3, 3)
+    assert torch.equal(inputs["position_ids"][0], torch.tensor([0, 1, 2]))
+    assert torch.equal(inputs["labels_input"][0], torch.tensor([[2, 97, 32, 98], [2, 98, 3, 0], [2, 3, 0, 0]]))
+    assert torch.equal(inputs["labels_output"][0], torch.tensor([[97, 32, 98, 3], [98, 3, 0, 0], [3, 0, 0, 0]]))
 
 
 def test_processor_list_format_collated(processor):
@@ -171,8 +188,8 @@ def test_pretokenize_dataset(processor):
 
     assert dataset[:] == {
         'words': [
-            ['<bos> ', 'hi! '],
-            ['<bos> ', 'hello ', 'world '],
+            ['\x02 ', 'hi! '],
+            ['\x02 ', 'hello ', 'world '],
         ],
     }
 
@@ -195,12 +212,12 @@ def test_packed_dataset(processor):
         ],
         'words': [
             [
-                '<bos> ', 'a ', 'b ', 'c ',
-                '<bos> ', 'hello ', 'world ',
+                '\x02 ', 'a ', 'b ', 'c ',
+                '\x02 ', 'hello ', 'world ',
             ],
             [
-                '<bos> ', 'hi! ',
-                '<bos> ', 'yes. ',
+                '\x02 ', 'hi! ',
+                '\x02 ', 'yes. ',
             ],
         ],
     }

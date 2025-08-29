@@ -11,8 +11,8 @@ from image_latent_transformer.attention import (
     get_position_ids_for_packed_sequence,
 )
 from image_latent_transformer.collator import collate_fn
+from image_latent_transformer.tokenizer.utf8 import UTF8Tokenizer
 from image_latent_transformer.renderer import render_text_torch
-from image_latent_transformer.tokenizer import ByteTokenizer
 
 
 class TextImageProcessor(ProcessorMixin):
@@ -20,10 +20,10 @@ class TextImageProcessor(ProcessorMixin):
 
     attributes = ["tokenizer", "image_processor"]
     image_processor_class = "AutoImageProcessor"
-    tokenizer_class = "ByteTokenizer"
+    tokenizer_class = "UTF8Tokenizer"
 
     def __init__(self,
-                 tokenizer: ByteTokenizer,
+                 tokenizer: UTF8Tokenizer,
                  image_processor: AutoImageProcessor,
                  max_seq_length: int = 128,
                  max_word_length: int = 32,
@@ -38,10 +38,14 @@ class TextImageProcessor(ProcessorMixin):
         self.image_processor = image_processor
         self.max_word_length = max_word_length
         self.max_seq_length = max_seq_length
+        self.cache_size = cache_size
 
+        self.render_text = self._cached_renderer()
+
+    def _cached_renderer(self):
         # Bind a cached version of the method
-        render_text_fn = partial(render_text_torch, image_processor=image_processor)
-        self.render_text = lru_cache(maxsize=cache_size)(render_text_fn)
+        render_text_fn = partial(render_text_torch, image_processor=self.image_processor)
+        return lru_cache(maxsize=self.cache_size)(render_text_fn)
 
     def pretokenize(self, text: str) -> list[str]:
         # Add BOS token at the start
@@ -103,17 +107,14 @@ class TextImageProcessor(ProcessorMixin):
         return labels
 
     def tokenize_words(self, words: list[str], device=None):
-        tokenized = self.tokenizer(
+        return self.tokenizer.torch(
             words,
-            return_tensors="pt",
             padding=True,
             max_length=self.max_word_length,
             truncation=True,
-            add_special_tokens=True
+            add_special_tokens=True,
+            device=device
         )
-        if device is not None:
-            tokenized = tokenized.to(device)
-        return tokenized
 
     def process_single_example(self, words: list[str], seq_lengths: list[int], pack=True):
         labels = self.get_sequence_labels(words, seq_lengths, pack=pack)
@@ -163,3 +164,16 @@ class TextImageProcessor(ProcessorMixin):
             new_batch[key] = [d[key] for d in dicts]
 
         return new_batch
+
+    def __getstate__(self):
+        # Remove the lru_cache decorated method for pickling
+        state = self.__dict__.copy()
+        # Remove the unpickleable render_text method
+        del state['render_text']
+        return state
+
+    def __setstate__(self, state):
+        # Restore the object state and recreate the lru_cache method
+        self.__dict__.update(state)
+        # Recreate the cached render_text method
+        self.render_text = self._cached_renderer()
