@@ -16,6 +16,19 @@ from gi.repository import Pango, PangoCairo  # noqa: E402
 def dim_to_block_size(value: int, block_size: int) -> int:
     return ((value + block_size - 1) // block_size) * block_size
 
+def replace_control_characters(text: str) -> str:
+    # Special visual handling for control characters using Control Pictures Unicode block
+    # Based on https://unicode.org/charts/nameslist/n_2400.html
+    def control_char_to_symbol(match):
+        char = match.group(0)
+        code = ord(char)
+        if code <= 0x1F:  # Control characters 0x00-0x1F map to 0x2400-0x241F
+            return chr(0x2400 + code)
+        elif code == 0x7F:  # DELETE character maps to 0x2421
+            return chr(0x2421)
+        return char
+
+    return re.sub(r'[\x00-\x1F\x7F]', control_char_to_symbol, text)
 
 def render_text(text: str,
                 block_size: int = 16,
@@ -36,8 +49,7 @@ def render_text(text: str,
     if is_swu(text):
         return render_signwriting(text, block_size=block_size)
 
-    # Special visual handling for new line characters
-    text = re.sub(r'\r\n|\r|\n', '↵', text)
+    text = replace_control_characters(text)
 
     # Scale font size by DPI
     scaled_font_size = (dpi / 72) * font_size
@@ -112,8 +124,8 @@ def render_text_torch(text: str, image_processor: AutoImageProcessor, **kwargs):
 
 def main():
     # Example: render mixed text with emojis and newlines
-    text = "hello🤗🤗🤗🤗🤗🤗\r"
-    image = render_text(text, block_size=32, dpi=120, font_size=12)
+    text = "hello🤗\r\n\x02 "
+    image = render_text(text, block_size=16, dpi=120, font_size=12)
 
     # Save the example
     image.save("hello_example.png")
