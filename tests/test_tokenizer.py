@@ -1,6 +1,8 @@
 import tempfile
+
 import pytest
 import torch
+
 from image_latent_transformer.tokenizer.utf8 import UTF8Tokenizer
 
 
@@ -125,7 +127,7 @@ def test_torch_method_special_tokens_with_padding(tokenizer):
     assert result.attention_mask[0].tolist() == [1, 1, 1, 1, 0, 0, 0]
 
 
-@pytest.mark.parametrize("add_special_tokens", (True, False))
+@pytest.mark.parametrize("add_special_tokens", [True, False])
 def test_comparison_tokenizer_vs_torch_method(add_special_tokens, tokenizer):
     """Test that tokenizer() and torch() methods produce compatible results."""
     texts = ["test string"]
@@ -136,14 +138,18 @@ def test_comparison_tokenizer_vs_torch_method(add_special_tokens, tokenizer):
     assert torch.equal(result1.input_ids[0], result2.input_ids[0])
     assert torch.equal(result1.attention_mask[0], result2.attention_mask[0])
 
-@pytest.mark.parametrize("add_special_tokens", (True, False))
+
+@pytest.mark.parametrize("add_special_tokens", [True, False])
 def test_comparison_tokenizer_vs_torch_method_max_length(add_special_tokens, tokenizer):
     texts = ["test string"]
 
-    result1 = tokenizer(texts, add_special_tokens=add_special_tokens, return_tensors="pt", max_length=1, truncation=True)
-    result2 = tokenizer.torch(texts, add_special_tokens=add_special_tokens, padding=False, max_length=1, truncation=True)
-    print("tokenizer", result1.input_ids)
-    print("torch", result2.input_ids)
+    params = dict(
+        add_special_tokens=add_special_tokens,
+        max_length=1,
+        truncation=True
+    )
+    result1 = tokenizer(texts, return_tensors="pt", **params)
+    result2 = tokenizer.torch(texts, **params)
 
     assert torch.equal(result1.input_ids[0], result2.input_ids[0])
     assert torch.equal(result1.attention_mask[0], result2.attention_mask[0])

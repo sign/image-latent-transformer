@@ -18,9 +18,9 @@ from transformers.modeling_outputs import CausalLMOutput
 
 from image_latent_transformer.batch_image_encoder import encode_images, image_encoder_size
 from image_latent_transformer.config import ImageLatentTransformerConfig
+from image_latent_transformer.processor import TextImageProcessor
 from image_latent_transformer.tokenizer.utf8 import UTF8Tokenizer
 from image_latent_transformer.tokenizer.whitespace import WHITE_SPACE_CHARS
-from image_latent_transformer.processor import TextImageProcessor
 
 logger = logging.getLogger(__name__)
 

@@ -1,7 +1,7 @@
 import torch
 
 
-def stack_pad_tensors(tensors, pad_value=0):
+def stack_pad_tensors(tensors, pad_value=0): # noqa: C901
     """
     Vibe coded:
     Generic collate function that automatically pads mismatched dimensions.

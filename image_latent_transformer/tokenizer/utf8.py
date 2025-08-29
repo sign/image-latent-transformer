@@ -3,7 +3,7 @@ from collections import namedtuple
 from typing import Optional
 
 import torch
-from transformers import PreTrainedTokenizer, AutoTokenizer
+from transformers import AutoTokenizer, PreTrainedTokenizer
 from transformers.tokenization_utils_base import TextInput
 
 from image_latent_transformer.collator import stack_pad_tensors
@@ -83,11 +83,14 @@ class UTF8Tokenizer(PreTrainedTokenizer):
             if max_length is None:
                 warnings.warn(
                     "Asking to truncate to max_length but no maximum length is provided and the model has "
-                    "no predefined maximum length. Default to no truncation.")
+                    "no predefined maximum length. Default to no truncation.",
+                    stacklevel=2)
             else:
                 corrected_max_length = max_length - 2 if add_special_tokens else max_length
                 if corrected_max_length < 0:
-                    warnings.warn(f"We need to remove more tokens than exist. Default to no truncation.")
+                    warnings.warn(
+                        "We need to remove more tokens than exist. Default to no truncation.",
+                        stacklevel=2)
                 else:
                     input_ids = [ids[:max_length] for ids in input_ids]
 

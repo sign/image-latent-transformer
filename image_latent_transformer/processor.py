@@ -11,8 +11,8 @@ from image_latent_transformer.attention import (
     get_position_ids_for_packed_sequence,
 )
 from image_latent_transformer.collator import collate_fn
-from image_latent_transformer.tokenizer.utf8 import UTF8Tokenizer
 from image_latent_transformer.renderer import render_text_torch
+from image_latent_transformer.tokenizer.utf8 import UTF8Tokenizer
 
 
 class TextImageProcessor(ProcessorMixin):

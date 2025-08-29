@@ -8,7 +8,7 @@ from training.train import train as local_train
 app = modal.App("image-latent-transformer")
 
 MODEL_MNT_DIR = "/output"
-MODEL_OUTPUT_DIR = f"{MODEL_MNT_DIR}/en-he-66m-2"
+MODEL_OUTPUT_DIR = f"{MODEL_MNT_DIR}/en-he-28m-1"
 # Copy the entire project into the image
 library_path = Path(__file__).parent.parent
 image = (
@@ -20,7 +20,7 @@ image = (
         channels=["conda-forge"],
     )
     .apt_install("git")
-    .run_commands("mkdir -p /app/image_latent_transformer")
+    .run_commands("mkdir -p /app/image_latent_transformer/tokenizer")
     .add_local_file(library_path / "pyproject.toml", "/app/pyproject.toml", copy=True)
     .workdir("/app")
     .pip_install(".[train]")
@@ -52,37 +52,44 @@ def train_remote(args: dict):
     # Your real training script (kept in repo) with args from env if you want
     subprocess.check_call(["nvidia-smi"])
 
+    # Print number of CPUs
+    import os
+    print(f"Number of CPUs: {os.cpu_count()}")
+
     local_train(args)
 
 @app.local_entrypoint()
 def train():
     args = [
         # Model args
-        "--image_encoder_model_name_or_path", "microsoft/swinv2-tiny-patch4-window16-256",
+        "--image_encoder_model_name_or_path", "WinKawaks/vit-tiny-patch16-224",
         "--bytes_encoder_model_name_or_path", "prajjwal1/bert-tiny",
         "--latent_transformer_model_name_or_path", "EleutherAI/pythia-70m",
-        "--bytes_decoder_model_name_or_path", "EleutherAI/pythia-70m",
+        "--bytes_decoder_model_name_or_path", "sbintuitions/tiny-lm",
         # "--warmup_freeze_steps", "1000",
         # Dataset args
         "--dataset_name", "Helsinki-NLP/opus-100",
         "--dataset_config_name", "en-he",
         "--dataset_text_template", "<en> {translation[en]} <he> {translation[he]}",
         "--remove_unused_columns", "False",
+        # Dataloader args
+        "--dataloader_num_workers", "16",  # Number of CPUs: 17
+        "--dataloader_prefetch_factor", "2",
+        "--dataloader_pin_memory", "True",
         # Training args
-        "--per_device_train_batch_size", "16",
-        "--per_device_eval_batch_size", "16",
+        "--per_device_train_batch_size", "128",
+        "--per_device_eval_batch_size", "128",
+        "--max_sequence_length", "128",
+        "--max_word_length", "16",
         "--auto_find_batch_size", "true",
         "--do_train", "True",
-        # "--do_eval", "True",
+        # "--do_eval", "True", # TODO: fix eval
         "--output_dir", MODEL_OUTPUT_DIR,
-        "--overwrite_output_dir", "True",
+        # "--overwrite_output_dir", "True",
         "--logging_steps", "10",
         "--logging_strategy", "steps",
         "--max_steps", "100000",
-        "--max_sequence_length", "64",
-        "--max_word_length", "16",
-        "--dataloader_num_workers", "4",
-        "--dataloader_pin_memory", "True",
+
         "--include_tokens_per_second", "True",
         "--include_num_input_tokens_seen", "True",
         "--learning_rate", "3e-4",
