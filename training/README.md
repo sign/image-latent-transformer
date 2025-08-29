@@ -69,3 +69,8 @@ modal volume get model-output / output
 That means that in practice, if `max_word_length=32`, a rough estimate of
 the real number of **words** the model sees should be divided by 32.
 
+### Performance Optimization
+
+To speed up the processor's image rendering and preprocessing, you can
+increase `processor.cache_size` to cache more preprocessed images in memory.
+(`cache_size=500_000` can take 25GB of RAM per process).

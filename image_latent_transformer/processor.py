@@ -1,4 +1,5 @@
 import re
+from functools import lru_cache, partial
 from typing import Union
 
 import torch
@@ -10,7 +11,7 @@ from image_latent_transformer.attention import (
     get_position_ids_for_packed_sequence,
 )
 from image_latent_transformer.collator import collate_fn
-from image_latent_transformer.renderer import render_texts_torch
+from image_latent_transformer.renderer import render_text_torch
 from image_latent_transformer.tokenizer import ByteTokenizer
 
 
@@ -25,7 +26,8 @@ class TextImageProcessor(ProcessorMixin):
                  tokenizer: ByteTokenizer,
                  image_processor: AutoImageProcessor,
                  max_seq_length: int = 128,
-                 max_word_length: int = 32):
+                 max_word_length: int = 32,
+                 cache_size: int = 10000):
         super().__init__(tokenizer=tokenizer,
                          image_processor=image_processor)
 
@@ -36,6 +38,10 @@ class TextImageProcessor(ProcessorMixin):
         self.image_processor = image_processor
         self.max_word_length = max_word_length
         self.max_seq_length = max_seq_length
+
+        # Bind a cached version of the method
+        render_text_fn = partial(render_text_torch, image_processor=image_processor)
+        self.render_text = lru_cache(maxsize=cache_size)(render_text_fn)
 
     def pretokenize(self, text: str) -> list[str]:
         # Add BOS token at the start
@@ -58,7 +64,10 @@ class TextImageProcessor(ProcessorMixin):
             example["words"] = self.pretokenize(example["text"])
             return example
 
-        return dataset.map(tokenize_example, batched=False, remove_columns=["text"])
+        return dataset.map(tokenize_example,
+                           batched=False,
+                           remove_columns=["text"],
+                           desc="Pretokenizing texts into 'words'")
 
     def get_sequence_labels(self, words: list[str], seq_lengths: list[int] = None, pack=True) -> list[str]:
         if seq_lengths is None:
@@ -93,36 +102,34 @@ class TextImageProcessor(ProcessorMixin):
 
         return labels
 
-    def process_single_example(self, words: list[str], seq_lengths: list[int], pack=True):
-        labels = self.get_sequence_labels(words, seq_lengths, pack=pack)
-
-        # Tokenize words with BOS and EOS tokens
+    def tokenize_words(self, words: list[str], device=None):
         tokenized = self.tokenizer(
             words,
             return_tensors="pt",
             padding=True,
             max_length=self.max_word_length,
             truncation=True,
-            add_special_tokens=False  # get_words_and_labels adds BOS already
+            add_special_tokens=True
         )
+        if device is not None:
+            tokenized = tokenized.to(device)
+        return tokenized
+
+    def process_single_example(self, words: list[str], seq_lengths: list[int], pack=True):
+        labels = self.get_sequence_labels(words, seq_lengths, pack=pack)
+
+        # Tokenize words with BOS and EOS tokens
+        tokenized = self.tokenize_words(words)  # Tokenized inputs
+        tokenized_labels = self.tokenize_words(labels)  # Tokenized outputs
 
         # Render images independently for torch
-        images = render_texts_torch(words, image_processor=self.image_processor)
-
-        # Tokenize labels with BOS and EOS tokens for bytes decoder
-        tokenized_labels = self.tokenizer(
-            labels,
-            return_tensors="pt",
-            padding=True,
-            max_length=self.max_word_length,
-            truncation=True,
-            add_special_tokens=True  # Add BOS/EOS tokens
-        )
+        images = [self.render_text(word) for word in words]
 
         return {
             "input_ids": tokenized.input_ids,
-            "input_attention_mask": tokenized.attention_mask, # Attention within each word
-            "attention_mask": get_attention_mask_for_packed_sequence(seq_lengths, words=words), # Attention across words
+            "input_attention_mask": tokenized.attention_mask,  # Attention within each word
+            # Attention across words
+            "attention_mask": get_attention_mask_for_packed_sequence(seq_lengths, words=words),
             "position_ids": get_position_ids_for_packed_sequence(seq_lengths),
             "input_pixels": images,
             "labels_input": tokenized_labels.input_ids[:, :-1],  # Remove EOS token from input labels

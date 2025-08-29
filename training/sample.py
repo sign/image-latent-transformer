@@ -37,8 +37,7 @@ def sample(model_path: Path):
         input_pixels=inputs["input_pixels"],
         input_ids=inputs["input_ids"],
         input_attention_mask=inputs["input_attention_mask"],
-        tokenizer=processor.tokenizer,
-        image_processor=processor.image_processor,
+        processor=processor,
         max_generated_words=32,
         max_word_length=10,
         bytes_generation_config=GenerationConfig(num_beams=2)  # Sample with beam search, for example

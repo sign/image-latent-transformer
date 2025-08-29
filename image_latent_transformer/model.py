@@ -5,7 +5,6 @@ from typing import Any, Optional
 import torch
 import torch.nn as nn
 from transformers import (
-    AutoImageProcessor,
     AutoModel,
     AutoModelForCausalLM,
     AutoModelForImageClassification,
@@ -19,7 +18,7 @@ from transformers.modeling_outputs import CausalLMOutput
 
 from image_latent_transformer.batch_image_encoder import encode_images, image_encoder_size
 from image_latent_transformer.config import ImageLatentTransformerConfig
-from image_latent_transformer.renderer import render_texts_torch
+from image_latent_transformer.processor import TextImageProcessor
 from image_latent_transformer.tokenizer import ByteTokenizer
 
 logger = logging.getLogger(__name__)
@@ -41,6 +40,7 @@ def model_from_config(config: PretrainedConfig,
 def set_module_trainable(module, trainable: bool = True):
     for p in module.parameters():
         p.requires_grad = trainable
+
 
 class ImageLatentTransformer(PreTrainedModel):
     config_class = ImageLatentTransformerConfig
@@ -80,7 +80,7 @@ class ImageLatentTransformer(PreTrainedModel):
         # Latent Transformer
         self.latent_transformer = model_from_config(config.latent_transformer, AutoModelForCausalLM,
                                                     config.torch_dtype, load_pretrained)
-        self.latent_transformer.resize_token_embeddings(0)
+        self.latent_transformer.resize_token_embeddings(0, pad_to_multiple_of=1)
         model_dim = self.latent_transformer.config.hidden_size
 
         # Small Language Model
@@ -107,8 +107,8 @@ class ImageLatentTransformer(PreTrainedModel):
         Returns:
             torch.Tensor: (BATCH, LENGTH, HIDDEN_DIM) - Image embeddings
         """
-        B = len(input_pixels) # noqa: N806
-        L = max(len(images) for images in input_pixels) # noqa: N806
+        B = len(input_pixels)  # noqa: N806
+        L = max(len(images) for images in input_pixels)  # noqa: N806
 
         # If image encoder is None, return zeros
         if self.image_encoder is None or self._should_drop_modality():
@@ -212,7 +212,6 @@ class ImageLatentTransformer(PreTrainedModel):
         mapped_embeds = self.encode_input(input_ids, input_attention_mask, input_pixels)
 
         # Process the sequence with the latent transformer
-        print("attention_mask", attention_mask)
         latent_outputs = self.latent_transformer(
             inputs_embeds=mapped_embeds,
             position_ids=position_ids,
@@ -375,25 +374,15 @@ class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin)
 
     def prepare_next_inputs(self, words: list[str],
                             words_indexes: torch.Tensor,
-                            tokenizer: ByteTokenizer,
-                            image_processor: AutoImageProcessor,
+                            processor: TextImageProcessor,
                             encoded_input: torch.Tensor) -> torch.Tensor:
-        tokenized_words = tokenizer(
-            words,
-            return_tensors="pt",
-            padding=True,
-            truncation=True,
-            add_special_tokens=False
-        )
-        new_input_ids = tokenized_words["input_ids"].to(encoded_input.device)
-        new_attention_mask = tokenized_words["attention_mask"].to(encoded_input.device)
+        tokenized_words = processor.tokenize_words(words, device=encoded_input.device)
+        new_input_ids = tokenized_words["input_ids"].unsqueeze(1)
+        new_attention_mask = tokenized_words["attention_mask"].unsqueeze(1)
 
-        images = render_texts_torch(words, image_processor=image_processor)
-        new_input_pixels = [[image] for image in images]
+        new_input_pixels = [[processor.render_text(word)] for word in words]
 
-        new_encoded_input = self.encode_input(new_input_ids.unsqueeze(1),
-                                              new_attention_mask.unsqueeze(1),
-                                              new_input_pixels)
+        new_encoded_input = self.encode_input(new_input_ids, new_attention_mask, new_input_pixels)
 
         # Extend the encoded input with an empty tensor
         empty_word = torch.zeros_like(encoded_input[:, 0:1])
@@ -429,8 +418,7 @@ class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin)
             input_pixels: list[list[torch.Tensor]],
             input_ids: torch.Tensor,
             input_attention_mask: torch.Tensor,
-            tokenizer: ByteTokenizer,
-            image_processor: AutoImageProcessor,
+            processor: TextImageProcessor,
             max_generated_words: int = 50,
             max_word_length: int = None,
             bytes_generation_config: Optional[GenerationConfig] = None):
@@ -459,13 +447,13 @@ class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin)
             input_pixels: List of lists of images, where each inner list contains images for one sample
             input_ids: Text input tokens (B, L, T) for encoding
             input_attention_mask: Attention within a word (B, L, T)
-            tokenizer: ByteTokenizer instance
-            image_processor: AutoImageProcessor for processing images
+            processor: TextImageProcessor instance for tokenization and image processing
             max_generated_words: Maximum number of words to generate
             max_word_length: Maximum number of characters to generate per word
             bytes_generation_config: Generation config for bytes_decoder
         """
-        bytes_generation_config = self._prep_bytes_generation_config(max_word_length, tokenizer,
+        bytes_generation_config = self._prep_bytes_generation_config(max_word_length,
+                                                                     processor.tokenizer,
                                                                      bytes_generation_config)
 
         num_words = self._num_words_per_datum(input_attention_mask)
@@ -489,13 +477,13 @@ class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin)
             # Step 3: Generate bytes for this word
             generated_bytes = self._generate_word_bytes(
                 latents=latents,
-                tokenizer=tokenizer,
+                tokenizer=processor.tokenizer,
                 max_word_length=max_word_length,
                 bytes_generation_config=bytes_generation_config
             )
 
             # Step 4: Process generated bytes
-            words = tokenizer.batch_decode(generated_bytes, skip_special_tokens=True)
+            words = processor.tokenizer.batch_decode(generated_bytes, skip_special_tokens=True)
             batch_finished = all(len(word) == 0 for word in words)
 
             if batch_finished:
@@ -507,7 +495,7 @@ class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin)
                     generated_words.append(word)
 
             # Step 5, 6, 7: Create next inputs and encode them\
-            encoded_input = self.prepare_next_inputs(words, num_words, tokenizer, image_processor, encoded_input)
+            encoded_input = self.prepare_next_inputs(words, num_words, processor, encoded_input)
 
             num_words += 1
 

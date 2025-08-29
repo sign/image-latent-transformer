@@ -18,7 +18,7 @@ def dim_to_block_size(value: int, block_size: int) -> int:
 
 
 def render_text(text: str,
-                block_size: int = 32,
+                block_size: int = 16,
                 dpi: int = 120,
                 font_size: int = 12) -> Image.Image:
     """
@@ -58,7 +58,7 @@ def render_text(text: str,
     # Add padding and round up to nearest multiple of 32
     # width = dim_to_block_size(text_width + 10, block_size=block_size)
     # TODO: remove once https://github.com/sign/image-latent-transformer/issues/1 is efficient
-    width = 128
+    width = font_size * 16  # Assume max 16 characters for now
 
     line_height = block_size
 
@@ -94,7 +94,7 @@ def render_text(text: str,
     return img
 
 
-def render_signwriting(text: str, block_size: int = 32) -> Image.Image:
+def render_signwriting(text: str, block_size: int = 16) -> Image.Image:
     image = signwriting_to_image(text, trust_box=False)
     width = dim_to_block_size(image.width + 10, block_size=block_size)
     height = dim_to_block_size(image.height + 10, block_size=block_size)
@@ -108,10 +108,6 @@ def render_text_torch(text: str, image_processor: AutoImageProcessor, **kwargs):
     image = render_text(text, **kwargs)
     image = image_processor(image, do_center_crop=False, do_resize=False, return_tensors="pt")
     return image.pixel_values[0]
-
-
-def render_texts_torch(texts: list[str], image_processor: AutoImageProcessor, **kwargs):
-    return [render_text_torch(text, image_processor, **kwargs) for text in texts]
 
 
 def main():

@@ -29,8 +29,7 @@ def predict_texts(texts: list[str], model, processor, collator):
             input_ids=batch["input_ids"],
             input_attention_mask=batch["input_attention_mask"],
             input_pixels=batch["input_pixels"],
-            tokenizer=processor.tokenizer,
-            image_processor=processor.image_processor,
+            processor=processor,
             max_generated_words=5,
             max_word_length=5
         )
