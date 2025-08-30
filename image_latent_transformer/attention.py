@@ -7,22 +7,30 @@ from image_latent_transformer.tokenizer.control import ControlTokens
 
 def add_self_attention_blocks(mask: torch.Tensor, words: list[str]) -> None:
     # Attention blocks (PrefixLM / MAS) are surrounded by <ShiftOut> and <ShiftIn> tokens (`\xOE` ... `\x0F`).
-    # Custom full attention blocks
-    if words is not None:
-        shift_out_idx = None
-        for i, word in enumerate(words):
-            if word == ControlTokens.ShiftOut:
-                shift_out_idx = i
-            if word == ControlTokens.ShiftIn:
-                if shift_out_idx is None:
-                    warnings.warn(
-                        "Shift In (SI) detected, without first seeing Shift Out (SO). "
-                        "Skipping self-attention block.",
-                        stacklevel=2)
-                else:
-                    mask[0, shift_out_idx:shift_out_idx + i, shift_out_idx:shift_out_idx + i] = 1
-                    shift_out_idx = None
-                    # TODO: test this  https://github.com/sign/image-latent-transformer/issues/9
+    shift_out_idx = None
+    for i, word in enumerate(words):
+        if word == ControlTokens.ShiftOut:
+            if shift_out_idx is not None:
+                warnings.warn(
+                    "Shift Out (SO) detected after another Shift Out (SO) without Shift In (SI). "
+                    "Nested shift blocks are not allowed.",
+                    stacklevel=2)
+            shift_out_idx = i
+        if word == ControlTokens.ShiftIn:
+            if shift_out_idx is None:
+                warnings.warn(
+                    "Shift In (SI) detected, without first seeing Shift Out (SO). "
+                    "Skipping self-attention block.",
+                    stacklevel=2)
+            else:
+                mask[0, shift_out_idx:shift_out_idx + i, shift_out_idx:shift_out_idx + i] = 1
+                shift_out_idx = None
+
+    if shift_out_idx is not None:
+        warnings.warn(
+            "Unclosed Shift Out (SO) block detected at end of sequence. "
+            "Missing corresponding Shift In (SI).",
+            stacklevel=2)
 
 
 def get_attention_mask_for_packed_sequence(seq_lengths: list[int], words: list[str] = None) -> torch.Tensor:
@@ -40,7 +48,8 @@ def get_attention_mask_for_packed_sequence(seq_lengths: list[int], words: list[s
         mask[0, current_position:current_position + length, current_position:current_position + length] = tril
         current_position += length
 
-    add_self_attention_blocks(mask, words)
+    if words is not None:
+        add_self_attention_blocks(mask, words)
 
     return mask
 
