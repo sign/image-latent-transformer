@@ -18,9 +18,9 @@ MODELS = {
     "google/vit-base-patch16-224": 768,
     "microsoft/resnet-18": 512,
     "apple/mobilevit-xx-small": 80,
-    # TODO: support once huggingface releases a new version
-    # "facebook/dinov3-vits16-pretrain-lvd1689m",
-    # "facebook/dinov3-convnext-tiny-pretrain-lvd1689m"
+    # TODO: support once huggingface releases a new version (config loads, but no AutoModelForImageClassification)
+    # "facebook/dinov3-vits16-pretrain-lvd1689m": 0,
+    # "facebook/dinov3-convnext-tiny-pretrain-lvd1689m": 0,
 }
 
 MODEL_NAMES = list(MODELS.keys())

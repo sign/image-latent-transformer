@@ -25,6 +25,13 @@ conda install -c conda-forge pycairo pygobject manimpango -y
 pip install ".[dev]"
 ```
 
+Or using docker:
+
+```shell
+docker build -t ilt .
+docker run -it --rm ilt /bin/bash
+```
+
 > [!TIP]
 > Run tests using `pytest` to ensure everything is working correctly.
 

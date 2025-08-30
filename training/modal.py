@@ -8,24 +8,13 @@ from training.train import train as local_train
 app = modal.App("image-latent-transformer")
 
 MODEL_MNT_DIR = "/output"
-MODEL_OUTPUT_DIR = f"{MODEL_MNT_DIR}/en-he-28m-1"
+MODEL_OUTPUT_DIR = f"{MODEL_MNT_DIR}/en-he-28m-2"
 # Copy the entire project into the image
 library_path = Path(__file__).parent.parent
 image = (
-    modal.Image.micromamba(python_version="3.12")
-    .micromamba_install(
-        "pycairo",
-        "pygobject",
-        "manimpango",
-        channels=["conda-forge"],
-    )
-    .apt_install("git")
-    .run_commands("mkdir -p /app/image_latent_transformer/tokenizer")
-    .add_local_file(library_path / "pyproject.toml", "/app/pyproject.toml", copy=True)
-    .workdir("/app")
-    .pip_install(".[train]")
+    modal.Image.from_dockerfile("Dockerfile")
     .env({
-        "HF_HUB_ENABLE_HF_TRANSFER": "1", # turn on faster downloads from HF
+        "HF_HUB_ENABLE_HF_TRANSFER": "1",  # turn on faster downloads from HF
         "WANDB_PROJECT": "image-latent-transformer",
     })
     .add_local_dir(library_path / "image_latent_transformer", "/app/image_latent_transformer")
@@ -36,6 +25,7 @@ image = (
 @app.function(
     image=image,
     gpu="A100-80GB",
+    cpu=8,
     volumes={
         "/root/.cache/huggingface": modal.Volume.from_name("huggingface-cache", create_if_missing=True),
         MODEL_MNT_DIR: modal.Volume.from_name("model-output", create_if_missing=True),
@@ -55,11 +45,14 @@ def train_remote(args: dict):
     # Print number of CPUs
     import os
     print(f"Number of CPUs: {os.cpu_count()}")
+    subprocess.check_call(["lscpu"])
 
     local_train(args)
 
+
 @app.local_entrypoint()
 def train():
+    # TODO convert to yaml
     args = [
         # Model args
         "--image_encoder_model_name_or_path", "WinKawaks/vit-tiny-patch16-224",
@@ -73,11 +66,12 @@ def train():
         "--dataset_text_template", "<en> {translation[en]} <he> {translation[he]}",
         "--remove_unused_columns", "False",
         # Dataloader args
-        "--dataloader_num_workers", "16",  # Number of CPUs: 17
-        "--dataloader_prefetch_factor", "2",
+        "--dataloader_num_workers", "8",
+        "--dataloader_prefetch_factor", "4",
         "--dataloader_pin_memory", "True",
+        "--dataloader_persistent_workers", "True",
         # Training args
-        "--per_device_train_batch_size", "128",
+        "--per_device_train_batch_size", "128", # TODO: A100 can fit 200
         "--per_device_eval_batch_size", "128",
         "--max_sequence_length", "128",
         "--max_word_length", "16",
@@ -93,8 +87,9 @@ def train():
         "--include_tokens_per_second", "True",
         "--include_num_input_tokens_seen", "True",
         "--learning_rate", "3e-4",
-        "--torch_dtype", "bfloat16",
+        "--dtype", "bfloat16",
         "--bf16", "True",
+        "--optim", "adamw_torch_fused",
         "--report_to", "wandb",
     ]
 
