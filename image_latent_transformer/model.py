@@ -375,8 +375,8 @@ class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin)
                             processor: TextImageProcessor,
                             encoded_input: torch.Tensor) -> torch.Tensor:
         tokenized_words = processor.tokenize_words(words, device=encoded_input.device)
-        new_input_ids = tokenized_words["input_ids"].unsqueeze(1)
-        new_attention_mask = tokenized_words["attention_mask"].unsqueeze(1)
+        new_input_ids = tokenized_words.input_ids.unsqueeze(1)
+        new_attention_mask = tokenized_words.attention_mask.unsqueeze(1)
 
         new_input_pixels = [[processor.render_text(word)] for word in words]
 

@@ -3,10 +3,11 @@ from collections import namedtuple
 from typing import Optional
 
 import torch
+from torch.nn.utils.rnn import pad_sequence
 from transformers import AutoTokenizer, PreTrainedTokenizer
 from transformers.tokenization_utils_base import TextInput
 
-from image_latent_transformer.collator import stack_pad_tensors
+from image_latent_transformer.tokenizer.control import ControlTokens
 
 
 def tokenize_ids(text: str, errors="strict"):
@@ -19,23 +20,23 @@ TokenizerResult = namedtuple("TokenizerResult", ["input_ids", "attention_mask"])
 class UTF8Tokenizer(PreTrainedTokenizer):
     def __init__(self, **kwargs):
         # Pad token
-        kwargs["pad_token"] = getattr(kwargs, "pad_token", "\x00")
-        kwargs["pad_token_id"] = getattr(kwargs, "pad_token_id", 0)
+        kwargs["pad_token"] = getattr(kwargs, "pad_token", ControlTokens.Null)
+        kwargs["pad_token_id"] = ord(kwargs["pad_token"])
         # BOS token
-        kwargs["bos_token"] = getattr(kwargs, "bos_token", "\x02")
-        kwargs["bos_token_id"] = getattr(kwargs, "bos_token_id", 2)
+        kwargs["bos_token"] = getattr(kwargs, "bos_token", ControlTokens.StartOfText)
+        kwargs["bos_token_id"] = ord(kwargs["bos_token"])
         # EOS token
-        kwargs["eos_token"] = getattr(kwargs, "eos_token", "\x03")
-        kwargs["eos_token_id"] = getattr(kwargs, "eos_token_id", 3)
+        kwargs["eos_token"] = getattr(kwargs, "eos_token", ControlTokens.EndOfText)
+        kwargs["eos_token_id"] = ord(kwargs["eos_token"])
 
         super().__init__(**kwargs)
-
-    def add_tokens(self, *args, **kwargs):
-        raise NotImplementedError("UTF8Tokenizer does not support adding tokens")
 
     @property
     def vocab_size(self) -> int:
         return 2 ** 8
+
+    def add_tokens(self, *args, **kwargs):
+        raise NotImplementedError("UTF8Tokenizer does not support adding tokens")
 
     def get_vocab(self):
         return {chr(i): i for i in range(self.vocab_size)}
@@ -102,8 +103,8 @@ class UTF8Tokenizer(PreTrainedTokenizer):
         attention_mask = [torch.ones(len(ids), dtype=torch.long) for ids in input_ids]
 
         if padding:
-            input_ids = stack_pad_tensors(input_ids)
-            attention_mask = stack_pad_tensors(attention_mask)
+            input_ids = pad_sequence(input_ids, batch_first=True, padding_value=0)
+            attention_mask = pad_sequence(attention_mask, batch_first=True, padding_value=0)
 
         if device is not None:
             input_ids = input_ids.to(device)

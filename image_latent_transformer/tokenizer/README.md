@@ -13,26 +13,26 @@ Instead, we rely on C0 Control characters (0-31) as special tokens, which are no
 We propose a specific usage of the C0 Control characters for "special tokens" in tokenization.
 Other tokens can be left for task-specific usage, or future extensions.
 
-- Padding tokens are using the null character (`\x00`).
-- Text is surrounded by <bos> (Start of Text) and <eos> (End of Text) tokens (`\x02`...`\x03`).
-- Messages for instruction tuning are surrounded by <start_header_id> and <end_of_transmission> tokens (`\x01`system ...`\x17`).
-- Attention blocks (PrefixLM / MAS) are surrounded by <shift_out> and <shift_in> tokens (`\xOE` ... `\x0F`).
-- Thinking blocks are surrounded by <enquiry> and <acknowledge> tokens (`\x05` ... `\x06`).
-- Tool calls are surrounded by <substitute> and <escape> tokens (`\x1A` ... `\x1B`).
+- Padding tokens are using the <Null> character (`\x00`).
+- Text is surrounded by <StartOfText> and <EndOfText> tokens (`\x02`...`\x03`).
+- Messages for instruction tuning are surrounded by <StartOfHeading> and <EndOfTransmission> tokens (`\x01`system ...`\x17`).
+- Attention blocks (PrefixLM / MAS) are surrounded by <ShiftOut> and <ShiftIn> tokens (`\xOE`...`\x0F`).
+- Thinking blocks are surrounded by <Enquiry> and <Acknowledge> tokens (`\x05`...`\x06`).
+- Tool calls are surrounded by <Substitute> and <Escape> tokens (`\x1A`...`\x1B`).
 
 
 Example text for instruction tuning with attention blocks:
 
-> `\x02` `\x01`system
-> `\xOE` You are a helpful assistant `\x0F` `\x17`
+> `\x02\x01`system
+> `\xOE` You are a helpful assistant `\x0F\x17`
 > `\x01`user
-> `\xOE` How much is 1+2? `\x0F` `\x17`
+> `\xOE` How much is 1+2? `\x0F\x17`
 > `\x01`assistant
 > First I'll think about it.
-> `\x05` The user wants me to calculate, I should call the calculator 
-> `\x1A` {"type": "calculator", "expression": "1+2"} `\x1B` 3 `\x06`
-> 1 + 2 = 3 `\x17` `\x03` 
-> `\x00``\x00``\x00``\x00``\x00``\x00``\x00``\x00`
+> `\x05`The user wants me to calculate, I should call the calculator 
+> `\x1A`{"type": "calculator", "expression": "1+2"}`\x1B`3`\x06`
+> 1 + 2 = 3 `\x17\x03`
+> `\x00\x00\x00\x00\x00\x00\x00`
 
 
 | Dec | Hex | Abbr.    | Name                      | Description                                         | Tokenizer Usage       |
