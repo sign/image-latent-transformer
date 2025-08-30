@@ -53,6 +53,8 @@ class TextImageProcessor(ProcessorMixin):
     def _cached_renderer(self):
         # Bind a cached version of the method
         render_text_fn = partial(render_text_torch, image_processor=self.image_processor)
+        # TODO: replace with a multithreaded cache, to avoid caching the same text multiple times in different threads
+        #       so that we can make the cache size much larger
         return lru_cache(maxsize=self.cache_size)(render_text_fn)
 
     def pretokenize(self, text: str) -> list[str]:
@@ -95,6 +97,7 @@ class TextImageProcessor(ProcessorMixin):
                 for word in segment_words:
                     label_idx += len(word)
                     # For efficiency, we don't just use the next word as label, but a longer token string
+                    # max_word_length characters, not bytes, will be trimmed by the tokenizer later
                     label = text[label_idx:label_idx + self.max_word_length]
                     # TODO: remove once https://github.com/sign/image-latent-transformer/issues/2 is solved
                     label = label.rstrip()  # Remove trailing spaces to avoid generating them
@@ -102,7 +105,7 @@ class TextImageProcessor(ProcessorMixin):
             else:
                 # Next word as label, last word has no label
                 raw_labels = words[offset + 1:offset + length] + [""]
-                # Truncate labels to max_word_length
+                # Truncate labels to max_word_length (characters, not bytes)
                 labels += [label[:self.max_word_length] for label in raw_labels]
                 # TODO: remove once https://github.com/sign/image-latent-transformer/issues/2 is solved
                 labels[-2] = labels[-2].rstrip()  # Remove last trailing space to avoid generating it
@@ -158,7 +161,7 @@ class TextImageProcessor(ProcessorMixin):
             # Create a similar batch object to a packed dataset
             batch = {"words": words, "seq_lengths": [[len(w)] for w in words]}
 
-        dicts = [self.process_single_example(words, seq_lengths, pack=packed)
+        dicts = [self.process_single_example(words=words, seq_lengths=seq_lengths, pack=packed)
                  for words, seq_lengths in zip(batch["words"], batch["seq_lengths"])]
 
         if collated:

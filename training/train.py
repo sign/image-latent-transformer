@@ -33,8 +33,28 @@ logger = logging.getLogger(__name__)
 
 def enable_optimizations():
     torch.backends.cudnn.benchmark = True
+    torch.backends.cuda.enable_flash_sdp(True)
+    torch.backends.cuda.enable_mem_efficient_sdp(True)
+    torch.backends.cuda.enable_math_sdp(False)
+    # Enable TF32 on A100 even with bf16 (helps GEMMs when anything falls back to fp32):
     torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
 
+    # TODO attn_implementation="flash_attention_2"? --attn_implementation flash_attention_2
+    #      might need to figure out optional dependency
+
+    # TODO --use_cuda_graphs true ?
+
+    # TODO vectorize stack_pad_tensors
+
+    # TODO pin_memory_device="cuda" (PyTorch ≥2.3)
+
+    # TODO
+    #     torch_compile=True,
+    #     torch_compile_backend="inductor",
+    #     torch_compile_mode="default",
+
+    # TODO use accelerate launch
 
 def split_streaming_dataset(
         full_streaming_dataset,
@@ -126,7 +146,7 @@ def init_model(model_args: ModelArguments, seed: int, device: str):
         latent_transformer_name=model_args.latent_transformer_model_name_or_path,
         bytes_decoder_name=model_args.bytes_decoder_model_name_or_path,
         trust_remote_code=model_args.trust_remote_code,
-        torch_dtype=model_args.torch_dtype,
+        dtype=model_args.dtype,
         seed=seed,
         load_pretrained=False
     )

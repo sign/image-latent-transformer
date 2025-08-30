@@ -50,7 +50,7 @@ class ModelArguments:
         },
     )
 
-    torch_dtype: Optional[str] = field(
+    dtype: Optional[str] = field(
         default=None,
         metadata={
             "help": (

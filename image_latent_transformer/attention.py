@@ -1,4 +1,28 @@
+import warnings
+
 import torch
+
+from image_latent_transformer.tokenizer.control import ControlTokens
+
+
+def add_self_attention_blocks(mask: torch.Tensor, words: list[str]) -> None:
+    # Attention blocks (PrefixLM / MAS) are surrounded by <ShiftOut> and <ShiftIn> tokens (`\xOE` ... `\x0F`).
+    # Custom full attention blocks
+    if words is not None:
+        shift_out_idx = None
+        for i, word in enumerate(words):
+            if word == ControlTokens.ShiftOut:
+                shift_out_idx = i
+            if word == ControlTokens.ShiftIn:
+                if shift_out_idx is None:
+                    warnings.warn(
+                        "Shift In (SI) detected, without first seeing Shift Out (SO). "
+                        "Skipping self-attention block.",
+                        stacklevel=2)
+                else:
+                    mask[0, shift_out_idx:shift_out_idx + i, shift_out_idx:shift_out_idx + i] = 1
+                    shift_out_idx = None
+                    # TODO: test this  https://github.com/sign/image-latent-transformer/issues/9
 
 
 def get_attention_mask_for_packed_sequence(seq_lengths: list[int], words: list[str] = None) -> torch.Tensor:
@@ -16,9 +40,7 @@ def get_attention_mask_for_packed_sequence(seq_lengths: list[int], words: list[s
         mask[0, current_position:current_position + length, current_position:current_position + length] = tril
         current_position += length
 
-    # TODO: use words to find instruction tokens to attend between. something like <attention> text ... </attention>
-    #      similar to prefixLM or MAS https://github.com/sign/image-latent-transformer/issues/9
-    #      just in a generic way
+    add_self_attention_blocks(mask, words)
 
     return mask
 

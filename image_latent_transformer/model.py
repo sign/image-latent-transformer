@@ -33,9 +33,9 @@ def model_from_config(config: PretrainedConfig,
     if load_pretrained:
         name_or_path = getattr(config, "_name_or_path", None)
         print(f"Loading pretrained model from {name_or_path}")
-        return cls.from_pretrained(name_or_path, config=config, torch_dtype=dtype)
+        return cls.from_pretrained(name_or_path, config=config, dtype=dtype)
 
-    return cls.from_config(config, torch_dtype=dtype)
+    return cls.from_config(config, dtype=dtype)
 
 
 def set_module_trainable(module, trainable: bool = True):
@@ -60,7 +60,7 @@ class ImageLatentTransformer(PreTrainedModel):
         # Image Encoder
         if config.image_encoder:
             self.image_encoder = model_from_config(config.image_encoder, AutoModelForImageClassification,
-                                                   config.torch_dtype, load_pretrained)
+                                                   config.dtype, load_pretrained)
             self.image_encoder.classifier = torch.nn.Identity()
             self.image_encoder_dim = image_encoder_size(self.image_encoder)
         else:
@@ -70,9 +70,10 @@ class ImageLatentTransformer(PreTrainedModel):
         # Bytes Encoder
         if config.bytes_encoder:
             self.bytes_encoder = model_from_config(config.bytes_encoder, AutoModelForMaskedLM,
-                                                   config.torch_dtype, load_pretrained)
+                                                   config.dtype, load_pretrained)
             self.bytes_encoder.resize_token_embeddings(config.num_tokens, pad_to_multiple_of=8)
             self.bytes_encoder.cls = self.bytes_encoder.decoder = torch.nn.Identity()  # delete the decoder head
+            self.bytes_encoder.get_output_embeddings = lambda: None # bytes encoder no longer has output embeddings
             self.bytes_encoder_dim = self.bytes_encoder.config.hidden_size
         else:
             self.bytes_encoder = None
@@ -80,13 +81,13 @@ class ImageLatentTransformer(PreTrainedModel):
 
         # Latent Transformer
         self.latent_transformer = model_from_config(config.latent_transformer, AutoModelForCausalLM,
-                                                    config.torch_dtype, load_pretrained)
+                                                    config.dtype, load_pretrained)
         self.latent_transformer.resize_token_embeddings(0, pad_to_multiple_of=1)
         model_dim = self.latent_transformer.config.hidden_size
 
         # Small Language Model
         self.bytes_decoder = model_from_config(config.bytes_decoder, AutoModelForCausalLM,
-                                               config.torch_dtype, load_pretrained)
+                                               config.dtype, load_pretrained)
         self.bytes_decoder.resize_token_embeddings(config.num_tokens, pad_to_multiple_of=8)
         bytes_decoder_dim = self.bytes_decoder.config.hidden_size
 
@@ -401,7 +402,7 @@ class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin)
             bos_token_id=tokenizer.bos_token_id,
             pad_token_id=tokenizer.pad_token_id,
             eos_token_id=tokenizer.eos_token_id,
-            stop_strings=WHITE_SPACE_CHARS
+            stop_strings=WHITE_SPACE_CHARS  # TODO: change this to use the pretokenizer: if 2 words, done
         )
         if bytes_generation_config is None:
             return GenerationConfig(**default_generation_config_args)

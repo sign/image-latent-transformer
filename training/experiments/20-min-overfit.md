@@ -27,7 +27,7 @@ Takes about 20 minutes on an A100 GPU.
 "--include_tokens_per_second", "True",
 "--include_num_input_tokens_seen", "True",
 "--learning_rate", "3e-4",
-"--torch_dtype", "bfloat16",
+"--dtype", "bfloat16",
 "--bf16", "True",
 "--report_to", "wandb",
 "--max_train_samples", "128",

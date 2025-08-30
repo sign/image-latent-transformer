@@ -31,7 +31,7 @@ def setup_model(
         bytes_decoder_name="EleutherAI/pythia-70m",
         trust_remote_code=False,
         modality_dropout=0.15,
-        torch_dtype=torch.float32,
+        dtype=torch.float32,
         seed=42,
         load_pretrained=True,
 ):
@@ -60,7 +60,7 @@ def setup_model(
         eos_token_id=tokenizer.eos_token_id,
         sep_token_id=tokenizer.sep_token_id,
         trust_remote_code=trust_remote_code,
-        torch_dtype=torch_dtype,
+        dtype=dtype,
     )
 
     # Combine the models
