@@ -7,6 +7,7 @@ from datasets import Dataset
 from trl.data_utils import pack_dataset
 
 from image_latent_transformer.processor import TextImageProcessor
+from image_latent_transformer.tokenizer.control import ControlTokens
 from tests.test_model import setup_tiny_model
 
 
@@ -52,7 +53,7 @@ def test_processor_single_text_not_collated(processor):
 def test_processor_single_text_value(processor):
     text = "a b"
     inputs = processor(text)
-    assert torch.equal(inputs["input_ids"][0], torch.tensor([[2, 2, 32, 3], [2, 97, 32, 3], [2, 98, 32, 3]]))
+    assert torch.equal(inputs["input_ids"][0], torch.tensor([[2, 2, 3, 0], [2, 97, 32, 3], [2, 98, 32, 3]]))
     assert inputs["input_attention_mask"][0].shape == (3, 4)
     assert inputs["attention_mask"][0].shape == (1, 3, 3)
     assert torch.equal(inputs["position_ids"][0], torch.tensor([0, 1, 2]))
@@ -158,6 +159,26 @@ def test_get_words_and_labels_packed_vs_unpacked(processor):
     assert labels_unpacked == ['hello ', 'world ', 'test', '']
 
 
+def test_pretokenize_splits_control_tokens(processor):
+    text = (f"{ControlTokens.ShiftOut}test{ControlTokens.ShiftIn}"
+            f"{ControlTokens.StartOfHeading}hello {ControlTokens.EndOfText}")
+    words = processor.pretokenize(text)
+    assert words == [
+        ControlTokens.StartOfText, # BOS is added by pretokenize
+        ControlTokens.ShiftOut, 'test', ControlTokens.ShiftIn,
+        ControlTokens.StartOfHeading, "hello ", ControlTokens.EndOfText,
+        " " # Space is added by pretokenize
+    ]
+
+def test_pretokenize_multiple_whitespace(processor):
+    text = """
+    def foo():
+        return "bar"
+    """.strip()
+    words = processor.pretokenize(text)
+    assert words == [ControlTokens.StartOfText, "def ", "foo():\n", " " * 8, 'return ', '"bar" ']
+
+
 def test_get_words_and_labels_packed_vs_unpacked_respect_max_word_length(processor):
     text = "this is a long-test"
     words = processor.pretokenize(text)
@@ -188,8 +209,8 @@ def test_pretokenize_dataset(processor):
 
     assert dataset[:] == {
         'words': [
-            ['\x02 ', 'hi! '],
-            ['\x02 ', 'hello ', 'world '],
+            [ControlTokens.StartOfText, 'hi! '],
+            [ControlTokens.StartOfText, 'hello ', 'world '],
         ],
     }
 
@@ -212,12 +233,12 @@ def test_packed_dataset(processor):
         ],
         'words': [
             [
-                '\x02 ', 'a ', 'b ', 'c ',
-                '\x02 ', 'hello ', 'world ',
+                ControlTokens.StartOfText, 'a ', 'b ', 'c ',
+                ControlTokens.StartOfText, 'hello ', 'world ',
             ],
             [
-                '\x02 ', 'hi! ',
-                '\x02 ', 'yes. ',
+                ControlTokens.StartOfText, 'hi! ',
+                ControlTokens.StartOfText, 'yes. ',
             ],
         ],
     }

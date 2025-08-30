@@ -12,7 +12,15 @@ from image_latent_transformer.attention import (
 )
 from image_latent_transformer.collator import collate_fn
 from image_latent_transformer.renderer import render_text_torch
+from image_latent_transformer.tokenizer.control import CONTROl_TOKENS_PATTERN
 from image_latent_transformer.tokenizer.utf8 import UTF8Tokenizer
+
+# Consider three classes of tokens:
+TOKEN_PATTERN = (
+    rf"[{CONTROl_TOKENS_PATTERN}]"  # # 1. Control tokens
+    rf"|[^\s{CONTROl_TOKENS_PATTERN}]+\s?"  # 2. Words - no whitespace / control (with optional 1 trailing space)
+    r"|\s+"  # 3) whitespace runs
+)
 
 
 class TextImageProcessor(ProcessorMixin):
@@ -49,17 +57,14 @@ class TextImageProcessor(ProcessorMixin):
 
     def pretokenize(self, text: str) -> list[str]:
         # Add BOS token at the start
-        text = self.tokenizer.bos_token + " " + text.strip()
+        text = self.tokenizer.bos_token + text.strip()
 
         # TODO: Ensure all texts end with a space. this is a model quirk and needs to be handled generally
         #  if the text does not end with a space, the model should continue generating the last word directly
         #  https://github.com/sign/image-latent-transformer/issues/2
         text += " "
 
-        # Split text into words, keeping spaces
-        words = re.findall(r'\S+\s*', text)
-
-        return words
+        return re.findall(TOKEN_PATTERN, text)
 
     def pretokenize_dataset(self, dataset: Dataset) -> Dataset:
         """Pretokenize a dataset in place, adding a 'words' column."""

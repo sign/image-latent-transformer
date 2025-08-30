@@ -8,11 +8,11 @@ class ControlTokens:
     Acknowledge = "\x06"
     Alert = "\x07"
     Backspace = "\x08"
-    HorizontalTab = "\x09"
-    LineFeed = "\x0A"
-    VerticalTab = "\x0B"
-    FormFeed = "\x0C"
-    CarriageReturn = "\x0D"
+    HorizontalTab = "\x09"  # Whitespace
+    LineFeed = "\x0A"  # Whitespace
+    VerticalTab = "\x0B"  # Whitespace
+    FormFeed = "\x0C"  # Whitespace
+    CarriageReturn = "\x0D"  # Whitespace
     ShiftOut = "\x0E"
     ShiftIn = "\x0F"
     DataLinkEscape = "\x10"
@@ -31,5 +31,8 @@ class ControlTokens:
     GroupSeparator = "\x1D"
     RecordSeparator = "\x1E"
     UnitSeparator = "\x1F"
-    Space = "\x20"
+    Space = "\x20"  # Whitespace
     Delete = "\x7F"
+
+
+CONTROl_TOKENS_PATTERN = "\x01-\x08\x0E-\x1F\x7F"

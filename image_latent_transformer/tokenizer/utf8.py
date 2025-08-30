@@ -18,6 +18,17 @@ TokenizerResult = namedtuple("TokenizerResult", ["input_ids", "attention_mask"])
 
 
 class UTF8Tokenizer(PreTrainedTokenizer):
+    """
+    Custom UTF8 Byte Level Tokenizer implementation,
+    extending PreTrainedTokenizer for basic Hugging Face ecosystem support.
+
+    This tokenizer only supports exactly 256 tokens, with no support for "special tokens".
+    See README.md to learn more how this works with control tokens instead.
+
+    Additionally, exposes a `.torch` method, which fuses and skips unnecessary ops,
+    to achieve a ~3x speedup over `__call__` for training purposes.
+    """
+
     def __init__(self, **kwargs):
         # Pad token
         kwargs["pad_token"] = getattr(kwargs, "pad_token", ControlTokens.Null)
@@ -53,13 +64,13 @@ class UTF8Tokenizer(PreTrainedTokenizer):
     def _convert_token_to_id(self, token: str):
         return ord(token)
 
-    def _convert_id_to_token(self, index):
+    def _convert_id_to_token(self, index: int):
         return chr(index)
 
-    def convert_tokens_to_string(self, tokens):
+    def convert_tokens_to_string(self, tokens: list[str]):
         """Converts a sequence of tokens (string) in a single string."""
-        bstring = bytes([ord(token) for token in tokens])
-        return bstring.decode("utf-8", errors="ignore")
+        _bytes = bytes(ord(token) for token in tokens)
+        return _bytes.decode("utf-8", errors="ignore")
 
     def build_inputs_with_special_tokens(self,
                                          token_ids_0: list[int],
