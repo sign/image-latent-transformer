@@ -31,6 +31,7 @@ def predict_texts(texts: list[str], model, processor, collator):
             input_ids=batch["input_ids"],
             input_attention_mask=batch["input_attention_mask"],
             input_pixels=batch["input_pixels"],
+            attention_mask=batch["attention_mask"],
             processor=processor,
             max_generated_words=5
         )

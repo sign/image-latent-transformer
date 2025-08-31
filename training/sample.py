@@ -17,18 +17,17 @@ def sample(model_path: Path):
     model.eval()
 
     texts = [
-        "<en>",  # Generate the english and hebrew
         # Texts from validation set
-        "<en> What's wrong? <he>",
-        "<en> YOu dOn't know the half Of it. <he>",  # look! mixed case
-        "<en> - No, just said that you were acting... aggressive. <he>",
-        "<en> -l'm a deputy. <he>",  # look! "l" instead of "I", no space.
-        "<en> Well, the good news is Joe wasn't cheating on you. <he>",
-        "<en> - Mm-hmm. No wonder women won't flirt with me. <he>",
-        "<en> You understand you'll be working with your father. <he>",
-        "<en> You wanted freedom, you got it. <he>",
+        "<en>\x0EWhat's wrong?\x0F<he>",
+        "<en>\x0EYOu dOn't know the half Of it.\x0F<he>",  # look! mixed case
+        "<en>\x0E- No, just said that you were acting... aggressive.\x0F<he>",
+        "<en>\x0E-l'm a deputy.\x0F<he>",  # look! "l" instead of "I", no space.
+        "<en>\x0EWell, the good news is Joe wasn't cheating on you.\x0F<he>",
+        "<en>\x0E- Mm-hmm. No wonder women won't flirt with me.\x0F<he>",
+        "<en>\x0EYou understand you'll be working with your father.\x0F<he>",
+        "<en>\x0EYou wanted freedom, you got it.\x0F<he>",
         # Not from validation set, just wanted to try a long named entity
-        "<en> Alexander Hamilton <he>",
+        "<en>\x0EAlexander Hamilton\x0F<he>",
     ]
 
     inputs = processor(texts, collated=True, packed=False)
@@ -37,6 +36,7 @@ def sample(model_path: Path):
         input_pixels=inputs["input_pixels"],
         input_ids=inputs["input_ids"],
         input_attention_mask=inputs["input_attention_mask"],
+        attention_mask=inputs["attention_mask"],
         processor=processor,
         max_generated_words=32,
         bytes_generation_config=GenerationConfig(num_beams=2)  # Sample with beam search, for example

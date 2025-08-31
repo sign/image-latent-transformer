@@ -326,7 +326,7 @@ class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin)
 
     def _generate_latents(self, latent_past_key_values, encoded_input: torch.Tensor,
                           attention_mask: torch.Tensor,
-                          num_words: torch.Tensor) -> tuple[Any, torch.Tensor]:
+                          num_words: torch.Tensor) -> tuple[torch.Tensor, Any, torch.Tensor]:
         latent_output = self.latent_transformer(
             inputs_embeds=encoded_input,
             attention_mask=attention_mask,
@@ -347,7 +347,15 @@ class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin)
         # Map latent state to bytes decoder dimension
         mapped_latent = self.decoder_mapping(last_latents)  # (B, 1, bytes_decoder_dim)
 
-        return latent_output.past_key_values, mapped_latent
+        # New attention mask after adding one more word
+        B, h, L1, L2 = attention_mask.shape  # noqa: N806
+        new_attention_mask = torch.zeros((B, h, L1 + 1, L2 + 1),
+                                         device=attention_mask.device, dtype=attention_mask.dtype)
+        new_attention_mask[:, :, :L1, :L2] = attention_mask
+        for i, n in enumerate(num_words):
+            new_attention_mask[i, :, n, :n + 1] = 1
+
+        return new_attention_mask, latent_output.past_key_values, mapped_latent
 
     def _generate_word_bytes(
             self,
@@ -418,6 +426,7 @@ class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin)
             input_pixels: ImagesNestedList,
             input_ids: torch.Tensor,
             input_attention_mask: torch.Tensor,
+            attention_mask: torch.Tensor,
             processor: TextImageProcessor,
             max_generated_words: int = 50,
             bytes_generation_config: Optional[GenerationConfig] = None):
@@ -446,6 +455,7 @@ class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin)
             input_pixels: List of lists of images, where each inner list contains images for one sample
             input_ids: Text input tokens (B, L, T) for encoding
             input_attention_mask: Attention within a word (B, L, T)
+            attention_mask: Attention across words (BATCH, 1, LENGTH, LENGTH)
             processor: TextImageProcessor instance for tokenization and image processing
             max_generated_words: Maximum number of words to generate
             bytes_generation_config: Generation config for bytes_decoder
@@ -467,10 +477,9 @@ class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin)
         # Main generation loop
         for _ in range(max_generated_words):
             # Step 2: Generate next latent state
-            words_attention_mask = self._words_sequence_attention_mask(num_words)
-            past_key_values, latents = self._generate_latents(past_key_values, encoded_input,
-                                                              attention_mask=words_attention_mask,
-                                                              num_words=num_words)
+            attention_mask, past_key_values, latents = self._generate_latents(past_key_values, encoded_input,
+                                                                              attention_mask=attention_mask,
+                                                                              num_words=num_words)
 
             # Step 3: Generate bytes for this word
             generated_bytes = self._generate_word_bytes(
