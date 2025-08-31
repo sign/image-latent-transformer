@@ -126,7 +126,7 @@ class TextImageProcessor(ProcessorMixin):
         tokenized = self.tokenize_words(words)  # Tokenized inputs
         tokenized_labels = self.tokenize_words(labels)  # Tokenized outputs
 
-        # Render images independently for torch
+        # Render images independently for torch TODO: rely on cache for some, then batch the rest
         images = [self.render_text(word) for word in words]
         # Pack images to a single tensor, to make transfer to the main process more efficient
         # TODO: remove jagged once https://github.com/sign/image-latent-transformer/issues/1 is efficient

@@ -85,6 +85,25 @@ def test_encode_nested_tensor():
 
     assert embedding.shape == (2, 2, 192)
 
+def test_encode_non_equal_lists():
+    model = image_encoder("WinKawaks/vit-tiny-patch16-224")
+
+    img = create_random_image(32, 32)
+    images = [
+        [img],
+        [img, img]
+    ]
+
+    # Test encoding
+    embedding = encode_images(model, images)
+    assert embedding.shape == (2, 2, 192)
+
+    assert torch.equal(embedding[0][0], embedding[1][0])
+    assert torch.equal(embedding[1][0], embedding[1][1])
+    assert torch.equal(embedding[0][1], torch.zeros_like(embedding[0][1]))
+
+
+
 
 @pytest.mark.parametrize("model_name", MODEL_NAMES)
 def test_encode_images_batched_or_sequential(model_name):

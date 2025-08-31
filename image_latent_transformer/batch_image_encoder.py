@@ -92,11 +92,11 @@ def encode_images(image_encoder: AutoModelForImageClassification,
     L = max(len(inner) for inner in input_pixels)  # noqa: N806
     embeds = torch.zeros(B, L, hidden_size, device=device)
 
-    idx = 0
-    for i, inner_images in enumerate(input_pixels):
-        num_images = len(inner_images)
-        embeds[i, range(num_images)] = embeddings[idx:idx + num_images]
-        idx += num_images
+    # Vectorized split and assignment
+    split_sizes = [len(inner) for inner in input_pixels]
+    split_embeddings = torch.split(embeddings, split_sizes, dim=0)
+    for i, split_embed in enumerate(split_embeddings):
+        embeds[i, :len(split_embed)] = split_embed
 
     return embeds
 

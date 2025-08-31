@@ -1,4 +1,5 @@
 import re
+from functools import cache
 
 import cairo
 import gi
@@ -31,6 +32,9 @@ def replace_control_characters(text: str) -> str:
 
     return re.sub(r'[\x00-\x1F\x7F]', control_char_to_symbol, text)
 
+@cache
+def cached_font_description(font_name: str, font_size: int) -> Pango.FontDescription:
+    return Pango.font_description_from_string(f"{font_name} {font_size}px")
 
 def render_text(text: str,
                 block_size: int = 16,
@@ -62,7 +66,7 @@ def render_text(text: str,
     layout = PangoCairo.create_layout(temp_context)
 
     # Set font
-    font_desc = Pango.font_description_from_string(f"sans {scaled_font_size}px")
+    font_desc = cached_font_description("sans", scaled_font_size)
     layout.set_font_description(font_desc)
 
     # Measure all texts to find maximum width
@@ -99,8 +103,7 @@ def render_text(text: str,
     # Convert to PIL Image
     data = surface.get_data()
     img_array = np.frombuffer(data, dtype=np.uint8).reshape((line_height, width, 4))
-    img_array = img_array[:, :, :3]  # Remove alpha channel
-    img_array = img_array[:, :, ::-1]  # BGR to RGB
+    img_array = img_array[:, :, 2::-1]  # Remove alpha channel + convert BGR→RGB
 
     img = Image.fromarray(img_array)
     img.info['dpi'] = (dpi, dpi)

@@ -180,16 +180,6 @@ class ImageLatentTransformer(PreTrainedModel):
     def _num_words_per_datum(self, attention_mask: torch.Tensor) -> torch.Tensor:
         return attention_mask.sum(dim=-1).gt(0).sum(dim=-1)
 
-    def _words_sequence_attention_mask(self, num_words: torch.Tensor) -> torch.Tensor:
-        # Create sequence-level attention mask for latent transformer
-        B = len(num_words)  # noqa: N806
-        L = torch.max(num_words).item()  # noqa: N806
-        sequence_attention_mask = torch.zeros(B, L, device=num_words.device, dtype=torch.long)
-        for i, length in enumerate(num_words):
-            sequence_attention_mask[i, :length] = 1
-
-        return sequence_attention_mask
-
     def forward(self,
                 input_ids: torch.Tensor,
                 input_attention_mask: torch.Tensor,
