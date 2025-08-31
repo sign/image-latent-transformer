@@ -16,7 +16,7 @@ from transformers import (
 )
 from transformers.modeling_outputs import CausalLMOutput
 
-from image_latent_transformer.batch_image_encoder import encode_images, image_encoder_size
+from image_latent_transformer.batch_image_encoder import ImagesNestedList, encode_images, image_encoder_size
 from image_latent_transformer.config import ImageLatentTransformerConfig
 from image_latent_transformer.processor import TextImageProcessor
 from image_latent_transformer.tokenizer.utf8 import UTF8Tokenizer
@@ -101,7 +101,7 @@ class ImageLatentTransformer(PreTrainedModel):
             return False
         return torch.rand(1).item() < self.config.modality_dropout
 
-    def encode_images(self, input_pixels: list[list[torch.Tensor]], device: torch.device) -> torch.Tensor:
+    def encode_images(self, input_pixels: ImagesNestedList, device: torch.device) -> torch.Tensor:
         """
         Args:
             input_pixels: List of lists of images, where each inner list contains images for one sample
@@ -152,7 +152,7 @@ class ImageLatentTransformer(PreTrainedModel):
     def encode_input(self,
                      input_ids: torch.Tensor,
                      attention_mask: torch.Tensor,
-                     input_pixels: list[list[torch.Tensor]]):
+                     input_pixels: ImagesNestedList):
         embeds = []
         if self.image_encoder_dim > 0:
             image_embeds = self.encode_images(input_pixels, device=input_ids.device)
@@ -194,7 +194,7 @@ class ImageLatentTransformer(PreTrainedModel):
                 input_ids: torch.Tensor,
                 input_attention_mask: torch.Tensor,
                 attention_mask: torch.Tensor,
-                input_pixels: list[list[torch.Tensor]],
+                input_pixels: list[list[torch.nested.Tensor]],
                 position_ids: Optional[torch.Tensor] = None,
                 labels_input: Optional[torch.Tensor] = None,
                 labels_attention_mask: Optional[torch.Tensor] = None,
@@ -415,7 +415,7 @@ class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin)
     @torch.no_grad()
     def generate(
             self,
-            input_pixels: list[list[torch.Tensor]],
+            input_pixels: ImagesNestedList,
             input_ids: torch.Tensor,
             input_attention_mask: torch.Tensor,
             processor: TextImageProcessor,

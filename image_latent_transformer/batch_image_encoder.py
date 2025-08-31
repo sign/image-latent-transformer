@@ -1,12 +1,14 @@
 import inspect
 from functools import cache
 from itertools import chain
-from typing import Optional
+from typing import Optional, Union
 
 import torch
 from transformers import AutoModelForImageClassification
 
 from image_latent_transformer.collator import stack_pad_tensors
+
+ImagesNestedList = Union[list[list[torch.Tensor]], list[torch.nested.Tensor]]
 
 
 class UnknownImageEncoderError(ValueError):
@@ -59,11 +61,15 @@ def model_args_dict(model: AutoModelForImageClassification) -> dict:
 
 
 def encode_images(image_encoder: AutoModelForImageClassification,
-                  input_pixels: list[list[torch.Tensor]],
+                  input_pixels: ImagesNestedList,
                   device: torch.device = None) -> torch.Tensor:
     """Image encoder should accept variable size images and return embeddings."""
     model_args = model_args_dict(image_encoder)
 
+    # Recreate as list of lists if input is a nested tensor
+    input_pixels = [[img for img in inner] for inner in input_pixels]
+
+    # Flatten images
     all_images = list(chain.from_iterable(input_pixels))
 
     _callable = encode_images_sequentially

@@ -256,10 +256,6 @@ def test_packed_dataset_labels_independent(processor):
     datum = next(iter(packed_dataset))
     labels = processor.get_sequence_labels(datum["words"], datum["seq_lengths"], pack=True)
 
-    print("words", datum["words"])
-    print("seq_lengths", datum["seq_lengths"])
-    print(labels)
-
     assert labels == [
         'a b', 'b', '',
         'c d', 'd', ''

@@ -133,6 +133,9 @@ class TextImageProcessor(ProcessorMixin):
 
         # Render images independently for torch
         images = [self.render_text(word) for word in words]
+        # Pack images to a single tensor, to make transfer to the main process more efficient
+        # TODO: remove jagged once https://github.com/sign/image-latent-transformer/issues/1 is efficient
+        input_pixels = torch.nested.nested_tensor(images, layout=torch.jagged)
 
         return {
             "input_ids": tokenized.input_ids,
@@ -140,7 +143,7 @@ class TextImageProcessor(ProcessorMixin):
             # Attention across words
             "attention_mask": get_attention_mask_for_packed_sequence(seq_lengths, words=words),
             "position_ids": get_position_ids_for_packed_sequence(seq_lengths),
-            "input_pixels": images,
+            "input_pixels": input_pixels,
             "labels_input": tokenized_labels.input_ids[:, :-1],  # Remove EOS token from input labels
             "labels_attention_mask": tokenized_labels.attention_mask[:, :-1],  # Remove EOS token from attention mask
             "labels_output": tokenized_labels.input_ids[:, 1:]  # Remove BOS token from output labels

@@ -74,6 +74,17 @@ def test_encode_images_deterministic(model_name):
     assert torch.equal(embeddings1, embeddings2)
 
 
+def test_encode_nested_tensor():
+    model = image_encoder("WinKawaks/vit-tiny-patch16-224")
+
+    tensors = [create_random_image(64, 64), create_random_image(64, 64)]
+    image_input = torch.nested.nested_tensor(tensors)
+    input_pixels = [image_input, image_input]
+
+    embedding = encode_images(model, input_pixels)
+
+    assert embedding.shape == (2, 2, 192)
+
 @pytest.mark.parametrize("model_name", MODEL_NAMES)
 def test_encode_images_batched_or_sequential(model_name):
     """Make sure the batch implementation and the sequential implementation return the same result"""

@@ -87,6 +87,8 @@ def collate_fn(batch: list, pad_value=0):
         tensors = [item[key] for item in batch]
 
         if key == "input_pixels":
+            # TODO: figure out how to collate, to improve speed of data transfer,
+            # or solve https://github.com/sign/image-latent-transformer/issues/1
             collated[key] = tensors  # Not collated
         else:
             collated[key] = stack_pad_tensors(tensors, pad_value=pad_value)
