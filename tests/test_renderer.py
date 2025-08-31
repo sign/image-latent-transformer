@@ -111,5 +111,6 @@ class TestRenderer(unittest.TestCase):
 
         assert has_black_pixels, "Rendered signwriting should contain black pixels"
 
+
 if __name__ == '__main__':
     unittest.main()

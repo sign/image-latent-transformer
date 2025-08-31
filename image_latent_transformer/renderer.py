@@ -16,6 +16,7 @@ from gi.repository import Pango, PangoCairo  # noqa: E402
 def dim_to_block_size(value: int, block_size: int) -> int:
     return ((value + block_size - 1) // block_size) * block_size
 
+
 def replace_control_characters(text: str) -> str:
     # Special visual handling for control characters using Control Pictures Unicode block
     # Based on https://unicode.org/charts/nameslist/n_2400.html
@@ -29,6 +30,7 @@ def replace_control_characters(text: str) -> str:
         return char
 
     return re.sub(r'[\x00-\x1F\x7F]', control_char_to_symbol, text)
+
 
 def render_text(text: str,
                 block_size: int = 16,

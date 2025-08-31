@@ -22,7 +22,7 @@ def predict_texts(texts: list[str], model, processor, collator):
 
     print("-" * 30)
     dataset = make_dataset(texts)
-    batch = dataset_to_batch(model,processor, collator, dataset)
+    batch = dataset_to_batch(model, processor, collator, dataset)
 
     with torch.no_grad():
         outputs = model.generate(

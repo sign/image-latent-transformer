@@ -6,6 +6,7 @@ def stack_pad_tensors_fast(tensors: list[torch.Tensor], pad_value=0, dtype=None,
     nt = torch.nested.nested_tensor(tensors, dtype=dtype, device=device)
     return nt.to_padded_tensor(pad_value)  # shape: [B, *max_shape]
 
+
 def stack_pad_tensors_slow(tensors: list[torch.Tensor], pad_value=0):
     # Check if all tensors have the same shape
     shapes = [tensor.shape for tensor in tensors]

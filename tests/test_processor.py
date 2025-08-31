@@ -164,11 +164,12 @@ def test_pretokenize_splits_control_tokens(processor):
             f"{ControlTokens.StartOfHeading}hello {ControlTokens.EndOfText}")
     words = processor.pretokenize(text)
     assert words == [
-        ControlTokens.StartOfText, # BOS is added by pretokenize
+        ControlTokens.StartOfText,  # BOS is added by pretokenize
         ControlTokens.ShiftOut, 'test', ControlTokens.ShiftIn,
         ControlTokens.StartOfHeading, "hello ", ControlTokens.EndOfText,
-        " " # Space is added by pretokenize
+        " "  # Space is added by pretokenize
     ]
+
 
 def test_pretokenize_multiple_whitespace(processor):
     text = """

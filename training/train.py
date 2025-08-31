@@ -45,8 +45,6 @@ def enable_optimizations():
 
     # TODO --use_cuda_graphs true ?
 
-    # TODO vectorize stack_pad_tensors
-
     # TODO pin_memory_device="cuda" (PyTorch ≥2.3)
 
     # TODO
@@ -55,6 +53,7 @@ def enable_optimizations():
     #     torch_compile_mode="default",
 
     # TODO use accelerate launch
+
 
 def split_streaming_dataset(
         full_streaming_dataset,

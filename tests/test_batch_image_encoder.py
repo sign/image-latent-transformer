@@ -85,6 +85,7 @@ def test_encode_nested_tensor():
 
     assert embedding.shape == (2, 2, 192)
 
+
 @pytest.mark.parametrize("model_name", MODEL_NAMES)
 def test_encode_images_batched_or_sequential(model_name):
     """Make sure the batch implementation and the sequential implementation return the same result"""

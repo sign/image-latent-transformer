@@ -115,6 +115,7 @@ MODEL_CONFIGURATIONS = [
 MODEL_IDs = [f"{config} / {model_type}" for config, model_type in MODEL_CONFIGURATIONS]
 parameterization = pytest.mark.parametrize("model_configuration", MODEL_CONFIGURATIONS, indirect=True, ids=MODEL_IDs)
 
+
 @parameterization
 def test_character_level_conditioning(model_configuration):
     """Test 1: Character-level conditioning (a b vs a a, b a vs b b)"""

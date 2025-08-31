@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import modal
+from modal import Retries
 
 from training.sample import sample
 from training.train import train as local_train
@@ -35,7 +36,7 @@ image = (
         modal.Secret.from_name("wandb-secret", required_keys=["WANDB_API_KEY"]),
     ],
     timeout=3600 * 24,
-    retries=0  # Do not retry on failure
+    retries=Retries(max_retries=0)
 )
 def train_remote(args: dict):
     import subprocess
@@ -71,8 +72,8 @@ def train():
         "--dataloader_pin_memory", "True",
         "--dataloader_persistent_workers", "True",
         # Training args
-        "--per_device_train_batch_size", "128", # TODO: A100 can fit 200
-        "--per_device_eval_batch_size", "128",
+        "--per_device_train_batch_size", "200",
+        "--per_device_eval_batch_size", "200",
         "--max_sequence_length", "128",
         "--max_word_length", "16",
         "--auto_find_batch_size", "true",
@@ -102,7 +103,8 @@ def train():
     volumes={
         MODEL_MNT_DIR: modal.Volume.from_name("model-output", create_if_missing=True),
     },
-    timeout=240
+    timeout=240,
+    retries=Retries(max_retries=0)
 )
 def sample_remote():
     sample(Path(MODEL_OUTPUT_DIR))

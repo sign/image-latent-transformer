@@ -1,7 +1,7 @@
 # Training
 
 > [!CAUTION]
-> The [image encoder](../image_latent_transformer/batch_image_encoder.py) tends to work sequentially, 
+> The [image encoder](../image_latent_transformer/batch_image_encoder.py) tends to work sequentially,
 > and slow down training.
 
 Setup with:
@@ -12,6 +12,7 @@ pip install ".[train]"
 
 Run:
 [//]: # (TODO: Unclear why `remove_unused_columns=False` is needed, but it is required to avoid errors during training.)
+
 ```bash
 python -m training.train \
     --image_encoder_model_name_or_path "WinKawaks/vit-tiny-patch16-224" \
@@ -40,7 +41,7 @@ python -m training.train \
     --warmup_freeze_steps 10
 ```
 
-Use `warmup_freeze_steps=N` to freeze the pretrained modules for the first N steps 
+Use `warmup_freeze_steps=N` to freeze the pretrained modules for the first N steps
 ([#7](https://github.com/sign/image-latent-transformer/issues/7)).
 
 ## Using Modal.com
@@ -52,12 +53,14 @@ modal setup
 ```
 
 Training:
+
 ```bash
 modal run --detach -m training.modal::train
 modal run -m training.modal::predict
 ```
 
 Download trained model:
+
 ```bash
 mkdir -p output
 modal volume get model-output / output

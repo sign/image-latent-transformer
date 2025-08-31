@@ -73,7 +73,7 @@ class ImageLatentTransformer(PreTrainedModel):
                                                    config.dtype, load_pretrained)
             self.bytes_encoder.resize_token_embeddings(config.num_tokens, pad_to_multiple_of=8)
             self.bytes_encoder.cls = self.bytes_encoder.decoder = torch.nn.Identity()  # delete the decoder head
-            self.bytes_encoder.get_output_embeddings = lambda: None # bytes encoder no longer has output embeddings
+            self.bytes_encoder.get_output_embeddings = lambda: None  # bytes encoder no longer has output embeddings
             self.bytes_encoder_dim = self.bytes_encoder.config.hidden_size
         else:
             self.bytes_encoder = None

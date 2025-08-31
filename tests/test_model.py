@@ -146,8 +146,10 @@ def test_loss_is_independent_of_batch():
 
     print(f"✓ Loss at first position is batch-independent: {losses[0]:.4f}")
 
+
 def num_model_params(model):
     return sum(p.numel() for p in model.parameters())
+
 
 def test_model_save_and_load_works():
     """Test that the model can be saved and loaded without issues."""
@@ -160,6 +162,7 @@ def test_model_save_and_load_works():
         loaded_num_parameters = num_model_params(model)
         assert original_num_parameters == loaded_num_parameters, \
             f"Number of parameters mismatch: {original_num_parameters:,} vs {loaded_num_parameters:,}"
+
 
 def test_model_from_pretrained_works():
     """Test that the model can be saved and loaded without issues."""
@@ -174,6 +177,7 @@ def test_model_from_pretrained_works():
 
         assert original_num_parameters == loaded_num_parameters, \
             f"Number of parameters mismatch: {original_num_parameters:,} vs {loaded_num_parameters:,}"
+
 
 def test_freeze_unfreeze_model_works():
     """Test that freezing the model works correctly."""
@@ -192,6 +196,7 @@ def test_freeze_unfreeze_model_works():
 
     for name, param in model.named_parameters():
         assert param.requires_grad, f"Parameter {name} should be unfrozen but is frozen."
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

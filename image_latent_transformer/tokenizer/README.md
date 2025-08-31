@@ -15,11 +15,11 @@ Other tokens can be left for task-specific usage, or future extensions.
 
 - Padding tokens are using the <Null> character (`\x00`).
 - Text is surrounded by <StartOfText> and <EndOfText> tokens (`\x02`...`\x03`).
-- Messages for instruction tuning are surrounded by <StartOfHeading> and <EndOfTransmission> tokens (`\x01`system ...`\x17`).
+- Messages for instruction tuning are surrounded by <StartOfHeading> and <EndOfTransmission> tokens (`\x01`system ...
+  `\x17`).
 - Attention blocks (PrefixLM / MAS) are surrounded by <ShiftOut> and <ShiftIn> tokens (`\xOE`...`\x0F`).
 - Thinking blocks are surrounded by <Enquiry> and <Acknowledge> tokens (`\x05`...`\x06`).
 - Tool calls are surrounded by <Substitute> and <Escape> tokens (`\x1A`...`\x1B`).
-
 
 Example text for instruction tuning with attention blocks:
 
@@ -29,11 +29,10 @@ Example text for instruction tuning with attention blocks:
 > `\xOE` How much is 1+2? `\x0F\x17`
 > `\x01`assistant
 > First I'll think about it.
-> `\x05`The user wants me to calculate, I should call the calculator 
+> `\x05`The user wants me to calculate, I should call the calculator
 > `\x1A`{"type": "calculator", "expression": "1+2"}`\x1B`3`\x06`
 > 1 + 2 = 3 `\x17\x03`
 > `\x00\x00\x00\x00\x00\x00\x00`
-
 
 | Dec | Hex | Abbr.    | Name                      | Description                                         | Tokenizer Usage       |
 |-----|-----|----------|---------------------------|-----------------------------------------------------|-----------------------|

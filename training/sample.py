@@ -17,12 +17,12 @@ def sample(model_path: Path):
     model.eval()
 
     texts = [
-        "<en>", # Generate the english and hebrew
+        "<en>",  # Generate the english and hebrew
         # Texts from validation set
         "<en> What's wrong? <he>",
-        "<en> YOu dOn't know the half Of it. <he>", # look! mixed case
+        "<en> YOu dOn't know the half Of it. <he>",  # look! mixed case
         "<en> - No, just said that you were acting... aggressive. <he>",
-        "<en> -l'm a deputy. <he>", # look! "l" instead of "I", no space.
+        "<en> -l'm a deputy. <he>",  # look! "l" instead of "I", no space.
         "<en> Well, the good news is Joe wasn't cheating on you. <he>",
         "<en> - Mm-hmm. No wonder women won't flirt with me. <he>",
         "<en> You understand you'll be working with your father. <he>",
