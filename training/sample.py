@@ -39,7 +39,6 @@ def sample(model_path: Path):
         input_attention_mask=inputs["input_attention_mask"],
         processor=processor,
         max_generated_words=32,
-        max_word_length=10,
         bytes_generation_config=GenerationConfig(num_beams=2)  # Sample with beam search, for example
     )
     for text, output in zip(texts, outputs):

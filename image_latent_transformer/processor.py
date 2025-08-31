@@ -1,4 +1,3 @@
-import re
 from functools import lru_cache, partial
 from typing import Union
 
@@ -12,15 +11,8 @@ from image_latent_transformer.attention import (
 )
 from image_latent_transformer.collator import collate_fn
 from image_latent_transformer.renderer import render_text_torch
-from image_latent_transformer.tokenizer.control import CONTROl_TOKENS_PATTERN
+from image_latent_transformer.tokenizer.pretokenizer import text_to_words
 from image_latent_transformer.tokenizer.utf8 import UTF8Tokenizer
-
-# Consider three classes of tokens:
-TOKEN_PATTERN = (
-    rf"[{CONTROl_TOKENS_PATTERN}]"  # # 1. Control tokens
-    rf"|[^\s{CONTROl_TOKENS_PATTERN}]+\s?"  # 2. Words - no whitespace / control (with optional 1 trailing space)
-    r"|\s+"  # 3) whitespace runs
-)
 
 
 class TextImageProcessor(ProcessorMixin):
@@ -66,7 +58,8 @@ class TextImageProcessor(ProcessorMixin):
         #  https://github.com/sign/image-latent-transformer/issues/2
         text += " "
 
-        return re.findall(TOKEN_PATTERN, text)
+        max_bytes = self.max_word_length - 2  # Reserve space for BOS and EOS tokens
+        return text_to_words(text, max_bytes=max_bytes)
 
     def pretokenize_dataset(self, dataset: Dataset) -> Dataset:
         """Pretokenize a dataset in place, adding a 'words' column."""
@@ -118,10 +111,12 @@ class TextImageProcessor(ProcessorMixin):
         return self.tokenizer.torch(
             words,
             padding=True,
+            add_special_tokens=True,
+            device=device,
+            # Truncation happens in pre-tokenization.
+            # This is just for additional safety:
             max_length=self.max_word_length,
             truncation=True,
-            add_special_tokens=True,
-            device=device
         )
 
     def process_single_example(self, words: list[str], seq_lengths: list[int], pack=True):

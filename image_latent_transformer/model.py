@@ -19,8 +19,8 @@ from transformers.modeling_outputs import CausalLMOutput
 from image_latent_transformer.batch_image_encoder import ImagesNestedList, encode_images, image_encoder_size
 from image_latent_transformer.config import ImageLatentTransformerConfig
 from image_latent_transformer.processor import TextImageProcessor
+from image_latent_transformer.tokenizer.pretokenizer import WordStoppingCriteria
 from image_latent_transformer.tokenizer.utf8 import UTF8Tokenizer
-from image_latent_transformer.tokenizer.whitespace import WHITE_SPACE_CHARS
 
 logger = logging.getLogger(__name__)
 
@@ -368,6 +368,7 @@ class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin)
             inputs_embeds=inputs_embeds,
             generation_config=bytes_generation_config,
             tokenizer=tokenizer,
+            stopping_criteria=[WordStoppingCriteria(tokenizer)],
             **bytes_generation_kwargs
         )
 
@@ -402,7 +403,6 @@ class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin)
             bos_token_id=tokenizer.bos_token_id,
             pad_token_id=tokenizer.pad_token_id,
             eos_token_id=tokenizer.eos_token_id,
-            stop_strings=WHITE_SPACE_CHARS  # TODO: change this to use the pretokenizer: if 2 words, done
         )
         if bytes_generation_config is None:
             return GenerationConfig(**default_generation_config_args)
@@ -420,7 +420,6 @@ class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin)
             input_attention_mask: torch.Tensor,
             processor: TextImageProcessor,
             max_generated_words: int = 50,
-            max_word_length: int = None,
             bytes_generation_config: Optional[GenerationConfig] = None):
         """
         Generate text sequences using iterative latent-then-bytes generation.
@@ -449,10 +448,9 @@ class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin)
             input_attention_mask: Attention within a word (B, L, T)
             processor: TextImageProcessor instance for tokenization and image processing
             max_generated_words: Maximum number of words to generate
-            max_word_length: Maximum number of characters to generate per word
             bytes_generation_config: Generation config for bytes_decoder
         """
-        bytes_generation_config = self._prep_bytes_generation_config(max_word_length,
+        bytes_generation_config = self._prep_bytes_generation_config(processor.max_word_length,
                                                                      processor.tokenizer,
                                                                      bytes_generation_config)
 

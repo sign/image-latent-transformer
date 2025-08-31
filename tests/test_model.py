@@ -98,9 +98,8 @@ def test_attention_does_look_back():
     # Test sequences with shared suffix but different prefix
     texts = ["c b a", "d b a"]
 
-    # Force every word to predict a single byte (and EOS)
-    # "a <eos>, b <eos>, c <eos>, <eos> <pad>" and "a <eos>, b <eos>, d <eos>, <eos> <pad>"
-    processor.max_word_length = 1
+    # Force every word to predict a single byte and special tokens
+    processor.max_word_length = 3 # # (BOS + 1 byte + EOS)
 
     _, outputs = predict_dataset(texts, model, processor, collator)
     for text in texts:

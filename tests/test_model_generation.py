@@ -24,14 +24,15 @@ def predict_texts(texts: list[str], model, processor, collator):
     dataset = make_dataset(texts)
     batch = dataset_to_batch(model, processor, collator, dataset)
 
+    processor.max_word_length = 5
+
     with torch.no_grad():
         outputs = model.generate(
             input_ids=batch["input_ids"],
             input_attention_mask=batch["input_attention_mask"],
             input_pixels=batch["input_pixels"],
             processor=processor,
-            max_generated_words=5,
-            max_word_length=5
+            max_generated_words=5
         )
 
     for text, output in zip(texts, outputs):
