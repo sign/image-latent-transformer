@@ -5,7 +5,8 @@ import torch
 from transformers import AutoModelForImageClassification
 
 from image_latent_transformer.collator import stack_pad_tensors
-from image_latent_transformer.vision_utils import image_encoder_size, pool_hidden_dim, encode_images as utils_encode_images
+from image_latent_transformer.vision_utils import encode_images as utils_encode_images
+from image_latent_transformer.vision_utils import image_encoder_size
 
 ImagesNestedList = Union[list[list[torch.Tensor]], list[torch.nested.Tensor]]
 

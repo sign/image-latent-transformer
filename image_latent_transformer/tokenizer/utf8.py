@@ -7,7 +7,7 @@ from torch.nn.utils.rnn import pad_sequence
 from transformers import AutoTokenizer, PreTrainedTokenizer
 from transformers.tokenization_utils_base import TextInput
 
-from image_latent_transformer.tokenizer.control import ControlTokens
+from image_latent_transformer.pretokenizer.control import ControlTokens
 
 
 def tokenize_ids(text: str, errors="strict"):

@@ -6,7 +6,7 @@ from image_latent_transformer.attention import (
     get_attention_mask_for_packed_sequence,
     get_position_ids_for_packed_sequence,
 )
-from image_latent_transformer.tokenizer.control import ControlTokens
+from image_latent_transformer.pretokenizer.control import ControlTokens
 
 
 def test_get_attention_mask_for_packed_sequence_single_sequence():

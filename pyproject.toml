@@ -32,6 +32,11 @@ train = [
     "wandb", # For experiment tracking
 ]
 
+languages = [
+    "fugashi[unidic-lite]", # For Japanese word segmentation
+    "jieba", # For Chinese word segmentation
+]
+
 [tool.setuptools]
 packages = [
     "image_latent_transformer",
@@ -40,6 +45,7 @@ packages = [
 
 [tool.ruff]
 line-length = 120
+extend-exclude = ["training/experiments/*"]
 
 [tool.ruff.lint]
 select = [

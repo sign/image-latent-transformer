@@ -21,7 +21,7 @@ jobs:
           cache: 'pip'
 
       - name: Install Requirements
-        run: pip install ".[dev]"
+        run: pip install ".[dev,languages]"
 
       - name: Lint Code
         run: ruff check .

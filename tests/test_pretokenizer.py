@@ -1,6 +1,10 @@
 import pytest
 
-from image_latent_transformer.tokenizer.pretokenizer import is_word_complete, text_to_words, utf8_chunks_grapheme_safe
+from image_latent_transformer.pretokenizer.pretokenizer import (
+    is_word_complete,
+    text_to_words,
+    utf8_chunks_grapheme_safe,
+)
 
 
 def test_utf8_chunks_english():

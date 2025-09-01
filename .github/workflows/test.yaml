@@ -32,7 +32,7 @@ jobs:
 
       - name: Install Package
         shell: bash -l {0}
-        run: pip install ".[dev]"
+        run: pip install ".[dev,languages]"
 
       - name: Test Code
         shell: bash -l {0}

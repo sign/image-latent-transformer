@@ -6,8 +6,8 @@ import torch
 from datasets import Dataset
 from trl.data_utils import pack_dataset
 
+from image_latent_transformer.pretokenizer.control import ControlTokens
 from image_latent_transformer.processor import TextImageProcessor
-from image_latent_transformer.tokenizer.control import ControlTokens
 from tests.test_model import setup_tiny_model
 
 

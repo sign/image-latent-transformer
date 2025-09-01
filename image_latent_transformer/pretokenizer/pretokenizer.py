@@ -1,3 +1,4 @@
+import math
 import re
 from itertools import chain
 
@@ -6,7 +7,9 @@ import torch
 from transformers import PreTrainedTokenizer, StoppingCriteria, add_start_docstrings
 from transformers.generation.stopping_criteria import STOPPING_CRITERIA_INPUTS_DOCSTRING
 
-from image_latent_transformer.tokenizer.control import CONTROl_TOKENS_PATTERN
+from image_latent_transformer.pretokenizer.chinese import has_chinese, segment_chinese
+from image_latent_transformer.pretokenizer.control import CONTROl_TOKENS_PATTERN
+from image_latent_transformer.pretokenizer.japanese import has_japanese, segment_japanese
 
 # Consider three classes of tokens:
 _TOKEN_PATTERN = (
@@ -22,8 +25,17 @@ _COMPILED_TOKEN_PATTERN = re.compile(_TOKEN_PATTERN)
 _COMPILED_GRAPHEME_PATTERN = reg.compile(r"\X")
 
 
-def text_to_words(text: str, max_bytes: int) -> list[str]:
+def text_to_words(text: str, max_bytes: int = math.inf) -> list[str]:
+    if has_chinese(text):
+        text = segment_chinese(text)
+
+    if has_japanese(text):
+        text = segment_japanese(text)
+
     words = _COMPILED_TOKEN_PATTERN.findall(text)
+    if max_bytes == math.inf:
+        return words
+
     chunks = (utf8_chunks_grapheme_safe(word, max_bytes=max_bytes) for word in words)
     return list(chain.from_iterable(chunks))
 

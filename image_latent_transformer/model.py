@@ -18,8 +18,8 @@ from transformers.modeling_outputs import CausalLMOutput
 
 from image_latent_transformer.batch_image_encoder import ImagesNestedList, encode_images, image_encoder_size
 from image_latent_transformer.config import ImageLatentTransformerConfig
+from image_latent_transformer.pretokenizer.pretokenizer import WordStoppingCriteria
 from image_latent_transformer.processor import TextImageProcessor
-from image_latent_transformer.tokenizer.pretokenizer import WordStoppingCriteria
 from image_latent_transformer.tokenizer.utf8 import UTF8Tokenizer
 
 logger = logging.getLogger(__name__)
