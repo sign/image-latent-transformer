@@ -64,7 +64,7 @@ def train():
         # Dataset args
         "--dataset_name", "Helsinki-NLP/opus-100",
         "--dataset_config_name", "en-he",
-        "--dataset_text_template", "<en> {translation[en]} <he> {translation[he]}",
+        "--dataset_text_template", "<en>\x0E{translation[en]}\x0F<he> {translation[he]}",
         "--remove_unused_columns", "False",
         # Dataloader args
         "--dataloader_num_workers", "8",
@@ -72,10 +72,10 @@ def train():
         "--dataloader_pin_memory", "True",
         "--dataloader_persistent_workers", "True",
         # Training args
-        "--per_device_train_batch_size", "200",
-        "--per_device_eval_batch_size", "200",
+        "--per_device_train_batch_size", "128",
+        "--per_device_eval_batch_size", "128",
         "--max_sequence_length", "128",
-        "--max_word_length", "16",
+        "--max_word_length", "20",
         "--auto_find_batch_size", "true",
         "--do_train", "True",
         # "--do_eval", "True", # TODO: fix eval
