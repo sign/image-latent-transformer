@@ -1,9 +1,15 @@
 # Image Latent Transformer (ILT)
 
-[Motivational Examples](./MOTIVATION.md)
+![Python](https://img.shields.io/badge/python-3.12-blue)
+[![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
+ 
+A novel approach to language modeling that treats text as images,
+leveraging visual structure for enhanced understanding.
 
-We believe that language modeling can be enhanced by modeling "words", ideally both as text and as images,
-leveraging the visual structure of written language.
+[See Motivational Examples](./MOTIVATION.md)
+
+Traditional language models process text as sequences of tokens. ILT models "words" as both bytes and images,
+capturing the visual structure that humans naturally use when reading.
 
 We perform whitespace segmentation and then encode each "token" as an image, and as a sequence of bytes.
 The "tokens" go into a large transformer model, which predicts a representation of the next token.
@@ -15,8 +21,16 @@ In other words, we have a hierarchical encoder, and a hierarchical decoder.
 
 ![Model Architecture](./assets/architecture.png)
 
+## Quick Start
 
-## Environment
+Clone and setup:
+
+```shell
+git clone https://github.com/sign/image-latent-transformer.git
+cd image-latent-transformer
+```
+
+Install dependencies:
 
 ```shell
 conda create -n ilt python=3.12 -y
@@ -76,17 +90,17 @@ There, you can select the model architectures you want to use for each component
 Since we have two decoders, the autoregressive prediction logic is a bit more complex than the usual,
 and supporting decoding algorithms like beam-search is not trivial.
 
-Thus, on the latent-transformer level, 
+Thus, on the latent-transformer level,
 [we only support greedy decoding](https://github.com/sign/image-latent-transformer/issues/5) for now.
 On the bytes decoder level, we support all classical decoding algorithms supported by HuggingFace Transformers.
 
-## Other Issues
+## Contributing
 
-We make sure to track our issues on GitHub, and link them from the codebase 
-[here](https://github.com/search?q=repo%3Asign%2Fimage-latent-transformer+%22%2Fissues%2F%22&type=code).
-Generally, to track our TODOs, we use the `TODO` tag in the codebase, and they can be found 
-[here](https://github.com/search?q=repo%3Asign%2Fimage-latent-transformer%20TODO&type=code).
-We can not recommend a real training run until all issues are resolved.
+See [open issues](https://github.com/search?q=repo%3Asign%2Fimage-latent-transformer+%22%2Fissues%2F%22&type=code) 
+and [TODOs](https://github.com/search?q=repo%3Asign%2Fimage-latent-transformer%20TODO&type=code) in the codebase.
+
+> [!WARNING]
+> Training runs are experimental until core issues are resolved.
 
 ## Cite
 

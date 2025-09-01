@@ -1,4 +1,6 @@
-# Motivational Examples
+# Why Text-as-Images Changes Everything
+
+**What if the root cause of most LLM failures is how we tokenize text?**
 
 Visually encoding text mimics how humans read, and creates equivalence
 between what the human sees and how the computer processes the text.
