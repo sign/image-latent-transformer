@@ -9,7 +9,6 @@ from image_latent_transformer.batch_image_encoder import (
     encode_images_batch,
     encode_images_sequentially,
     image_encoder_size,
-    model_args_dict,
 )
 
 MODELS = {
@@ -112,9 +111,8 @@ def test_encode_images_batched_or_sequential(model_name):
 
     images = [create_random_image(64, 64), create_random_image(64, 64)]
 
-    model_args = model_args_dict(model)
-    embeddings1 = encode_images_batch(model, images, model_args)
-    embeddings2 = encode_images_sequentially(model, images, model_args)
+    embeddings1 = encode_images_batch(model, images)
+    embeddings2 = encode_images_sequentially(model, images)
 
     assert embeddings1.shape == embeddings2.shape
 
