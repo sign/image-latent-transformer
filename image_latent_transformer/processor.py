@@ -1,4 +1,4 @@
-from functools import lru_cache, partial
+from functools import lru_cache
 from typing import Union
 
 import torch
@@ -11,7 +11,7 @@ from image_latent_transformer.attention import (
 )
 from image_latent_transformer.collator import collate_fn
 from image_latent_transformer.pretokenizer.pretokenizer import text_to_words
-from image_latent_transformer.renderer import render_text_torch
+from image_latent_transformer.renderer import render_text
 from image_latent_transformer.tokenizer.utf8 import UTF8Tokenizer
 
 
@@ -43,11 +43,16 @@ class TextImageProcessor(ProcessorMixin):
         self.render_text = self._cached_renderer()
 
     def _cached_renderer(self):
-        # Bind a cached version of the method
-        render_text_fn = partial(render_text_torch, image_processor=self.image_processor)
+        # TODO: calling image_processor on each image is slow, we could batch it
+        def render_text_torch(text: str, **kwargs):
+            image = render_text(text, **kwargs)
+            image = self.image_processor(image, do_center_crop=False, do_resize=False, return_tensors="pt")
+            return image.pixel_values[0]
+
         # TODO: replace with a multithreaded cache, to avoid caching the same text multiple times in different threads
         #       so that we can make the cache size much larger
-        return lru_cache(maxsize=self.cache_size)(render_text_fn)
+        # Bind a cached version of the method
+        return lru_cache(maxsize=self.cache_size)(render_text_torch)
 
     def pretokenize(self, text: str) -> list[str]:
         # Add BOS token at the start

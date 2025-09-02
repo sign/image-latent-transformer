@@ -7,7 +7,6 @@ import numpy as np
 from PIL import Image
 from signwriting.formats.swu import is_swu
 from signwriting.visualizer.visualize import signwriting_to_image
-from transformers import AutoImageProcessor
 
 gi.require_version("Pango", "1.0")
 gi.require_version("PangoCairo", "1.0")
@@ -124,12 +123,6 @@ def render_signwriting(text: str, block_size: int = 16) -> np.ndarray:
     padding = (width - image.width) // 2, (height - image.height) // 2
     new_image.paste(image, padding, image)
     return np.array(new_image)
-
-
-def render_text_torch(text: str, image_processor: AutoImageProcessor, **kwargs):
-    image = render_text(text, **kwargs)
-    image = image_processor(image, do_center_crop=False, do_resize=False, return_tensors="pt")
-    return image.pixel_values[0]
 
 
 def main():
