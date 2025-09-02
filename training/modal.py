@@ -9,7 +9,7 @@ from training.train import train as local_train
 app = modal.App("image-latent-transformer")
 
 MODEL_MNT_DIR = "/output"
-MODEL_OUTPUT_DIR = f"{MODEL_MNT_DIR}/en-he-28m-2"
+MODEL_OUTPUT_DIR = f"{MODEL_MNT_DIR}/en-he-28m-c"
 # Copy the entire project into the image
 library_path = Path(__file__).parent.parent
 image = (
@@ -48,6 +48,10 @@ def train_remote(args: dict):
     print(f"Number of CPUs: {os.cpu_count()}")
     subprocess.check_call(["lscpu"])
 
+    # Print python version
+    print("Python version:")
+    subprocess.check_call(["python", "--version"])
+
     local_train(args)
 
 
@@ -60,7 +64,9 @@ def train():
         "--bytes_encoder_model_name_or_path", "prajjwal1/bert-tiny",
         "--latent_transformer_model_name_or_path", "EleutherAI/pythia-70m",
         "--bytes_decoder_model_name_or_path", "sbintuitions/tiny-lm",
-        # "--warmup_freeze_steps", "1000",
+        # Align representations between pretrained models
+        "--load_pretrained", "True",
+        "--warmup_freeze_steps", "500",
         # Dataset args
         "--dataset_name", "Helsinki-NLP/opus-100",
         "--dataset_config_name", "en-he",
@@ -72,10 +78,10 @@ def train():
         "--dataloader_pin_memory", "True",
         "--dataloader_persistent_workers", "True",
         # Training args
-        "--per_device_train_batch_size", "128",
-        "--per_device_eval_batch_size", "128",
+        "--per_device_train_batch_size", "176",
+        "--per_device_eval_batch_size", "176",
         "--max_sequence_length", "128",
-        "--max_word_length", "20",
+        "--max_word_length", "16",
         "--auto_find_batch_size", "true",
         "--do_train", "True",
         # "--do_eval", "True", # TODO: fix eval
@@ -83,7 +89,7 @@ def train():
         # "--overwrite_output_dir", "True",
         "--logging_steps", "10",
         "--logging_strategy", "steps",
-        "--max_steps", "100000",
+        "--max_steps", "30000",
 
         "--include_tokens_per_second", "True",
         "--include_num_input_tokens_seen", "True",

@@ -134,7 +134,7 @@ def init_logging(training_args: TrainingArguments):
     logger.info(f"Training/evaluation parameters {training_args}")
 
 
-def init_model(model_args: ModelArguments, seed: int, device: str):
+def init_model(model_args: ModelArguments, seed: int):
     # Set seed before initializing model.
     set_seed(seed)
 
@@ -147,7 +147,7 @@ def init_model(model_args: ModelArguments, seed: int, device: str):
         trust_remote_code=model_args.trust_remote_code,
         dtype=model_args.dtype,
         seed=seed,
-        load_pretrained=False
+        load_pretrained=model_args.load_pretrained,
     )
 
     # Load the model from a local path if provided
@@ -375,9 +375,7 @@ def train(args: Optional[dict] = None):  # noqa: C901
     last_checkpoint = detect_last_checkpoint(training_args)
 
     # Initialize the model
-    model, processor, collator = init_model(model_args,
-                                            seed=training_args.seed,
-                                            device=training_args.device)
+    model, processor, collator = init_model(model_args, seed=training_args.seed)
 
     if data_args.max_sequence_length is not None:
         processor.max_seq_length = data_args.max_sequence_length

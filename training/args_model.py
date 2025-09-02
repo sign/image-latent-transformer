@@ -35,6 +35,10 @@ class ModelArguments:
     latent_transformer_model_name_or_path: Optional[str] = listed_model(MODEL_FOR_CAUSAL_LM_MAPPING_NAMES)
     bytes_decoder_model_name_or_path: Optional[str] = listed_model(MODEL_FOR_CAUSAL_LM_MAPPING_NAMES)
 
+    load_pretrained: bool = field(default=False, metadata={
+        "help": "Whether to load the pretrained weights of the models specified in *_model_name_or_path."
+    })
+
     warmup_freeze_steps: int = field(default=0, metadata={
         "help": "Steps to keep most modules frozen at start."
     })

@@ -11,6 +11,7 @@ from image_latent_transformer.processor import TextImageProcessor
 @torch.no_grad()
 def sample(model_path: Path):
     last_checkpoint = get_last_checkpoint(model_path)
+    # TODO add flash_attention support
     model = ImageLatentTransformerForCausalLM.from_pretrained(last_checkpoint)
     processor = TextImageProcessor.from_pretrained(model_path)
 
@@ -18,16 +19,16 @@ def sample(model_path: Path):
 
     texts = [
         # Texts from validation set
-        "<en>\x0EWhat's wrong?\x0F<he>",
-        "<en>\x0EYOu dOn't know the half Of it.\x0F<he>",  # look! mixed case
-        "<en>\x0E- No, just said that you were acting... aggressive.\x0F<he>",
-        "<en>\x0E-l'm a deputy.\x0F<he>",  # look! "l" instead of "I", no space.
-        "<en>\x0EWell, the good news is Joe wasn't cheating on you.\x0F<he>",
-        "<en>\x0E- Mm-hmm. No wonder women won't flirt with me.\x0F<he>",
-        "<en>\x0EYou understand you'll be working with your father.\x0F<he>",
-        "<en>\x0EYou wanted freedom, you got it.\x0F<he>",
+        "<en>\x0EWhat's wrong?\x0F<he> ",
+        "<en>\x0EYOu dOn't know the half Of it.\x0F<he> ",  # look! mixed case
+        "<en>\x0E- No, just said that you were acting... aggressive.\x0F<he> ",
+        "<en>\x0E-l'm a deputy.\x0F<he> ",  # look! "l" instead of "I", no space.
+        "<en>\x0EWell, the good news is Joe wasn't cheating on you.\x0F<he> ",
+        "<en>\x0E- Mm-hmm. No wonder women won't flirt with me.\x0F<he> ",
+        "<en>\x0EYou understand you'll be working with your father.\x0F<he> ",
+        "<en>\x0EYou wanted freedom, you got it.\x0F<he> ",
         # Not from validation set, just wanted to try a long named entity
-        "<en>\x0EAlexander Hamilton\x0F<he>",
+        "<en>\x0EAlexander Hamilton\x0F<he> ",
     ]
 
     inputs = processor(texts, collated=True, packed=False)

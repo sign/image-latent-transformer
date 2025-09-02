@@ -52,7 +52,7 @@ def test_processor_single_text_not_collated(processor):
 
 def test_processor_single_text_value(processor):
     text = "a b"
-    inputs = processor(text)
+    inputs = processor(text, packed=True)
     assert torch.equal(inputs["input_ids"][0], torch.tensor([[2, 2, 3, 0], [2, 97, 32, 3], [2, 98, 32, 3]]))
     assert inputs["input_attention_mask"][0].shape == (3, 4)
     assert inputs["attention_mask"][0].shape == (1, 3, 3)
@@ -130,12 +130,12 @@ def test_processor_packed_vs_unpacked_labels(processor):
     assert not torch.equal(inputs_packed["labels_output"], inputs_unpacked["labels_output"])
 
 
-def test_processor_packed_true_default_behavior(processor):
+def test_processor_packed_false_default_behavior(processor):
     text = "example text for testing"
 
     # Default should be packed=True
     inputs_default = processor(text, collated=True)
-    inputs_explicit_packed = processor(text, collated=True, packed=True)
+    inputs_explicit_packed = processor(text, collated=True, packed=False)
 
     # Should be identical
     assert torch.equal(inputs_default["labels_input"], inputs_explicit_packed["labels_input"])

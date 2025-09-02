@@ -19,6 +19,7 @@ python -m training.train \
     --bytes_encoder_model_name_or_path "prajjwal1/bert-tiny" \
     --latent_transformer_model_name_or_path "sbintuitions/tiny-lm" \
     --bytes_decoder_model_name_or_path "sbintuitions/tiny-lm" \
+    --load_pretrained True \
     --dataset_name Helsinki-NLP/opus-100 \
     --dataset_config_name en-he \
     --dataset_text_template "<en> {translation[en]} <he> {translation[he]}" \

@@ -10,7 +10,7 @@ from transformers import (
 
 from image_latent_transformer.collator import collate_fn
 from image_latent_transformer.config import ImageLatentTransformerConfig
-from image_latent_transformer.model import ImageLatentTransformerForCausalLM
+from image_latent_transformer.model import ImageLatentTransformerForCausalLM, logger
 from image_latent_transformer.processor import TextImageProcessor
 from image_latent_transformer.tokenizer.utf8 import UTF8Tokenizer
 
@@ -22,6 +22,15 @@ def print_model_summary(name: str, model):
         return
     total_params = sum(p.numel() for p in model.parameters())
     print(name, f"Total parameters: {total_params:,}")
+
+
+def get_attn_implementation():
+    try:
+        import flash_attn
+        return "flash_attention_2"
+    except ImportError:
+        logger.warning("Flash Attention not available, using default attention")
+        return None
 
 
 def setup_model(
@@ -64,7 +73,9 @@ def setup_model(
     )
 
     # Combine the models
-    model = ImageLatentTransformerForCausalLM(config, load_pretrained=load_pretrained)
+    model = ImageLatentTransformerForCausalLM(config,
+                                              load_pretrained=load_pretrained,
+                                              attn_implementation=get_attn_implementation())
     print_model_summary("Image Encoder", model.image_encoder)
     print_model_summary("Bytes Encoder", model.bytes_encoder)
     print_model_summary("Latent Transformer", model.latent_transformer)

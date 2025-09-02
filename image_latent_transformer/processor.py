@@ -147,7 +147,7 @@ class TextImageProcessor(ProcessorMixin):
     def __call__(self,
                  batch: Union[dict[str, list[str]], str, list[str]],
                  collated=False,
-                 packed=True) -> dict[str, torch.Tensor]:
+                 packed=False) -> dict[str, torch.Tensor]:
         if isinstance(batch, str):
             batch = {"text": [batch]}
 
