@@ -7,6 +7,7 @@ import numpy as np
 from PIL import Image
 from signwriting.formats.swu import is_swu
 from signwriting.visualizer.visualize import signwriting_to_image
+from tqdm import tqdm
 from transformers import AutoImageProcessor
 
 gi.require_version("Pango", "1.0")
@@ -32,14 +33,18 @@ def replace_control_characters(text: str) -> str:
 
     return re.sub(r'[\x00-\x1F\x7F]', control_char_to_symbol, text)
 
+
 @cache
-def cached_font_description(font_name: str, font_size: int) -> Pango.FontDescription:
-    return Pango.font_description_from_string(f"{font_name} {font_size}px")
+def cached_font_description(font_name: str, dpi: int, font_size: int) -> Pango.FontDescription:
+    # Scale font size by DPI
+    scaled_font_size = (dpi / 72) * font_size
+    return Pango.font_description_from_string(f"{font_name} {scaled_font_size}px")
+
 
 def render_text(text: str,
                 block_size: int = 16,
                 dpi: int = 120,
-                font_size: int = 12) -> Image.Image:
+                font_size: int = 12) -> np.ndarray:
     """
     Renders multiple lines of text in black on white background using PangoCairo.
 
@@ -57,16 +62,13 @@ def render_text(text: str,
 
     text = replace_control_characters(text)
 
-    # Scale font size by DPI
-    scaled_font_size = (dpi / 72) * font_size
-
     # Create temporary surface to measure text
     temp_surface = cairo.ImageSurface(cairo.FORMAT_RGB24, 1, 1)
     temp_context = cairo.Context(temp_surface)
     layout = PangoCairo.create_layout(temp_context)
 
     # Set font
-    font_desc = cached_font_description("sans", scaled_font_size)
+    font_desc = cached_font_description("sans", dpi, font_size)
     layout.set_font_description(font_desc)
 
     # Measure all texts to find maximum width
@@ -100,25 +102,29 @@ def render_text(text: str,
     # Render text
     PangoCairo.show_layout(context, layout)
 
-    # Convert to PIL Image
+    # Extract image data as numpy array
     data = surface.get_data()
     img_array = np.frombuffer(data, dtype=np.uint8).reshape((line_height, width, 4))
     img_array = img_array[:, :, 2::-1]  # Remove alpha channel + convert BGR→RGB
 
+    return img_array.copy()
+
+
+def render_text_image(text: str, block_size: int = 16, dpi: int = 120, font_size: int = 12) -> Image.Image:
+    img_array = render_text(text, block_size=block_size, dpi=dpi, font_size=font_size)
     img = Image.fromarray(img_array)
     img.info['dpi'] = (dpi, dpi)
-
     return img
 
 
-def render_signwriting(text: str, block_size: int = 16) -> Image.Image:
+def render_signwriting(text: str, block_size: int = 16) -> np.ndarray:
     image = signwriting_to_image(text, trust_box=False)
     width = dim_to_block_size(image.width + 10, block_size=block_size)
     height = dim_to_block_size(image.height + 10, block_size=block_size)
     new_image = Image.new("RGB", (width, height), color=(255, 255, 255))
     padding = (width - image.width) // 2, (height - image.height) // 2
     new_image.paste(image, padding, image)
-    return new_image
+    return np.array(new_image)
 
 
 def render_text_torch(text: str, image_processor: AutoImageProcessor, **kwargs):
@@ -130,7 +136,7 @@ def render_text_torch(text: str, image_processor: AutoImageProcessor, **kwargs):
 def main():
     # Example: render mixed text with emojis and newlines
     text = "hello🤗\r\n\x02 "
-    image = render_text(text, block_size=16, dpi=120, font_size=12)
+    image = render_text_image(text, block_size=16, dpi=120, font_size=12)
 
     # Save the example
     image.save("hello_example.png")
@@ -139,7 +145,7 @@ def main():
 
     # Example: render SignWriting
     text = "𝠀񀀒񀀚񋚥񋛩𝠃𝤟𝤩񋛩𝣵𝤐񀀒𝤇𝣤񋚥𝤐𝤆񀀚𝣮𝣭"
-    image = render_text(text, block_size=32)
+    image = render_text_image(text, block_size=32)
 
     # Save the example
     image.save("swu_example.png")
