@@ -1,3 +1,4 @@
+import importlib.util
 from functools import partial
 
 import torch
@@ -25,12 +26,10 @@ def print_model_summary(name: str, model):
 
 
 def get_attn_implementation():
-    try:
-        import flash_attn
-        return "flash_attention_2"
-    except ImportError:
+    if importlib.util.find_spec("flash_attn") is None:
         logger.warning("Flash Attention not available, using default attention")
         return None
+    return "flash_attention_2"
 
 
 def setup_model(

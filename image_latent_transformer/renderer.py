@@ -7,7 +7,6 @@ import numpy as np
 from PIL import Image
 from signwriting.formats.swu import is_swu
 from signwriting.visualizer.visualize import signwriting_to_image
-from tqdm import tqdm
 from transformers import AutoImageProcessor
 
 gi.require_version("Pango", "1.0")

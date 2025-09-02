@@ -13,16 +13,16 @@ import regex
 def has_japanese(text: str) -> bool:
     """
     Check if the given text contains Japanese characters.
-    
+
     Detects Japanese writing systems including:
     - Hiragana (U+3040-U+309F): Phonetic script for native words
     - Katakana (U+30A0-U+30FF): Phonetic script for foreign words
     - Kanji (Han ideographs): Chinese characters used in Japanese
     - Half-width Katakana (U+FF65-U+FF9F): Narrow katakana variants
-    
+
     Args:
         text: The input text to check for Japanese characters
-        
+
     Returns:
         True if Japanese characters are found, False otherwise
     """
@@ -34,15 +34,15 @@ def has_japanese(text: str) -> bool:
 def get_japanese_tagger():
     """
     Get a cached instance of the fugashi Japanese morphological analyzer.
-    
+
     Fugashi is a Python wrapper for MeCab, a morphological analyzer for Japanese.
     The tagger is configured with the '-Owakati' option to output space-separated
     words without part-of-speech information. The instance is cached to avoid
     repeated initialization overhead.
-    
+
     Returns:
         fugashi.Tagger instance configured for word segmentation
-        
+
     Raises:
         ImportError: If the fugashi library or unidic-lite dictionary is not installed
     """
@@ -59,17 +59,17 @@ def get_japanese_tagger():
 def segment_japanese(text: str) -> str:
     """
     Segment Japanese text into space-separated words using morphological analysis.
-    
+
     Uses MeCab via fugashi to perform morphological analysis and word segmentation
     of Japanese text. This handles the complex task of word boundary detection in
     Japanese, which doesn't use spaces between words.
-    
+
     Args:
         text: The Japanese text to segment
-        
+
     Returns:
         Space-separated string of Japanese words
-        
+
     Example:
         >>> segment_japanese("私は学生です")
         "私 は 学生 です"
