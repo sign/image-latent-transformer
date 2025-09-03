@@ -34,10 +34,7 @@ def sample(model_path: Path):
     inputs = processor(texts, collated=True, packed=False)
 
     outputs = model.generate(
-        input_pixels=inputs["input_pixels"],
-        input_ids=inputs["input_ids"],
-        input_attention_mask=inputs["input_attention_mask"],
-        attention_mask=inputs["attention_mask"],
+        **inputs,
         processor=processor,
         max_generated_words=32,
         bytes_generation_config=GenerationConfig(num_beams=2)  # Sample with beam search, for example
