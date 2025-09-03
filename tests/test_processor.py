@@ -159,6 +159,15 @@ def test_get_words_and_labels_packed_vs_unpacked(processor):
     assert labels_unpacked == ['hello ', 'world ', 'test', '']
 
 
+def test_render_images_shape(processor):
+    texts = ["short", "a bit longer text"]
+    render = processor.render_texts(texts)
+
+    assert render.shape[0] == 2
+    assert render.shape[2] == 16
+    assert render.shape[3] == 192
+
+
 def test_pretokenize_splits_control_tokens(processor):
     text = (f"{ControlTokens.ShiftOut}test{ControlTokens.ShiftIn}"
             f"{ControlTokens.StartOfHeading}hello {ControlTokens.EndOfText}")

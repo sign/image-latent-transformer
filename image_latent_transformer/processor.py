@@ -45,11 +45,10 @@ class TextImageProcessor(ProcessorMixin):
     def render_texts(self, texts: list[str]) -> torch.Tensor:
         images = [self.images_cache.get(text, None) for text in texts]
         missing_texts = [(i, texts[i]) for i, v in enumerate(images) if v is None]
-        renders = [render_text(text) for _, text in missing_texts]
-        # TODO: batch this image processor call (can't get variable size images?)
-        processed = [self.image_processor(image, do_center_crop=False, do_resize=False, return_tensors="pt") for image
-                     in renders]
-        processed = [p.pixel_values[0] for p in processed]
+        renders = (render_text(text) for _, text in missing_texts)
+        processed = (self.image_processor(image, do_center_crop=False, do_resize=False, return_tensors="pt")
+                     for image in renders)
+        processed = (p.pixel_values[0] for p in processed)
         # Update cache and images list
         for (i, text), image in zip(missing_texts, processed):
             self.images_cache[text] = image
