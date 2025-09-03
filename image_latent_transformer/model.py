@@ -139,8 +139,7 @@ class ImageLatentTransformer(PreTrainedModel):
 
         return encode_images(self.image_encoder,
                              input_images=input_images,
-                             input_images_dimensions=input_images_dimensions,
-                             device=device)
+                             input_images_dimensions=input_images_dimensions)
 
     def encode_texts(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
         """

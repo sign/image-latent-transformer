@@ -164,8 +164,8 @@ def test_render_images_shape(processor):
     texts = ["short", "a bit longer text"]
     renders, dimensions = processor.render_texts(texts)
 
-    assert renders.shape == (2, 3, 16, 192)
-    assert torch.equal(dimensions, torch.tensor([[16, 192], [16, 192]]))
+    assert renders.shape == (2, 3, 16, 160)
+    assert torch.equal(dimensions, torch.tensor([[16, 64], [16, 160]]))
 
 
 def test_pretokenize_splits_control_tokens(processor):
