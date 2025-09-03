@@ -449,7 +449,8 @@ class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin)
             attention_mask: torch.Tensor,
             processor: TextImageProcessor,
             max_generated_words: int = 50,
-            bytes_generation_config: Optional[GenerationConfig] = None):
+            bytes_generation_config: Optional[GenerationConfig] = None,
+            **_unused_kwargs):
         """
         Generate text sequences using iterative latent-then-bytes generation.
 
