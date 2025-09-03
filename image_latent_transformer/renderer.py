@@ -74,9 +74,7 @@ def render_text(text: str,
     text_width, text_height = layout.get_pixel_size()
 
     # Add padding and round up to nearest multiple of 32
-    # width = dim_to_block_size(text_width + 10, block_size=block_size)
-    # TODO: remove once https://github.com/sign/image-latent-transformer/issues/1 is efficient
-    width = font_size * 16  # Assume max 16 characters for now
+    width = dim_to_block_size(text_width + 10, block_size=block_size)
 
     line_height = block_size
 

@@ -76,6 +76,9 @@ def stack_pad_tensors(tensors: list[torch.Tensor], pad_value=0):  # noqa: C901
     return stack_pad_tensors_fast(tensors, pad_value=pad_value, dtype=dtype, device=device)
 
 
+def stack_pad_tensors_list(tensors_list: list[list[torch.Tensor]], pad_value=0):
+    return stack_pad_tensors([stack_pad_tensors(tensors, pad_value=pad_value) for tensors in tensors_list])
+
 def collate_fn(batch: list, pad_value=0):
     if not batch:
         return batch
@@ -86,12 +89,6 @@ def collate_fn(batch: list, pad_value=0):
 
     for key in keys:
         tensors = [item[key] for item in batch]
-
-        if key == "input_pixels":
-            # TODO: figure out how to collate, to improve speed of data transfer,
-            # or solve https://github.com/sign/image-latent-transformer/issues/1
-            collated[key] = tensors  # Not collated
-        else:
-            collated[key] = stack_pad_tensors(tensors, pad_value=pad_value)
+        collated[key] = stack_pad_tensors(tensors, pad_value=pad_value)
 
     return collated

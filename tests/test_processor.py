@@ -18,8 +18,9 @@ def processor():
 
 
 expected_tensor_keys = ["input_ids", "input_attention_mask", "attention_mask", "position_ids",
-                        "labels_input", "labels_attention_mask", "labels_output"]
-expected_keys = expected_tensor_keys + ["input_pixels"]
+                        "labels_input", "labels_attention_mask", "labels_output",
+                        "input_images", "input_images_dimensions"]
+expected_keys = expected_tensor_keys
 
 
 def test_processor_save_and_load_works(processor):
@@ -39,6 +40,7 @@ def test_processor_multiprocessing_pickle(processor):
 def test_processor_single_text_collated(processor):
     text = "example text for testing"
     inputs = processor(text, collated=True)
+
     assert all(key in inputs for key in expected_keys)
     assert all(isinstance(inputs[key], torch.Tensor) for key in expected_tensor_keys)
 
@@ -157,6 +159,13 @@ def test_get_words_and_labels_packed_vs_unpacked(processor):
 
     assert labels_packed == ['hello world test', 'world test', 'test', '']
     assert labels_unpacked == ['hello ', 'world ', 'test', '']
+
+def test_render_images_shape(processor):
+    texts = ["short", "a bit longer text"]
+    renders, dimensions = processor.render_texts(texts)
+
+    assert renders.shape == (2, 3, 16, 160)
+    assert torch.equal(dimensions, torch.tensor([[16, 64], [16, 160]]))
 
 
 def test_render_images_shape(processor):

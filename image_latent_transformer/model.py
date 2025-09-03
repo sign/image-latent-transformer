@@ -17,11 +17,12 @@ from transformers import (
 from transformers.modeling_outputs import CausalLMOutput
 from transformers.models.auto.auto_factory import _get_model_class
 
-from image_latent_transformer.batch_image_encoder import ImagesNestedList, encode_images, image_encoder_size
+from image_latent_transformer.batch_image_encoder import encode_images
 from image_latent_transformer.config import ImageLatentTransformerConfig
 from image_latent_transformer.pretokenizer.pretokenizer import WordStoppingCriteria
 from image_latent_transformer.processor import TextImageProcessor
 from image_latent_transformer.tokenizer.utf8 import UTF8Tokenizer
+from image_latent_transformer.vision_utils import image_encoder_size
 
 logger = logging.getLogger(__name__)
 
@@ -118,23 +119,28 @@ class ImageLatentTransformer(PreTrainedModel):
             return False
         return torch.rand(1).item() < self.config.modality_dropout
 
-    def encode_images(self, input_pixels: ImagesNestedList, device: torch.device) -> torch.Tensor:
+    def encode_images(self,
+                      input_images: torch.Tensor,
+                      input_images_dimensions: torch.Tensor,
+                      device: torch.device) -> torch.Tensor:
         """
         Args:
-            input_pixels: List of lists of images, where each inner list contains images for one sample
+            input_images: Tensor of nested images, where each inner list contains images for one sample
+            input_images_dimensions: (BATCH, LENGTH, 2) - Original dimensions of each image (height, width)
             device: Device to move the tensors to
         Returns:
             torch.Tensor: (BATCH, LENGTH, HIDDEN_DIM) - Image embeddings
         """
-        B = len(input_pixels)  # noqa: N806
-        L = max(len(images) for images in input_pixels)  # noqa: N806
 
-        # If image encoder is None, return zeros
         if self.image_encoder is None or self._should_drop_modality():
+            # If image encoder is None, return zeros
+            B, L, *_, = input_images.shape  # noqa: N806
             dtype = getattr(self.image_encoder, "dtype", self.latent_transformer.dtype)
             return torch.zeros((B, L, self.image_encoder_dim), device=device, dtype=dtype)
 
-        return encode_images(self.image_encoder, input_pixels=input_pixels, device=device)
+        return encode_images(self.image_encoder,
+                             input_images=input_images,
+                             input_images_dimensions=input_images_dimensions)
 
     def encode_texts(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
         """
@@ -169,10 +175,11 @@ class ImageLatentTransformer(PreTrainedModel):
     def encode_input(self,
                      input_ids: torch.Tensor,
                      attention_mask: torch.Tensor,
-                     input_pixels: ImagesNestedList):
+                     input_images: torch.Tensor,
+                     input_images_dimensions: torch.Tensor):
         embeds = []
         if self.image_encoder_dim > 0:
-            image_embeds = self.encode_images(input_pixels, device=input_ids.device)
+            image_embeds = self.encode_images(input_images, input_images_dimensions, device=input_ids.device)
             logger.debug("Image embeddings shape: %s", image_embeds.shape)
             embeds.append(image_embeds)
 
@@ -201,7 +208,8 @@ class ImageLatentTransformer(PreTrainedModel):
                 input_ids: torch.Tensor,
                 input_attention_mask: torch.Tensor,
                 attention_mask: torch.Tensor,
-                input_pixels: list[list[torch.nested.Tensor]],
+                input_images: torch.Tensor,
+                input_images_dimensions: torch.Tensor,
                 position_ids: Optional[torch.Tensor] = None,
                 labels_input: Optional[torch.Tensor] = None,
                 labels_attention_mask: Optional[torch.Tensor] = None,
@@ -211,14 +219,15 @@ class ImageLatentTransformer(PreTrainedModel):
             input_ids: (BATCH, LENGTH, INPUT_TOKENS)
             input_attention_mask: Attention within a word (BATCH, LENGTH, INPUT_TOKENS)
             attention_mask: Attention across words (BATCH, 1, LENGTH, LENGTH)
-            input_pixels: List of lists of images, where each inner list contains images for one sample
+            input_images: (BATCH, LENGTH, CHANNELS, HEIGHT, WIDTH)
+            input_images_dimensions: (BATCH, LENGTH, 2)
             position_ids: (BATCH, LENGTH) - Position IDs for latent transformer (useful for sequence packing)
             labels_input: (BATCH, LENGTH, OUTPUT_TOKENS) - Input tokens for bytes decoder
             labels_attention_mask: (BATCH, LENGTH, OUTPUT_TOKENS) - Attention mask for labels
             labels_output: (BATCH, LENGTH, OUTPUT_TOKENS) - Target tokens for language modeling
         """
         # Embed images and texts
-        mapped_embeds = self.encode_input(input_ids, input_attention_mask, input_pixels)
+        mapped_embeds = self.encode_input(input_ids, input_attention_mask, input_images, input_images_dimensions)
 
         # Process the sequence with the latent transformer
         latent_outputs = self.latent_transformer(
@@ -395,9 +404,12 @@ class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin)
         new_input_ids = tokenized_words.input_ids.unsqueeze(1)
         new_attention_mask = tokenized_words.attention_mask.unsqueeze(1)
 
-        new_input_pixels = processor.render_texts(words).unsqueeze(1)
+        new_input_images, new_input_images_dimensions = processor.render_texts(words)
+        new_input_images = new_input_images.unsqueeze(1)
+        new_input_images_dimensions = new_input_images_dimensions.unsqueeze(1)
 
-        new_encoded_input = self.encode_input(new_input_ids, new_attention_mask, new_input_pixels)
+        new_encoded_input = self.encode_input(new_input_ids, new_attention_mask,
+                                              new_input_images, new_input_images_dimensions)
 
         # Extend the encoded input with an empty tensor
         empty_word = torch.zeros_like(encoded_input[:, 0:1])
@@ -430,13 +442,15 @@ class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin)
     @torch.no_grad()
     def generate(
             self,
-            input_pixels: ImagesNestedList,
             input_ids: torch.Tensor,
             input_attention_mask: torch.Tensor,
+            input_images: torch.Tensor,
+            input_images_dimensions: torch.Tensor,
             attention_mask: torch.Tensor,
             processor: TextImageProcessor,
             max_generated_words: int = 50,
-            bytes_generation_config: Optional[GenerationConfig] = None):
+            bytes_generation_config: Optional[GenerationConfig] = None,
+            **_unused_kwargs):
         """
         Generate text sequences using iterative latent-then-bytes generation.
 
@@ -445,13 +459,13 @@ class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin)
         2. Bytes decoder generates words using full HuggingFace generation capabilities
 
         In practice, this means:
-        1. self.encode_input(input_ids, attention_mask, input_pixels)
+        1. self.encode_input(input_ids, attention_mask, input_images)
         2. self.latent_transformer.generate(...) to get latent states
         3. self.bytes_decoder.generate(...) to generate a single word from latent states (sequence of bytes)
         4. Detokenize the generated bytes to get the final word
         5. Create a new input_ids tensor for the new bytes. new attention_mask,
-            and an input_pixels tensor only for the new word (using render_texts())
-        6. Call self.encode_input() again with the new input_ids, attention_mask, and input_pixels
+            and an input_images tensor only for the new word (using render_texts())
+        6. Call self.encode_input() again with the new input_ids, attention_mask, and input_images
         7. Concatenate the encoded input with the previous encoded input to form the
             new input for the next word generation
         8. Repeat from step 2 until max_generated_words is reached, or the generated word is just an EOS token.
@@ -459,9 +473,10 @@ class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin)
         We utilize the HuggingFace generation cache to efficiently generate.
 
         Args:
-            input_pixels: List of lists of images, where each inner list contains images for one sample
             input_ids: Text input tokens (B, L, T) for encoding
             input_attention_mask: Attention within a word (B, L, T)
+            input_images: (BATCH, LENGTH, CHANNELS, HEIGHT, WIDTH)
+            input_images_dimensions: (BATCH, LENGTH, 2)
             attention_mask: Attention across words (BATCH, 1, LENGTH, LENGTH)
             processor: TextImageProcessor instance for tokenization and image processing
             max_generated_words: Maximum number of words to generate
@@ -474,10 +489,10 @@ class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin)
         num_words = self._num_words_per_datum(input_attention_mask)
 
         # Track generated words per sample
-        all_generated_words = [[] for _ in range(len(input_pixels))]
+        all_generated_words = [[] for _ in range(len(input_images))]
 
         # Step 1: Encode initial input
-        encoded_input = self.encode_input(input_ids, input_attention_mask, input_pixels)
+        encoded_input = self.encode_input(input_ids, input_attention_mask, input_images, input_images_dimensions)
 
         past_key_values = None  # Initialize past key values for caching
 
