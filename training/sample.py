@@ -9,10 +9,10 @@ from image_latent_transformer.processor import TextImageProcessor
 
 
 @torch.no_grad()
+@torch.autocast(device_type="cuda", dtype=torch.bfloat16)
 def sample(model_path: Path):
     last_checkpoint = get_last_checkpoint(model_path)
-    # TODO add flash_attention support
-    model = ImageLatentTransformerForCausalLM.from_pretrained(last_checkpoint)
+    model = ImageLatentTransformerForCausalLM.from_pretrained(last_checkpoint, attn_implementation="flash_attention_2")
     processor = TextImageProcessor.from_pretrained(model_path)
 
     model.eval()
