@@ -17,11 +17,12 @@ from transformers import (
 from transformers.modeling_outputs import CausalLMOutput
 from transformers.models.auto.auto_factory import _get_model_class
 
-from image_latent_transformer.batch_image_encoder import encode_images, image_encoder_size
+from image_latent_transformer.batch_image_encoder import encode_images
 from image_latent_transformer.config import ImageLatentTransformerConfig
 from image_latent_transformer.pretokenizer.pretokenizer import WordStoppingCriteria
 from image_latent_transformer.processor import TextImageProcessor
 from image_latent_transformer.tokenizer.utf8 import UTF8Tokenizer
+from image_latent_transformer.vision_utils import image_encoder_size
 
 logger = logging.getLogger(__name__)
 

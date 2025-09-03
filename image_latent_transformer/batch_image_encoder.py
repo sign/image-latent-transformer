@@ -8,6 +8,18 @@ from transformers.image_transforms import group_images_by_shape, reorder_images
 from image_latent_transformer.collator import stack_pad_tensors
 from image_latent_transformer.vision_utils import encode_images as utils_encode_images
 
+# TODO: once image encoder supports attention mask, using the following representation is 1.5-2x faster
+#       https://github.com/sign/image-latent-transformer/issues/1
+# def encode_images(image_encoder: AutoModelForImageClassification,
+#                   input_images: torch.Tensor,
+#                   input_images_dimensions: torch.Tensor) -> torch.Tensor:
+#     """Image encoder should accept variable size images and return consistent embeddings."""
+#     B, L, *_ = input_images.shape  # noqa: N806
+#
+#     linear_images = input_images.view(B * L, *input_images.shape[2:])
+#     embeds = encode_images_batch(image_encoder=image_encoder, images=linear_images)
+#     embeds = embeds.view(B, L, -1)
+#     return embeds
 
 def encode_images(image_encoder: AutoModelForImageClassification,
                   input_images: torch.Tensor,
@@ -32,7 +44,7 @@ def encode_images(image_encoder: AutoModelForImageClassification,
 
     lengths = torch.tensor([len(inner) for inner in nested_images], device=embeddings.device)
     row_idx = torch.repeat_interleave(torch.arange(B, device=embeddings.device), lengths)
-    col_idx = torch.cat([torch.arange(n, device=embeddings.device) for n in lengths.tolist()])
+    col_idx = torch.cat([torch.arange(n, device=embeddings.device) for n in lengths])
 
     # One fused write instead of a Python loop
     embeds.index_put_((row_idx, col_idx), embeddings, accumulate=False)
