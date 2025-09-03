@@ -395,7 +395,7 @@ class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin)
         new_input_ids = tokenized_words.input_ids.unsqueeze(1)
         new_attention_mask = tokenized_words.attention_mask.unsqueeze(1)
 
-        new_input_pixels = [[processor.render_text(word)] for word in words]
+        new_input_pixels = processor.render_texts(words).unsqueeze(0)
 
         new_encoded_input = self.encode_input(new_input_ids, new_attention_mask, new_input_pixels)
 

@@ -3,19 +3,19 @@ from typing import Union
 
 import torch
 from transformers import AutoModelForImageClassification
-from transformers.image_transforms import group_images_by_shape
+from transformers.image_transforms import group_images_by_shape, reorder_images
 
 from image_latent_transformer.collator import stack_pad_tensors
 from image_latent_transformer.vision_utils import encode_images as utils_encode_images
 from image_latent_transformer.vision_utils import image_encoder_size
 
-ImagesNestedList = Union[list[list[torch.Tensor]], list[torch.nested.Tensor]]
+ImagesNestedList = Union[list[list[torch.Tensor]], list[torch.nested.Tensor], torch.Tensor]
 
 
 def encode_images(image_encoder: AutoModelForImageClassification,
                   input_pixels: ImagesNestedList,
                   device: torch.device = None) -> torch.Tensor:
-    """Image encoder should accept variable size images and return embeddings."""
+    """Image encoder should accept variable size images and return consistent embeddings."""
     # Recreate as list of lists if input is a nested tensor
     input_pixels = [[img for img in inner] for inner in input_pixels]
 
@@ -70,7 +70,8 @@ def encode_images_group(image_encoder: AutoModelForImageClassification,
     # Encode each group separately
     encoded_groups = {size: encode_images_batch(image_encoder=image_encoder, images=group, device=device)
                       for size, group in grouped_images.items()}
+
     # Re-arrange the encoded images to match the original order
-    rearranged_images = [encoded_groups[size][i] for size, i in grouped_images_index.values()]
+    rearranged_images = reorder_images(encoded_groups, grouped_images_index)
 
     return torch.stack(rearranged_images)

@@ -1,7 +1,7 @@
-from functools import lru_cache
 from typing import Union
 
 import torch
+from cachetools import LRUCache
 from datasets import Dataset
 from transformers import AutoImageProcessor, ProcessorMixin
 
@@ -40,19 +40,24 @@ class TextImageProcessor(ProcessorMixin):
         self.max_seq_length = max_seq_length
         self.cache_size = cache_size
 
-        self.render_text = self._cached_renderer()
+        self.images_cache = LRUCache(maxsize=self.cache_size)
 
-    def _cached_renderer(self):
-        # TODO: calling image_processor on each image is slow, we could batch it
-        def render_text_torch(text: str, **kwargs):
-            image = render_text(text, **kwargs)
-            image = self.image_processor(image, do_center_crop=False, do_resize=False, return_tensors="pt")
-            return image.pixel_values[0]
+    def render_texts(self, texts: list[str]) -> torch.Tensor:
+        images = [self.images_cache.get(text, None) for text in texts]
+        missing_texts = [(i, texts[i]) for i, v in enumerate(images) if v is None]
+        renders = [render_text(text) for _, text in missing_texts]
+        # TODO: batch this image processor call (can't get variable size images?)
+        processed = [self.image_processor(image, do_center_crop=False, do_resize=False, return_tensors="pt") for image
+                     in renders]
+        processed = [p.pixel_values[0] for p in processed]
+        # Update cache and images list
+        for (i, text), image in zip(missing_texts, processed):
+            self.images_cache[text] = image
+            images[i] = image
 
-        # TODO: replace with a multithreaded cache, to avoid caching the same text multiple times in different threads
-        #       so that we can make the cache size much larger
-        # Bind a cached version of the method
-        return lru_cache(maxsize=self.cache_size)(render_text_torch)
+        # TODO: remove jagged once https://github.com/sign/image-latent-transformer/issues/1 is efficient
+        #       then use return stack_pad_tensors(images)
+        return torch.nested.nested_tensor(images, layout=torch.jagged)
 
     def pretokenize(self, text: str) -> list[str]:
         # Add BOS token at the start
@@ -131,11 +136,8 @@ class TextImageProcessor(ProcessorMixin):
         tokenized = self.tokenize_words(words)  # Tokenized inputs
         tokenized_labels = self.tokenize_words(labels)  # Tokenized outputs
 
-        # Render images independently for torch TODO: rely on cache for some, then batch the rest
-        images = [self.render_text(word) for word in words]
-        # Pack images to a single tensor, to make transfer to the main process more efficient
-        # TODO: remove jagged once https://github.com/sign/image-latent-transformer/issues/1 is efficient
-        input_pixels = torch.nested.nested_tensor(images, layout=torch.jagged)
+        # Render images
+        input_pixels = self.render_texts(words)
 
         return {
             "input_ids": tokenized.input_ids,
@@ -175,16 +177,3 @@ class TextImageProcessor(ProcessorMixin):
             new_batch[key] = [d[key] for d in dicts]
 
         return new_batch
-
-    def __getstate__(self):
-        # Remove the lru_cache decorated method for pickling
-        state = self.__dict__.copy()
-        # Remove the unpickleable render_text method
-        del state['render_text']
-        return state
-
-    def __setstate__(self, state):
-        # Restore the object state and recreate the lru_cache method
-        self.__dict__.update(state)
-        # Recreate the cached render_text method
-        self.render_text = self._cached_renderer()
