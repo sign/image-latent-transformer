@@ -42,7 +42,7 @@ class TextImageProcessor(ProcessorMixin):
 
         self.images_cache = LRUCache(maxsize=self.cache_size)
 
-    def render_texts(self, texts: list[str]) -> torch.Tensor:
+    def render_texts(self, texts: list[str]) -> tuple[torch.Tensor, torch.Tensor]:
         images = [self.images_cache.get(text, None) for text in texts]
         missing_texts = [(i, texts[i]) for i, v in enumerate(images) if v is None]
         renders = (render_text(text) for _, text in missing_texts)
@@ -54,7 +54,9 @@ class TextImageProcessor(ProcessorMixin):
             self.images_cache[text] = image
             images[i] = image
 
-        return stack_pad_tensors(images)
+        image_dimensions = torch.tensor([img.shape[-2:] for img in images], dtype=torch.long)
+
+        return stack_pad_tensors(images), image_dimensions
 
     def pretokenize(self, text: str) -> list[str]:
         # Add BOS token at the start
@@ -134,7 +136,7 @@ class TextImageProcessor(ProcessorMixin):
         tokenized_labels = self.tokenize_words(labels)  # Tokenized outputs
 
         # Render images
-        input_pixels = self.render_texts(words)
+        input_images, input_images_dimensions = self.render_texts(words)
 
         return {
             "input_ids": tokenized.input_ids,
@@ -142,7 +144,8 @@ class TextImageProcessor(ProcessorMixin):
             # Attention across words
             "attention_mask": get_attention_mask_for_packed_sequence(seq_lengths, words=words),
             "position_ids": get_position_ids_for_packed_sequence(seq_lengths),
-            "input_pixels": input_pixels,
+            "input_images": input_images,
+            "input_images_dimensions": input_images_dimensions,
             "labels_input": tokenized_labels.input_ids[:, :-1],  # Remove EOS token from input labels
             "labels_attention_mask": tokenized_labels.attention_mask[:, :-1],  # Remove EOS token from attention mask
             "labels_output": tokenized_labels.input_ids[:, 1:]  # Remove BOS token from output labels

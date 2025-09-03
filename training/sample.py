@@ -34,9 +34,10 @@ def sample(model_path: Path):
     inputs = processor(texts, collated=True, packed=False)
 
     outputs = model.generate(
-        input_pixels=inputs["input_pixels"],
         input_ids=inputs["input_ids"],
         input_attention_mask=inputs["input_attention_mask"],
+        input_images=inputs["input_images"],
+        input_images_dimensions=inputs["input_images_dimensions"],
         attention_mask=inputs["attention_mask"],
         processor=processor,
         max_generated_words=32,

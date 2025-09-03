@@ -5,7 +5,6 @@ import torch
 from transformers import AutoConfig, AutoModelForImageClassification
 
 from image_latent_transformer.batch_image_encoder import (
-    crop_nested_pixels,
     encode_images,
     encode_images_batch,
     encode_images_group,
@@ -27,6 +26,12 @@ MODELS = {
 
 MODEL_NAMES = list(MODELS.keys())
 
+def images_dimensions(images: list[list[torch.Tensor]]) -> torch.Tensor:
+    tensors = [
+        [torch.tensor([img.shape[-2], img.shape[-1]], dtype=torch.long) for img in batch]
+        for batch in images
+    ]
+    return stack_pad_tensors_list(tensors)
 
 @cache
 def image_encoder(model_name):
@@ -39,27 +44,6 @@ def image_encoder(model_name):
 def create_random_image(height, width, channels=3):
     """Create a random image tensor."""
     return torch.randn(channels, height, width)
-
-
-def test_crop_nested_pixels_returns_expected_array():
-    images = [
-        [create_random_image(32, 32), create_random_image(64, 64)],
-        [create_random_image(16, 32)],
-        [create_random_image(32, 64), create_random_image(128, 32)]
-    ]
-    images = stack_pad_tensors_list(images)
-    assert images.shape == (3, 2, 3, 128, 64)
-
-    unpadded = crop_nested_pixels(images)
-    assert len(unpadded) == 3
-    assert len(unpadded[0]) == 2
-    assert unpadded[0][0].shape == (3, 32, 32)
-    assert unpadded[0][1].shape == (3, 64, 64)
-    assert len(unpadded[1]) == 1
-    assert unpadded[1][0].shape == (3, 16, 32)
-    assert len(unpadded[2]) == 2
-    assert unpadded[2][0].shape == (3, 32, 64)
-    assert unpadded[2][1].shape == (3, 128, 32)
 
 
 @pytest.mark.parametrize("model_name", MODEL_NAMES)
@@ -78,9 +62,10 @@ def test_encode_images_single_image(model_name):
 
     # Single batch with single image
     images = [[create_random_image(64, 64)]]
+    dimensions = images_dimensions(images)
     images = stack_pad_tensors_list(images)
 
-    embeddings = encode_images(model, images)
+    embeddings = encode_images(model, images, dimensions)
 
     assert embeddings.shape == (1, 1, embeddings.shape[2])
 
@@ -90,10 +75,11 @@ def test_encode_images_deterministic(model_name):
     model = image_encoder(model_name)
 
     images = [[create_random_image(64, 64)]]
+    dimensions = images_dimensions(images)
     images = stack_pad_tensors_list(images)
 
-    embeddings1 = encode_images(model, images)
-    embeddings2 = encode_images(model, images)
+    embeddings1 = encode_images(model, images, dimensions)
+    embeddings2 = encode_images(model, images, dimensions)
 
     # Results should be identical
     assert torch.equal(embeddings1, embeddings2)
@@ -107,10 +93,11 @@ def test_encode_non_equal_lists():
         [img],
         [img, img]
     ]
+    dimensions = images_dimensions(images)
     images = stack_pad_tensors_list(images)
 
     # Test encoding
-    embedding = encode_images(model, images)
+    embedding = encode_images(model, images, dimensions)
     assert embedding.shape == (2, 2, 192)
 
     assert torch.equal(embedding[0][0], embedding[1][0])
@@ -161,10 +148,11 @@ def test_encode_images_basic(model_name):
         [create_random_image(32, 32), create_random_image(64, 64)],
         [create_random_image(32, 64), create_random_image(128, 32)]
     ]
+    dimensions = images_dimensions(images)
     images = stack_pad_tensors_list(images)
 
     # Test encoding
-    embeddings = encode_images(model, images)
+    embeddings = encode_images(model, images, dimensions)
 
     # Check output shape
     assert embeddings.shape[0] == 2  # batch size
@@ -181,9 +169,10 @@ def test_encode_images_different_models_and_sizes(model_name, image_size):
 
     # Create test image of specified size
     images = [[create_random_image(height, width)]]
+    dimensions = images_dimensions(images)
     images = stack_pad_tensors_list(images)
 
-    embeddings = encode_images(model, images)
+    embeddings = encode_images(model, images, dimensions)
 
     assert embeddings.shape[0] == 1  # batch size
     assert embeddings.shape[1] == 1  # sequence length
@@ -203,14 +192,19 @@ def test_encode_images_batch_vs_individual(model_name):
 
     # Batch processing - all images at once
     batch_images = [[img1, img2, img3, img4]]
+    dimensions = images_dimensions(batch_images)
     batch_images = stack_pad_tensors_list(batch_images)
 
-    batch_embeddings = encode_images(model, batch_images)
+    batch_embeddings = encode_images(model, batch_images, dimensions)
 
     # Individual processing - each image separately
     individual_embeddings = []
     for img in [img1, img2, img3, img4]:
-        img_embeddings = encode_images(model, img.unsqueeze(0).unsqueeze(0))
+        sub_batch = [[img]]
+
+        img_embeddings = encode_images(model,
+                                       stack_pad_tensors_list(sub_batch),
+                                       images_dimensions(sub_batch))
         individual_embeddings.append(img_embeddings.squeeze(0))
 
     for i, (individual_embedding, batch_embedding) in enumerate(zip(individual_embeddings, batch_embeddings[0])):
