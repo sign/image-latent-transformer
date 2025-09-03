@@ -9,7 +9,7 @@ from image_latent_transformer.attention import (
     get_attention_mask_for_packed_sequence,
     get_position_ids_for_packed_sequence,
 )
-from image_latent_transformer.collator import collate_fn
+from image_latent_transformer.collator import collate_fn, stack_pad_tensors
 from image_latent_transformer.pretokenizer.pretokenizer import text_to_words
 from image_latent_transformer.renderer import render_text
 from image_latent_transformer.tokenizer.utf8 import UTF8Tokenizer
@@ -45,19 +45,16 @@ class TextImageProcessor(ProcessorMixin):
     def render_texts(self, texts: list[str]) -> torch.Tensor:
         images = [self.images_cache.get(text, None) for text in texts]
         missing_texts = [(i, texts[i]) for i, v in enumerate(images) if v is None]
-        renders = [render_text(text) for _, text in missing_texts]
-        # TODO: batch this image processor call (can't get variable size images?)
-        processed = [self.image_processor(image, do_center_crop=False, do_resize=False, return_tensors="pt") for image
-                     in renders]
-        processed = [p.pixel_values[0] for p in processed]
+        renders = (render_text(text) for _, text in missing_texts)
+        processed = (self.image_processor(image, do_center_crop=False, do_resize=False, return_tensors="pt")
+                     for image in renders)
+        processed = (p.pixel_values[0] for p in processed)
         # Update cache and images list
         for (i, text), image in zip(missing_texts, processed):
             self.images_cache[text] = image
             images[i] = image
 
-        # TODO: remove jagged once https://github.com/sign/image-latent-transformer/issues/1 is efficient
-        #       then use return stack_pad_tensors(images)
-        return torch.nested.nested_tensor(images, layout=torch.jagged)
+        return stack_pad_tensors(images)
 
     def pretokenize(self, text: str) -> list[str]:
         # Add BOS token at the start

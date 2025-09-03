@@ -9,28 +9,69 @@ from image_latent_transformer.collator import stack_pad_tensors
 from image_latent_transformer.vision_utils import encode_images as utils_encode_images
 from image_latent_transformer.vision_utils import image_encoder_size
 
-ImagesNestedList = Union[list[list[torch.Tensor]], list[torch.nested.Tensor], torch.Tensor]
+
+@torch.inference_mode()
+def crop_nested_pixels(pixels: torch.Tensor) -> list[list[torch.Tensor]]:
+    """
+    pixels: (B, L, C, H, W) with zero-padding around the true content.
+    Returns nested list of per-(b,l) crops with padding removed.
+    """
+    B, L, C, H, W = pixels.shape  # noqa: N806
+    # Nonzero mask per (H,W) ignoring channels
+    m = pixels.ne(0).any(dim=2).reshape(B * L, H, W)  # (N,H,W), bool
+    non_empty = m.any(dim=(1, 2))  # (N,)
+    if not bool(non_empty.any()):
+        return [[] for _ in range(B)]
+
+    m_sel = m[non_empty]  # (M,H,W)
+    # Row/col occupancy
+    row_any = m_sel.any(dim=2)  # (M,H)
+    col_any = m_sel.any(dim=1)  # (M,W)
+
+    # Tight bounds via argmax trick (first/last True)
+    # Cast to int to avoid ambiguity warnings; works on CPU/GPU
+    y1 = row_any.int().argmax(dim=1)  # (M,)
+    y2 = (H - 1) - row_any.flip(dims=[1]).int().argmax(dim=1)  # (M,)
+    x1 = col_any.int().argmax(dim=1)  # (M,)
+    x2 = (W - 1) - col_any.flip(dims=[1]).int().argmax(dim=1)  # (M,)
+
+    # Map flattened indices back to (b,l)
+    idxs = non_empty.nonzero(as_tuple=False).squeeze(1)  # (M,)
+    b_idx = torch.div(idxs, L, rounding_mode='floor')  # (M,)
+    l_idx = idxs.remainder(L)  # (M,)
+
+    crops: list[list[torch.Tensor]] = [[] for _ in range(B)]
+    # Ragged outputs => loop over M non-empty positions
+    for i in range(idxs.numel()):
+        b = int(b_idx[i])  # noqa: N806
+        l = int(l_idx[i])  # noqa: N806,E741
+        rr0 = int(y1[i])
+        rr1 = int(y2[i])
+        cc0 = int(x1[i])
+        cc1 = int(x2[i])
+        crops[b].append(pixels[b, l, :, rr0:rr1 + 1, cc0:cc1 + 1].contiguous())
+    return crops
 
 
 def encode_images(image_encoder: AutoModelForImageClassification,
-                  input_pixels: ImagesNestedList,
+                  input_pixels: torch.Tensor,
                   device: torch.device = None) -> torch.Tensor:
     """Image encoder should accept variable size images and return consistent embeddings."""
-    # Recreate as list of lists if input is a nested tensor
-    input_pixels = [[img for img in inner] for inner in input_pixels]
+    B, L, *_ = input_pixels.shape  # noqa: N806
+
+    # Recreate as list of lists if input is a nested tensor, cropping padding from each image
+    input_pixels = crop_nested_pixels(input_pixels)
 
     # Flatten images
     all_images = list(chain.from_iterable(input_pixels))
 
+    # Re-arrange the embeddings to match the original batch structure
     embeddings = encode_images_group(image_encoder=image_encoder,
                                      images=all_images,
                                      device=device)
 
     hidden_size = image_encoder_size(image_encoder)
 
-    # Re-arrange the embeddings to match the original batch structure
-    B = len(input_pixels)  # noqa: N806
-    L = max(len(inner) for inner in input_pixels)  # noqa: N806
     embeds = torch.zeros(B, L, hidden_size, device=device)
 
     # Vectorized split and assignment

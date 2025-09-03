@@ -17,7 +17,7 @@ from transformers import (
 from transformers.modeling_outputs import CausalLMOutput
 from transformers.models.auto.auto_factory import _get_model_class
 
-from image_latent_transformer.batch_image_encoder import ImagesNestedList, encode_images, image_encoder_size
+from image_latent_transformer.batch_image_encoder import encode_images, image_encoder_size
 from image_latent_transformer.config import ImageLatentTransformerConfig
 from image_latent_transformer.pretokenizer.pretokenizer import WordStoppingCriteria
 from image_latent_transformer.processor import TextImageProcessor
@@ -118,19 +118,18 @@ class ImageLatentTransformer(PreTrainedModel):
             return False
         return torch.rand(1).item() < self.config.modality_dropout
 
-    def encode_images(self, input_pixels: ImagesNestedList, device: torch.device) -> torch.Tensor:
+    def encode_images(self, input_pixels: torch.Tensor, device: torch.device) -> torch.Tensor:
         """
         Args:
-            input_pixels: List of lists of images, where each inner list contains images for one sample
+            input_pixels: NestedTensor of tensors of images, where each inner list contains images for one sample
             device: Device to move the tensors to
         Returns:
             torch.Tensor: (BATCH, LENGTH, HIDDEN_DIM) - Image embeddings
         """
-        B = len(input_pixels)  # noqa: N806
-        L = max(len(images) for images in input_pixels)  # noqa: N806
 
-        # If image encoder is None, return zeros
         if self.image_encoder is None or self._should_drop_modality():
+            # If image encoder is None, return zeros
+            B, L, *_, = input_pixels.shape  # noqa: N806
             dtype = getattr(self.image_encoder, "dtype", self.latent_transformer.dtype)
             return torch.zeros((B, L, self.image_encoder_dim), device=device, dtype=dtype)
 
@@ -169,7 +168,7 @@ class ImageLatentTransformer(PreTrainedModel):
     def encode_input(self,
                      input_ids: torch.Tensor,
                      attention_mask: torch.Tensor,
-                     input_pixels: ImagesNestedList):
+                     input_pixels: torch.Tensor):
         embeds = []
         if self.image_encoder_dim > 0:
             image_embeds = self.encode_images(input_pixels, device=input_ids.device)
@@ -430,7 +429,7 @@ class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin)
     @torch.no_grad()
     def generate(
             self,
-            input_pixels: ImagesNestedList,
+            input_pixels: torch.Tensor,
             input_ids: torch.Tensor,
             input_attention_mask: torch.Tensor,
             attention_mask: torch.Tensor,
