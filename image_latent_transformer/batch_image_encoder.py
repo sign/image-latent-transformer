@@ -3,12 +3,14 @@ from typing import Union
 
 import torch
 from transformers import AutoModelForImageClassification
+from transformers.image_transforms import group_images_by_shape
 
 from image_latent_transformer.collator import stack_pad_tensors
 from image_latent_transformer.vision_utils import encode_images as utils_encode_images
 from image_latent_transformer.vision_utils import image_encoder_size
 
 ImagesNestedList = Union[list[list[torch.Tensor]], list[torch.nested.Tensor]]
+
 
 def encode_images(image_encoder: AutoModelForImageClassification,
                   input_pixels: ImagesNestedList,
@@ -20,17 +22,9 @@ def encode_images(image_encoder: AutoModelForImageClassification,
     # Flatten images
     all_images = list(chain.from_iterable(input_pixels))
 
-    _callable = encode_images_sequentially
-
-    # Use batched implementation if all images are of the same size and no padding is needed
-    first_image_shape = all_images[0].shape
-    all_images_equal_size = all(image.shape == first_image_shape for image in all_images)
-    if all_images_equal_size:
-        _callable = encode_images_batch
-
-    embeddings = _callable(image_encoder=image_encoder,
-                           images=all_images,
-                           device=device)
+    embeddings = encode_images_group(image_encoder=image_encoder,
+                                     images=all_images,
+                                     device=device)
 
     hidden_size = image_encoder_size(image_encoder)
 
@@ -47,24 +41,36 @@ def encode_images(image_encoder: AutoModelForImageClassification,
 
     return embeds
 
+
 def encode_images_batch(image_encoder: AutoModelForImageClassification,
-                        images: list[torch.Tensor],
+                        images: Union[list[torch.Tensor], torch.Tensor],
                         device: torch.device = None) -> torch.Tensor:
-    input_pixels = stack_pad_tensors(images)
+    if isinstance(images, list):
+        images = stack_pad_tensors(images)
+
     if device is not None:
-        input_pixels = input_pixels.to(device)
+        images = images.to(device)
 
     # Encode images using the image encoder
-    return utils_encode_images(image_encoder, input_pixels)
+    return utils_encode_images(image_encoder, images)
 
 
 def encode_images_sequentially(image_encoder: AutoModelForImageClassification,
                                images: list[torch.Tensor],
                                device: torch.device = None) -> torch.Tensor:
-    if device is not None:
-        images = [image.to(device) for image in images]
-
-    # Encode images using the image encoder
-    encoded_images = [utils_encode_images(image_encoder, image.unsqueeze(0)) for image in images]
-
+    encoded_images = [encode_images_batch(image_encoder, image.unsqueeze(0), device=device) for image in images]
     return torch.cat(encoded_images, dim=0)
+
+
+def encode_images_group(image_encoder: AutoModelForImageClassification,
+                        images: list[torch.Tensor],
+                        device: torch.device = None) -> torch.Tensor:
+    grouped_images, grouped_images_index = group_images_by_shape(images, disable_grouping=False)
+
+    # Encode each group separately
+    encoded_groups = {size: encode_images_batch(image_encoder=image_encoder, images=group, device=device)
+                      for size, group in grouped_images.items()}
+    # Re-arrange the encoded images to match the original order
+    rearranged_images = [encoded_groups[size][i] for size, i in grouped_images_index.values()]
+
+    return torch.stack(rearranged_images)

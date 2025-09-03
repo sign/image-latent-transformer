@@ -7,6 +7,7 @@ from transformers import AutoConfig, AutoModelForImageClassification
 from image_latent_transformer.batch_image_encoder import (
     encode_images,
     encode_images_batch,
+    encode_images_group,
     encode_images_sequentially,
     image_encoder_size,
 )
@@ -116,6 +117,24 @@ def test_encode_images_batched_or_sequential(model_name):
 
     assert embeddings1.shape == embeddings2.shape
 
+    assert torch.equal(embeddings1, embeddings2)
+
+
+@pytest.mark.parametrize("model_name", MODEL_NAMES)
+def test_encode_images_group_or_sequential(model_name):
+    """Make sure the batch implementation and the sequential implementation return the same result"""
+    model = image_encoder(model_name)
+
+    images = [
+        create_random_image(64, 64),
+        create_random_image(64, 32),
+        create_random_image(64, 64)
+    ]
+
+    embeddings1 = encode_images_sequentially(model, images)
+    embeddings2 = encode_images_group(model, images)
+
+    assert embeddings1.shape == embeddings2.shape
     assert torch.equal(embeddings1, embeddings2)
 
 
