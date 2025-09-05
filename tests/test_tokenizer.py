@@ -3,7 +3,7 @@ import tempfile
 import pytest
 import torch
 
-from image_latent_transformer.tokenizer.utf8 import UTF8Tokenizer
+from image_latent_transformer.tokenizer import UTF8Tokenizer
 
 
 @pytest.fixture

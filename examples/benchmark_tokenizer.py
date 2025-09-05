@@ -4,7 +4,7 @@ import torch
 from tqdm import tqdm
 from transformers import ByT5Tokenizer
 
-from image_latent_transformer.tokenizer.utf8 import UTF8Tokenizer, tokenize_ids
+from image_latent_transformer.tokenizer import UTF8Tokenizer, tokenize_ids
 
 
 class ByteTokenizer(ByT5Tokenizer):

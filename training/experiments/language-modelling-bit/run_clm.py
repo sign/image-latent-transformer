@@ -54,7 +54,6 @@ from transformers import (
     MODEL_FOR_CAUSAL_LM_MAPPING,
     AutoConfig,
     AutoModelForCausalLM,
-    AutoTokenizer,
     HfArgumentParser,
     Trainer,
     TrainingArguments,
@@ -64,11 +63,11 @@ from transformers import (
 )
 from transformers.testing_utils import CaptureLogger
 from transformers.trainer_utils import get_last_checkpoint
-from transformers.utils import check_min_version, send_example_telemetry
+from transformers.utils import send_example_telemetry
 from transformers.utils.versions import require_version
 
 from image_latent_transformer.embeddings import patch_embedding_layers
-from image_latent_transformer.tokenizer.utf8 import UTF8Tokenizer
+from image_latent_transformer.tokenizer import UTF8Tokenizer
 
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
 # check_min_version("4.57.0.dev0")

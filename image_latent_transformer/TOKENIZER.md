@@ -1,7 +1,9 @@
-# UTF8Tokenizer
+# Back to Bytes: Revisiting Tokenization through UTF-8
+
+Fulll writeup can be found in the appendix of: https://www.overleaf.com/read/rwxjzsvhrvwd#b9c65f
 
 This module includes a **real** byte level tokenizer for text, which encodes text into a sequence of bytes (0-255).
-Unlike `ByT5Tokenizer` for example, the tokenizer is implemented from scratch, and is much more efficient.
+Unlike `ByT5Tokenizer` for example, `UTF8Tokenizer` is implemented from scratch, and is much more efficient.
 
 Other "Byte Level" tokenizers usually include various additional "special tokens" (e.g., `<pad>`, `<unk>`, etc.),
 making the encoding and decoding logic more complex, and the token ids larger than 255.

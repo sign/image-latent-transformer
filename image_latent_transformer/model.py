@@ -22,7 +22,7 @@ from image_latent_transformer.config import ImageLatentTransformerConfig
 from image_latent_transformer.embeddings import patch_embedding_layers
 from image_latent_transformer.pretokenizer.pretokenizer import WordStoppingCriteria
 from image_latent_transformer.processor import TextImageProcessor
-from image_latent_transformer.tokenizer.utf8 import UTF8Tokenizer
+from image_latent_transformer.tokenizer import UTF8Tokenizer
 from image_latent_transformer.vision_utils import image_encoder_size
 
 logger = logging.getLogger(__name__)

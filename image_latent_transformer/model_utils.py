@@ -13,7 +13,7 @@ from image_latent_transformer.collator import collate_fn
 from image_latent_transformer.config import ImageLatentTransformerConfig
 from image_latent_transformer.model import ImageLatentTransformerForCausalLM, logger
 from image_latent_transformer.processor import TextImageProcessor
-from image_latent_transformer.tokenizer.utf8 import UTF8Tokenizer
+from image_latent_transformer.tokenizer import UTF8Tokenizer
 
 
 def print_model_summary(name: str, model):
