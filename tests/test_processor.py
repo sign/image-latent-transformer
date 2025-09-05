@@ -168,15 +168,6 @@ def test_render_images_shape(processor):
     assert torch.equal(dimensions, torch.tensor([[16, 64], [16, 160]]))
 
 
-def test_render_images_shape(processor):
-    texts = ["short", "a bit longer text"]
-    render = processor.render_texts(texts)
-
-    assert render.shape[0] == 2
-    assert render.shape[2] == 16
-    assert render.shape[3] == 192
-
-
 def test_pretokenize_splits_control_tokens(processor):
     text = (f"{ControlTokens.ShiftOut}test{ControlTokens.ShiftIn}"
             f"{ControlTokens.StartOfHeading}hello {ControlTokens.EndOfText}")

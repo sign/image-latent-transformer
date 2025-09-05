@@ -1,6 +1,7 @@
 import math
 import re
 from itertools import chain
+from typing import Iterable
 
 import regex as reg
 import torch
@@ -23,6 +24,10 @@ _COMPLETE_WORD_PATTERNS = [
 ]
 _COMPILED_TOKEN_PATTERN = re.compile(_TOKEN_PATTERN)
 _COMPILED_GRAPHEME_PATTERN = reg.compile(r"\X")
+
+
+def words_to_text(words: Iterable[str]) -> str:
+    return ''.join(words)
 
 
 def text_to_words(text: str, max_bytes: int = math.inf) -> list[str]:
