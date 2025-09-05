@@ -41,7 +41,6 @@ languages = [
 [tool.setuptools]
 packages = [
     "image_latent_transformer",
-    "image_latent_transformer.tokenizer",
     "image_latent_transformer.pretokenizer",
 ]
 

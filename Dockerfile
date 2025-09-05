@@ -22,7 +22,6 @@ RUN conda install -y python=3.12 && conda clean -afy
 RUN conda install -y pycairo pygobject manimpango -c conda-forge && conda clean -afy
 
 # Install package dependencies
-RUN mkdir -p /app/image_latent_transformer/tokenizer
 RUN mkdir -p /app/image_latent_transformer/pretokenizer
 WORKDIR /app
 COPY pyproject.toml /app/pyproject.toml
