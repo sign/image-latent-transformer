@@ -19,7 +19,7 @@ from transformers.models.auto.auto_factory import _get_model_class
 
 from image_latent_transformer.batch_image_encoder import encode_images
 from image_latent_transformer.config import ImageLatentTransformerConfig
-from image_latent_transformer.embeddings import patch_embedding_layer
+from image_latent_transformer.embeddings import patch_embedding_layers
 from image_latent_transformer.pretokenizer.pretokenizer import WordStoppingCriteria
 from image_latent_transformer.processor import TextImageProcessor
 from image_latent_transformer.tokenizer.utf8 import UTF8Tokenizer
@@ -92,7 +92,7 @@ class ImageLatentTransformer(PreTrainedModel):
             self.bytes_encoder.cls = self.bytes_encoder.decoder = torch.nn.Identity()  # delete the decoder head
             self.bytes_encoder.get_output_embeddings = lambda: None  # bytes encoder no longer has output embeddings
             self.bytes_encoder_dim = self.bytes_encoder.config.hidden_size
-            patch_embedding_layer(self.bytes_encoder)
+            patch_embedding_layers(self.bytes_encoder)
         else:
             self.bytes_encoder = None
             self.bytes_encoder_dim = 0
@@ -109,7 +109,7 @@ class ImageLatentTransformer(PreTrainedModel):
         self.bytes_decoder = model_from_config(config.bytes_decoder, AutoModelForCausalLM,
                                                config.dtype, load_pretrained, attn_implementation)
         self.bytes_decoder.resize_token_embeddings(config.num_tokens, pad_to_multiple_of=8)
-        patch_embedding_layer(self.bytes_decoder)
+        patch_embedding_layers(self.bytes_decoder)
         bytes_decoder_dim = self.bytes_decoder.config.hidden_size
 
         # Mapping layers

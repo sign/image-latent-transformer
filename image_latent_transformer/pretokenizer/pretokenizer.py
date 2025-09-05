@@ -1,7 +1,7 @@
 import math
 import re
+from collections.abc import Iterable
 from itertools import chain
-from typing import Iterable
 
 import regex as reg
 import torch
