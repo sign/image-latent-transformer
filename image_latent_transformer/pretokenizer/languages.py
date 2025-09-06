@@ -5,14 +5,15 @@ Script-aware segmentation with per-language callbacks.
 - Each non-default segment is passed to its language-specific callback.
 """
 
+from collections.abc import Iterable
 from functools import cache
 from itertools import chain
-from typing import Any, Callable, Dict, Iterable, List, Tuple, TypedDict
+from typing import Any, Callable, TypedDict
 
 import regex
 
-from image_latent_transformer.pretokenizer.control import CONTROl_TOKENS_PATTERN
 from image_latent_transformer.pretokenizer.chinese import segment_chinese
+from image_latent_transformer.pretokenizer.control import CONTROl_TOKENS_PATTERN
 from image_latent_transformer.pretokenizer.japanese import segment_japanese
 
 # Three classes of tokens inside the Default branch:
@@ -27,17 +28,17 @@ _TOKEN_PATTERN = (
 _COMPILED_TOKEN_PATTERN = regex.compile(_TOKEN_PATTERN)
 
 
-def text_to_unbound_words(text: str) -> List[str]:
+def text_to_unbound_words(text: str) -> list[str]:
     """Tokenize a non-scripted span using the token rules above."""
     return _COMPILED_TOKEN_PATTERN.findall(text)
 
 
 class LanguageSpec(TypedDict):
-    scripts: Tuple[str, ...]  # e.g., ("Han",) or ("Han", "Hiragana", "Katakana")
+    scripts: tuple[str, ...]  # e.g., ("Han",) or ("Han", "Hiragana", "Katakana")
     callback: Callable[[str], Any]  # called with the matched span
 
 
-LANGUAGE_SPECS: Dict[str, LanguageSpec] = {
+LANGUAGE_SPECS: dict[str, LanguageSpec] = {
     "Chinese": {
         "scripts": ("Han",),
         "callback": segment_chinese,
@@ -53,7 +54,7 @@ LANGUAGE_SPECS: Dict[str, LanguageSpec] = {
 }
 
 
-def _union_scx(scripts: Tuple[str, ...]) -> str:
+def _union_scx(scripts: tuple[str, ...]) -> str:
     """Create a non-capturing alternation for a set of Script_Extensions."""
     parts = [fr"\p{{scx={s}}}" for s in scripts]
     return "(?:" + "|".join(parts) + ")"
@@ -68,7 +69,7 @@ def build_regex_from_languages() -> regex.Pattern:
     Default branch: consumes runs that do NOT begin with any of the listed scripts.
     """
     # Explicit language branches (skip Default — it has no 'scripts')
-    branches: List[str] = []
+    branches: list[str] = []
     for name, spec in LANGUAGE_SPECS.items():
         if spec["scripts"]:
             branches.append(fr"(?P<{name}>{_union_scx(spec['scripts'])}+)")

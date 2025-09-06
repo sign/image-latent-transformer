@@ -1,6 +1,5 @@
 import pytest
 
-from image_latent_transformer.pretokenizer.chinese import segment_chinese
 from image_latent_transformer.pretokenizer.japanese import has_japanese, segment_japanese
 
 
