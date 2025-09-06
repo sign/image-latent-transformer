@@ -53,7 +53,7 @@ def get_chinese_segmenter():
     return jieba
 
 
-def segment_chinese(text: str) -> str:
+def segment_chinese(text: str) -> list[str]:
     """
     Segment Chinese text into space-separated words.
 
@@ -65,7 +65,7 @@ def segment_chinese(text: str) -> str:
         text: The Chinese text to segment
 
     Returns:
-        Space-separated string of Chinese words
+        List of Chinese words
 
     Example:
         >>> segment_chinese("我爱北京天安门")
@@ -75,4 +75,4 @@ def segment_chinese(text: str) -> str:
     # Use jieba.cut() for precise segmentation and join with spaces
     segments = jieba.cut(text)
     # Filter out empty segments and join with single spaces
-    return ' '.join(segment for segment in segments if segment.strip())
+    return list(segments)

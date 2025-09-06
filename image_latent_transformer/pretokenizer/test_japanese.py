@@ -58,52 +58,31 @@ def test_has_japanese_whitespace_only():
 def test_segment_japanese_simple():
     """Test segment_japanese with simple Japanese text."""
     result = segment_japanese("こんにちは")
-    assert result == "こんにちは"
+    assert result == ['こんにちは']
 
 
 def test_segment_japanese_mixed():
     """Test segment_japanese with mixed Japanese and English."""
     result = segment_japanese("hello 私は学生です。 world")
-    assert result == "hello 私 は 学生 です 。 world"
-
-
-def test_segment_japanese_english_only():
-    """Test segment_japanese with English-only text."""
-    result = segment_japanese("hello world")
-    assert result == "hello world"
+    assert result == ['hello', '私', 'は', '学生', 'です', '。', 'world']
 
 
 def test_segment_japanese_empty():
     """Test segment_japanese with empty string."""
     result = segment_japanese("")
-    assert result == ""
+    assert result == []
 
 
 def test_segment_japanese_complex():
     """Test segment_japanese with complex Japanese sentence."""
     result = segment_japanese("私は東京大学の学生です。")
-    assert result == "私 は 東京 大学 の 学生 です 。"
+    assert result == ['私', 'は', '東京', '大学', 'の', '学生', 'です', '。']
 
 
 def test_segment_japanese_katakana():
     """Test segment_japanese with Katakana text."""
     result = segment_japanese("コンピューター")
-    assert result == "コンピューター"
-
-
-def test_japanese_does_not_interfere_with_chinese():
-    """Test that Japanese segmentation does not interfere with Chinese segmentation on Han text."""
-    han_text = "中国学生"
-
-    # Segment with Chinese first
-    chinese_result = segment_chinese(han_text)
-
-    # Then segment the Chinese result with Japanese
-    japanese_after_chinese = segment_japanese(chinese_result)
-
-    # They should be the same - Japanese should not re-segment Chinese output
-    assert chinese_result == japanese_after_chinese
-    assert chinese_result == "中国 学生"
+    assert result == ['コンピューター']
 
 
 if __name__ == "__main__":

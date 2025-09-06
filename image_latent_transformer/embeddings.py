@@ -7,7 +7,7 @@ def unpack_bits(x: torch.Tensor) -> torch.Tensor:
     if x.dtype != torch.uint8:
         x = x.to(torch.uint8)
     shifts = torch.arange(7, -1, -1, device=x.device, dtype=torch.uint8)
-    return ((x.unsqueeze(-1) >> shifts) & 1).to(torch.float32)  # (B, L, 8)
+    return ((x.unsqueeze(-1) >> shifts) & 1).to(torch.long)  # (B, L, 8)
 
 
 class PatchedBitEmbeddings(nn.Module):
@@ -29,9 +29,10 @@ class PatchedBitEmbeddings(nn.Module):
 
         self.embeddings = embeddings
         D = embeddings.embedding_dim  # noqa: N806
+        dtype = self.embeddings.weight.dtype
 
         # Tiny bit projection; use a bare Parameter to avoid Module overhead & extra .t()
-        self.bit_proj_w = nn.Parameter(torch.zeros(D, 8))  # init=0 ⇒ starts identical to base table
+        self.bit_proj_w = nn.Parameter(torch.zeros(D, 8, dtype=dtype))  # init=0 ⇒ starts identical to base table
 
         # Tieable façade parameter (what HF ties to the LM head)
         self.weight = nn.Parameter(embeddings.weight.detach().clone(), requires_grad=True)
@@ -40,7 +41,7 @@ class PatchedBitEmbeddings(nn.Module):
         self.register_buffer("_bits256_base", self._make_bits256(), persistent=False)
         self._bits_cached = None  # (256, 8) on current device/dtype
         self._bits_device = torch.device("meta")  # sentinel (forces first refresh)
-        self._bits_dtype = torch.float32
+        self._bits_dtype = dtype
 
         # Rebuild only when needed (params changed or device/dtype changed)
         self._last_base_v = -1

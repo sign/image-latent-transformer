@@ -56,7 +56,7 @@ def get_japanese_tagger():
     return Tagger('-Owakati')
 
 
-def segment_japanese(text: str) -> str:
+def segment_japanese(text: str) -> list[str]:
     """
     Segment Japanese text into space-separated words using morphological analysis.
 
@@ -68,7 +68,7 @@ def segment_japanese(text: str) -> str:
         text: The Japanese text to segment
 
     Returns:
-        Space-separated string of Japanese words
+        List of Japanese words
 
     Example:
         >>> segment_japanese("私は学生です")
@@ -76,4 +76,4 @@ def segment_japanese(text: str) -> str:
     """
     tagger = get_japanese_tagger()
     # Parse the text and return space-separated morphemes
-    return tagger.parse(text)
+    return [str(word) for word in tagger(text)]

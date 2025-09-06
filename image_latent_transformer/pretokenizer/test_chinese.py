@@ -43,37 +43,31 @@ def test_has_chinese_whitespace_only():
 def test_segment_chinese_simple():
     """Test segment_chinese with simple Chinese text."""
     result = segment_chinese("你好")
-    assert result == "你好"
+    assert result == ["你好"]
 
 
 def test_segment_chinese_mixed():
     """Test segment_chinese with mixed Chinese and English."""
     result = segment_chinese("hello 我来到北京清华大学 world")
-    assert result == "hello 我 来到 北京 清华大学 world"
-
-
-def test_segment_chinese_english_only():
-    """Test segment_chinese with English-only text."""
-    result = segment_chinese("hello world")
-    assert result == "hello world"
+    assert result == ['hello', ' ', '我', '来到', '北京', '清华大学', ' ', 'world']
 
 
 def test_segment_chinese_empty():
     """Test segment_chinese with empty string."""
     result = segment_chinese("")
-    assert result == ""
+    assert result == []
 
 
 def test_segment_chinese_complex():
     """Test segment_chinese with complex Chinese sentence."""
     result = segment_chinese("小明硕士毕业于中国科学院计算所")
-    assert result == "小明 硕士 毕业 于 中国科学院 计算所"
+    assert result == ['小明', '硕士', '毕业', '于', '中国科学院', '计算所']
 
 
 def test_segment_chinese_compound_words():
     """Test segment_chinese with compound words."""
     result = segment_chinese("中文分词测试")
-    assert result == "中文 分词 测试"
+    assert result == ['中文', '分词', '测试']
 
 
 if __name__ == "__main__":

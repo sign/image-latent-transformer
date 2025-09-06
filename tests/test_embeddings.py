@@ -33,9 +33,9 @@ class TestEmbeddings:
         bits = unpack_bits(x)
 
         assert bits.shape == (3, 8)
-        assert torch.allclose(bits[0], torch.tensor([1., 1., 1., 1., 1., 1., 1., 1.]))
-        assert torch.allclose(bits[1], torch.tensor([0., 0., 0., 0., 0., 0., 0., 0.]))
-        assert torch.allclose(bits[2], torch.tensor([1., 0., 0., 0., 0., 0., 0., 0.]))
+        assert torch.allclose(bits[0], torch.tensor([1, 1, 1, 1, 1, 1, 1, 1]))
+        assert torch.allclose(bits[1], torch.tensor([0, 0, 0, 0, 0, 0, 0, 0]))
+        assert torch.allclose(bits[2], torch.tensor([1, 0, 0, 0, 0, 0, 0, 0]))
 
     def test_embedding_setup(self, model):
         original_embeddings = model.get_input_embeddings()
@@ -139,6 +139,13 @@ class TestEmbeddings:
         patched_embeddings = model.get_input_embeddings()
 
         assert torch.allclose(original_weight, patched_embeddings.weight, atol=1e-6)
+
+    def test_embedding_dtype_is_casted(self, model, sample_input):
+        patch_embedding_layers(model)
+        model = model.to(torch.float16)
+
+        patched_embeddings = model.get_input_embeddings()
+        assert patched_embeddings(sample_input).dtype == torch.float16
 
     def test_bit_projection_training(self, model, sample_input):
         patch_embedding_layers(model)

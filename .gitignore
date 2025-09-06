@@ -4,4 +4,5 @@ image_latent_transformer.egg-info
 build
 .env
 image_latent_transformer/trained_model
-output
+output/
+wandb/
