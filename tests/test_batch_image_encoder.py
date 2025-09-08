@@ -4,14 +4,14 @@ import pytest
 import torch
 from transformers import AutoConfig, AutoModel
 
-from image_latent_transformer.batch_image_encoder import (
+from image_latent_transformer.collator import stack_pad_tensors_list
+from image_latent_transformer.vision.batch_image_encoder import (
     encode_images,
     encode_images_batch,
     encode_images_group,
     encode_images_sequentially,
 )
-from image_latent_transformer.collator import stack_pad_tensors_list
-from image_latent_transformer.vision_utils import image_encoder_size
+from image_latent_transformer.vision.vision_utils import image_encoder_size
 
 MODELS = {
     "WinKawaks/vit-tiny-patch16-224": 192,

@@ -2,29 +2,39 @@ from itertools import chain
 from typing import Union
 
 import torch
-from transformers import AutoModelForImageClassification
+from transformers import ViTForImageClassification, ViTModel
 from transformers.image_transforms import group_images_by_shape, reorder_images
 
 from image_latent_transformer.collator import stack_pad_tensors
-from image_latent_transformer.vision_utils import encode_images as utils_encode_images
+from image_latent_transformer.vision.masked_vit_patcher import is_vit_model, maybe_patch_vit_model
+from image_latent_transformer.vision.vision_utils import encode_images as utils_encode_images
 
-# TODO: once image encoder supports attention mask, using the following representation is 1.5-2x faster
-#       https://github.com/sign/image-latent-transformer/issues/1
-# def encode_images(image_encoder: AutoModelForImageClassification,
-#                   input_images: torch.Tensor,
-#                   input_images_dimensions: torch.Tensor) -> torch.Tensor:
-#     """Image encoder should accept variable size images and return consistent embeddings."""
-#     B, L, *_ = input_images.shape  # noqa: N806
-#
-#     linear_images = input_images.view(B * L, *input_images.shape[2:])
-#     embeds = encode_images_batch(image_encoder=image_encoder, images=linear_images)
-#     embeds = embeds.view(B, L, -1)
-#     return embeds
+# Define a type alias for image encoders, for type inference and clarity
+# However, every image encoder should be supported
+ImageEncoder = Union[ViTModel, ViTForImageClassification]
 
-def encode_images(image_encoder: AutoModelForImageClassification,
+
+def encode_padded_images(image_encoder: ImageEncoder,
+                         input_images: torch.Tensor) -> torch.Tensor:
+    """Image encoder should accept variable size images and return consistent embeddings."""
+    B, L, *_ = input_images.shape  # noqa: N806
+
+    linear_images = input_images.view(B * L, *input_images.shape[2:])
+    embeds = encode_images_batch(image_encoder=image_encoder, images=linear_images)
+    embeds = embeds.view(B, L, -1)
+    return embeds
+
+
+def encode_images(image_encoder: ImageEncoder,
                   input_images: torch.Tensor,
                   input_images_dimensions: torch.Tensor) -> torch.Tensor:
     """Image encoder should accept variable size images and return consistent embeddings."""
+
+    if is_vit_model(image_encoder):
+        # For ViT models we need to implement a "fast" path that knows how to handle padding correctly
+        maybe_patch_vit_model(image_encoder)
+        return encode_padded_images(image_encoder, input_images)
+
     B, L, *_ = input_images.shape  # noqa: N806
 
     # Recreate as list of lists if input is a nested tensor, cropping padding from each image
@@ -52,7 +62,7 @@ def encode_images(image_encoder: AutoModelForImageClassification,
     return embeds
 
 
-def encode_images_batch(image_encoder: AutoModelForImageClassification,
+def encode_images_batch(image_encoder: ImageEncoder,
                         images: Union[list[torch.Tensor], torch.Tensor]) -> torch.Tensor:
     if isinstance(images, list):
         images = stack_pad_tensors(images)
@@ -61,13 +71,13 @@ def encode_images_batch(image_encoder: AutoModelForImageClassification,
     return utils_encode_images(image_encoder, images)
 
 
-def encode_images_sequentially(image_encoder: AutoModelForImageClassification,
+def encode_images_sequentially(image_encoder: ImageEncoder,
                                images: list[torch.Tensor]) -> torch.Tensor:
     encoded_images = [encode_images_batch(image_encoder, image.unsqueeze(0)) for image in images]
     return torch.cat(encoded_images, dim=0)
 
 
-def encode_images_group(image_encoder: AutoModelForImageClassification,
+def encode_images_group(image_encoder: ImageEncoder,
                         images: list[torch.Tensor]) -> torch.Tensor:
     # TODO: if NaVIT, we can just call the model directly https://github.com/lucidrains/vit-pytorch#navit
     #       for huggingface this is SmolVLMVisionTransformer

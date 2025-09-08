@@ -41,12 +41,16 @@ languages = [
 [tool.setuptools]
 packages = [
     "image_latent_transformer",
+    "image_latent_transformer.vision",
     "image_latent_transformer.pretokenizer",
 ]
 
 [tool.ruff]
 line-length = 120
-extend-exclude = ["training/experiments/*"]
+extend-exclude = [
+    "training/experiments/*",
+    "image_latent_transformer/vision/masked_vit_patcher.py", # Hacky patching file
+]
 
 [tool.ruff.lint]
 select = [

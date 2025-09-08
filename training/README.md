@@ -1,8 +1,8 @@
 # Training
 
 > [!CAUTION]
-> The [image encoder](../image_latent_transformer/batch_image_encoder.py) tends to work sequentially,
-> and slow down training.
+> Read the [vision README][../image_latent_transformer/vision/README.md] to understand how to select
+> an image encoder model for fast training.
 
 Setup with:
 
