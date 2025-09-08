@@ -36,4 +36,6 @@ jobs:
 
       - name: Test Code
         shell: bash -l {0}
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: pytest -n auto --dist loadscope
