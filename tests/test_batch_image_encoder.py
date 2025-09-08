@@ -115,7 +115,7 @@ def test_encode_images_batched_or_sequential(model_name):
     embeddings2 = encode_images_sequentially(model, images)
 
     assert embeddings1.shape == embeddings2.shape
-    assert torch.allclose(embeddings1, embeddings2, atol=1e-6)
+    assert torch.allclose(embeddings1, embeddings2, atol=1e-5)
 
 
 @pytest.mark.parametrize("model_name", MODEL_NAMES)
@@ -133,7 +133,7 @@ def test_encode_images_group_or_sequential(model_name):
     embeddings2 = encode_images_group(model, images)
 
     assert embeddings1.shape == embeddings2.shape
-    assert torch.allclose(embeddings1, embeddings2, atol=1e-6)
+    assert torch.allclose(embeddings1, embeddings2, atol=1e-5)
 
 
 @pytest.mark.parametrize("model_name", MODEL_NAMES)

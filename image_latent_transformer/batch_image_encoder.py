@@ -69,6 +69,9 @@ def encode_images_sequentially(image_encoder: AutoModelForImageClassification,
 
 def encode_images_group(image_encoder: AutoModelForImageClassification,
                         images: list[torch.Tensor]) -> torch.Tensor:
+    # TODO: if NaVIT, we can just call the model directly https://github.com/lucidrains/vit-pytorch#navit
+    #       for huggingface this is SmolVLMVisionTransformer
+
     grouped_images, grouped_images_index = group_images_by_shape(images, disable_grouping=False)
 
     # Encode each group separately
