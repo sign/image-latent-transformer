@@ -193,10 +193,22 @@ def encode_images(image_encoder: AutoModelForImageClassification, images: torch.
     model_args = model_args_dict(image_encoder)
 
     # Run the forward pass through the image encoder
-    encoded_image = image_encoder(images, **model_args)
+    encoded_images = image_encoder(images, **model_args)
+
+    # Default to using pooler_output if available (shape [batch_size, hidden_size])
+    if hasattr(encoded_images, "pooler_output"):
+        pooled_output = encoded_images.pooler_output
+        # ResNet outputs include extra dimensions (batch_size, hidden_size, 1, 1)
+        pooled_output = pooled_output.squeeze()
+        if pooled_output.dim() == 1:
+            pooled_output = pooled_output.unsqueeze(0)
+        return pooled_output
 
     # Extract the final layer's hidden states (shape varies by model architecture)
-    last_hidden_states = encoded_image.hidden_states[-1]
+    if hasattr(encoded_images, "last_hidden_state"):
+        last_hidden_states = encoded_images.last_hidden_state
+    else:
+        last_hidden_states = encoded_images.hidden_states[-1]
 
     # Get the hidden size dimension for this encoder model
     hidden_size = image_encoder_size(image_encoder)

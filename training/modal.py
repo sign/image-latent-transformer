@@ -9,7 +9,7 @@ from training.train import train as local_train
 app = modal.App("image-latent-transformer")
 
 MODEL_MNT_DIR = "/output"
-MODEL_OUTPUT_DIR = f"{MODEL_MNT_DIR}/en-he-28m-c"
+MODEL_OUTPUT_DIR = f"{MODEL_MNT_DIR}/en-he-28m-d"
 # Copy the entire project into the image
 library_path = Path(__file__).parent.parent
 image = (
@@ -65,8 +65,8 @@ def train():
         "--latent_transformer_model_name_or_path", "EleutherAI/pythia-70m",
         "--bytes_decoder_model_name_or_path", "sbintuitions/tiny-lm",
         # Align representations between pretrained models
-        "--load_pretrained", "True",
-        "--warmup_freeze_steps", "500",
+        # "--load_pretrained", "True",
+        # "--warmup_freeze_steps", "500",
         # Dataset args
         "--dataset_name", "Helsinki-NLP/opus-100",
         "--dataset_config_name", "en-he",
@@ -86,7 +86,7 @@ def train():
         "--do_train", "True",
         # "--do_eval", "True", # TODO: fix eval
         "--output_dir", MODEL_OUTPUT_DIR,
-        # "--overwrite_output_dir", "True",
+        "--overwrite_output_dir", "True",
         "--logging_steps", "10",
         "--logging_strategy", "steps",
         "--max_steps", "30000",

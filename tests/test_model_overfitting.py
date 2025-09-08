@@ -4,8 +4,7 @@ import pytest
 from transformers import Trainer, TrainingArguments
 from trl import pack_dataset
 
-from image_latent_transformer.model_utils import setup_model
-from tests.test_model import make_dataset, predict_dataset
+from tests.test_model import make_dataset, predict_dataset, setup_tiny_model
 
 
 # TODO: this training is flaky due to https://github.com/huggingface/transformers/issues/40219
@@ -66,8 +65,8 @@ def trained_models():
     """Train the model once and reuse for all tests."""
     num_epochs = 100
     return {
-        "packed": train_model(setup_model, num_epochs=num_epochs, packing=True),
-        "unpacked": train_model(setup_model, num_epochs=num_epochs, packing=False)
+        "packed": train_model(setup_tiny_model, num_epochs=num_epochs, packing=True),
+        "unpacked": train_model(setup_tiny_model, num_epochs=num_epochs, packing=False)
     }
 
 

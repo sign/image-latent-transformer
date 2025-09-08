@@ -7,7 +7,6 @@ import torch.nn as nn
 from transformers import (
     AutoModel,
     AutoModelForCausalLM,
-    AutoModelForImageClassification,
     AutoModelForMaskedLM,
     GenerationConfig,
     GenerationMixin,
@@ -76,9 +75,8 @@ class ImageLatentTransformer(PreTrainedModel):
 
         # Image Encoder
         if config.image_encoder:
-            self.image_encoder = model_from_config(config.image_encoder, AutoModelForImageClassification,
+            self.image_encoder = model_from_config(config.image_encoder, AutoModel,
                                                    config.dtype, load_pretrained, attn_implementation)
-            self.image_encoder.classifier = torch.nn.Identity()
             self.image_encoder_dim = image_encoder_size(self.image_encoder)
         else:
             self.image_encoder = None

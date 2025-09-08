@@ -40,9 +40,6 @@ def enable_optimizations():
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
 
-    # TODO attn_implementation="flash_attention_2"? --attn_implementation flash_attention_2
-    #      might need to figure out optional dependency
-
     # TODO --use_cuda_graphs true ?
 
     # TODO pin_memory_device="cuda" (PyTorch ≥2.3)

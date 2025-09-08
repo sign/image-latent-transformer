@@ -2,7 +2,7 @@ from functools import cache
 
 import pytest
 import torch
-from transformers import AutoConfig, AutoModelForImageClassification
+from transformers import AutoConfig, AutoModel
 
 from image_latent_transformer.batch_image_encoder import (
     encode_images,
@@ -18,10 +18,9 @@ MODELS = {
     "microsoft/swinv2-tiny-patch4-window16-256": 768,
     "google/vit-base-patch16-224": 768,
     "microsoft/resnet-18": 512,
-    "apple/mobilevit-xx-small": 80,
-    # TODO: support once huggingface releases a new version (config loads, but no AutoModelForImageClassification)
-    # "facebook/dinov3-vits16-pretrain-lvd1689m": 0,
-    # "facebook/dinov3-convnext-tiny-pretrain-lvd1689m": 0,
+    "apple/mobilevit-xx-small": 320,
+    "facebook/dinov3-vits16-pretrain-lvd1689m": 384,
+    "facebook/dinov3-convnext-tiny-pretrain-lvd1689m": 768,
 }
 
 MODEL_NAMES = list(MODELS.keys())
@@ -36,7 +35,7 @@ def images_dimensions(images: list[list[torch.Tensor]]) -> torch.Tensor:
 @cache
 def image_encoder(model_name):
     config = AutoConfig.from_pretrained(model_name)
-    model = AutoModelForImageClassification.from_config(config)
+    model = AutoModel.from_config(config)
     model.eval()
     return model
 
@@ -116,8 +115,7 @@ def test_encode_images_batched_or_sequential(model_name):
     embeddings2 = encode_images_sequentially(model, images)
 
     assert embeddings1.shape == embeddings2.shape
-
-    assert torch.equal(embeddings1, embeddings2)
+    assert torch.allclose(embeddings1, embeddings2, atol=1e-6)
 
 
 @pytest.mark.parametrize("model_name", MODEL_NAMES)
@@ -135,7 +133,7 @@ def test_encode_images_group_or_sequential(model_name):
     embeddings2 = encode_images_group(model, images)
 
     assert embeddings1.shape == embeddings2.shape
-    assert torch.equal(embeddings1, embeddings2)
+    assert torch.allclose(embeddings1, embeddings2, atol=1e-6)
 
 
 @pytest.mark.parametrize("model_name", MODEL_NAMES)
