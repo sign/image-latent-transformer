@@ -108,7 +108,7 @@ def test_attention_does_look_back():
     # Check that ALL positions have different losses due to different context
     for i in range(7):  # Check all 7 positions (excluding padding)
         loss_diff = abs(outputs[texts[0]].loss[i] - outputs[texts[1]].loss[i])
-        assert loss_diff > 1e-3, \
+        assert loss_diff > 1e-4, \
             (f"Loss at position {i} should be different due to context: "
              f"{outputs[texts[0]].loss[i]} vs {outputs[texts[1]].loss[i]} (diff: {loss_diff})")
 

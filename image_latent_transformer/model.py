@@ -5,6 +5,7 @@ from typing import Any, Optional
 import torch
 import torch.nn as nn
 from transformers import (
+    AutoConfig,
     AutoModel,
     AutoModelForCausalLM,
     AutoModelForMaskedLM,
@@ -43,9 +44,13 @@ def model_from_config(config: PretrainedConfig,
             attn_implementation = None
 
     if load_pretrained:
-        name_or_path = getattr(config, "_name_or_path", None)
-        print(f"Loading pretrained model from {name_or_path}")
-        return cls.from_pretrained(name_or_path, config=config, dtype=dtype, attn_implementation=attn_implementation)
+        name_or_path = getattr(config, "_name_or_path", "")
+        if name_or_path:
+            print(f"Loading pretrained model from {name_or_path}")
+            return cls.from_pretrained(name_or_path,
+                                       config=config,
+                                       dtype=dtype,
+                                       attn_implementation=attn_implementation)
 
     return cls.from_config(config, dtype=dtype, attn_implementation=None)
 
@@ -114,6 +119,9 @@ class ImageLatentTransformer(PreTrainedModel):
         encoder_dim = self.bytes_encoder_dim + self.image_encoder_dim
         self.encoder_mapping = nn.Linear(encoder_dim, model_dim, dtype=self.latent_transformer.dtype)
         self.decoder_mapping = nn.Linear(model_dim, bytes_decoder_dim, dtype=self.bytes_decoder.dtype)
+
+        # Post init
+        self.post_init()
 
     def _should_drop_modality(self):
         if not self.training or self.config.modality_dropout == 0:
@@ -532,7 +540,7 @@ class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin)
         texts = ["".join(generated_words) for generated_words in all_generated_words]
         return texts
 
-
+AutoConfig.register(ImageLatentTransformerConfig.model_type, ImageLatentTransformerConfig)
 AutoModel.register(ImageLatentTransformerConfig, ImageLatentTransformer)
 AutoModelForCausalLM.register(ImageLatentTransformerConfig, ImageLatentTransformerForCausalLM)
 

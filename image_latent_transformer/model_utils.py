@@ -5,6 +5,7 @@ import torch
 from transformers import (
     AutoConfig,
     AutoImageProcessor,
+    PretrainedConfig,
     enable_full_determinism,
     set_seed,
 )
@@ -14,6 +15,7 @@ from image_latent_transformer.config import ImageLatentTransformerConfig
 from image_latent_transformer.model import ImageLatentTransformerForCausalLM, logger
 from image_latent_transformer.processor import TextImageProcessor
 from image_latent_transformer.tokenizer import UTF8Tokenizer
+from image_latent_transformer.vision.navit import NaViTConfig
 
 
 def print_model_summary(name: str, model):
@@ -32,8 +34,44 @@ def get_attn_implementation():
     return "flash_attention_2"
 
 
+CUSTOM_MODELS: dict[str, PretrainedConfig] = {
+    "NaViT-tiny": NaViTConfig(
+        patch_size=16,
+        hidden_size=128,
+        dim=64,
+        depth=3,
+        heads=4,
+        mlp_dim=128,
+        dropout=0.0,
+        emb_dropout=0.0,
+        token_dropout_prob=0.1,
+    ),
+    "NaViT-small": NaViTConfig(
+        patch_size=16,
+        hidden_size=512,
+        dim=256,
+        depth=6,
+        heads=8,
+        mlp_dim=1024,
+        dropout=0.0,
+        emb_dropout=0.0,
+        token_dropout_prob=0.1,
+    )
+}
+CUSTOM_PROCESSORS_ALIAS: dict[str, str] = {
+    "NaViT-tiny": "WinKawaks/vit-tiny-patch16-224",
+    "NaViT-small": "WinKawaks/vit-tiny-patch16-224",
+}
+
+
+def get_model_config(model_name):
+    if model_name in CUSTOM_MODELS:
+        return CUSTOM_MODELS[model_name]
+    return AutoConfig.from_pretrained(model_name)
+
+
 def setup_model(
-        image_encoder_name="WinKawaks/vit-tiny-patch16-224",
+        image_encoder_name="NaViT-tiny",
         bytes_encoder_name="prajjwal1/bert-tiny",
         latent_transformer_name="EleutherAI/pythia-70m",
         bytes_decoder_name="EleutherAI/pythia-70m",
@@ -47,7 +85,8 @@ def setup_model(
     enable_full_determinism(seed=seed, warn_only=True)
 
     if image_encoder_name is not None:
-        image_processor = AutoImageProcessor.from_pretrained(image_encoder_name, use_fast=True)
+        image_processor_name = CUSTOM_PROCESSORS_ALIAS.get(image_encoder_name, image_encoder_name)
+        image_processor = AutoImageProcessor.from_pretrained(image_processor_name, use_fast=True)
     else:
         image_processor = None
 
@@ -55,10 +94,10 @@ def setup_model(
 
     config = ImageLatentTransformerConfig(
         # All sub-configs are loaded from the respective model names
-        image_encoder=AutoConfig.from_pretrained(image_encoder_name) if image_encoder_name else None,
-        bytes_encoder=AutoConfig.from_pretrained(bytes_encoder_name) if bytes_encoder_name else None,
-        latent_transformer=AutoConfig.from_pretrained(latent_transformer_name),
-        bytes_decoder=AutoConfig.from_pretrained(bytes_decoder_name),
+        image_encoder=get_model_config(image_encoder_name) if image_encoder_name else None,
+        bytes_encoder=get_model_config(bytes_encoder_name) if bytes_encoder_name else None,
+        latent_transformer=get_model_config(latent_transformer_name),
+        bytes_decoder=get_model_config(bytes_decoder_name),
         # Other configuration parameters
         modality_dropout=modality_dropout,
         tokenizer_class=tokenizer.__class__.__name__,

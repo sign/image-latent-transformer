@@ -11,9 +11,11 @@ from image_latent_transformer.vision.batch_image_encoder import (
     encode_images_group,
     encode_images_sequentially,
 )
+from image_latent_transformer.vision.navit import NaViTConfig
 from image_latent_transformer.vision.vision_utils import image_encoder_size
 
 MODELS = {
+    "custom-navit": 512,
     "WinKawaks/vit-tiny-patch16-224": 192,
     "microsoft/swinv2-tiny-patch4-window16-256": 768,
     "google/vit-base-patch16-224": 768,
@@ -34,7 +36,11 @@ def images_dimensions(images: list[list[torch.Tensor]]) -> torch.Tensor:
 
 @cache
 def image_encoder(model_name):
-    config = AutoConfig.from_pretrained(model_name)
+    if model_name == "custom-navit":
+        config = NaViTConfig()
+    else:
+        config = AutoConfig.from_pretrained(model_name)
+
     model = AutoModel.from_config(config)
     model.eval()
     return model

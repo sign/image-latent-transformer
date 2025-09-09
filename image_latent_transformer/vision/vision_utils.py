@@ -6,6 +6,7 @@ including functions to determine encoder dimensions and handle configuration edg
 """
 import inspect
 from functools import cache
+from typing import Union
 
 import torch
 from transformers import AutoModelForImageClassification
@@ -21,6 +22,7 @@ class UnknownImageEncoderError(ValueError):
 
     def __init__(self):
         super().__init__("Image encoder does not have a known hidden size configuration.")
+
 
 @cache
 def image_encoder_size(image_encoder: AutoModelForImageClassification) -> int:
@@ -106,6 +108,7 @@ def model_args_dict(model: AutoModelForImageClassification) -> dict:
 
     return args
 
+
 @cache
 def accepts(func, param_name: str) -> bool:
     """
@@ -131,6 +134,7 @@ def accepts(func, param_name: str) -> bool:
             param_name in sig.parameters
             or any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values())
     )
+
 
 def pool_hidden_dim(tensor: torch.Tensor, hidden_size: int) -> torch.Tensor:
     """
@@ -168,7 +172,8 @@ def pool_hidden_dim(tensor: torch.Tensor, hidden_size: int) -> torch.Tensor:
     return tensor.mean(dim=non_hidden_dims)
 
 
-def encode_images(image_encoder: AutoModelForImageClassification, images: torch.Tensor) -> torch.Tensor:
+def encode_images(image_encoder: AutoModelForImageClassification,
+                  images: Union[list[torch.Tensor], torch.Tensor]) -> torch.Tensor:
     """
     Encode a batch of images using the provided image encoder model.
 

@@ -40,6 +40,9 @@ def enable_optimizations():
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
 
+    # For debugging purposes only:
+    # torch.autograd.set_detect_anomaly(True)
+
     # TODO --use_cuda_graphs true ?
 
     # TODO pin_memory_device="cuda" (PyTorch ≥2.3)

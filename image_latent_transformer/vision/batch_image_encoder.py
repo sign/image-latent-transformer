@@ -6,12 +6,12 @@ from transformers import ViTForImageClassification, ViTModel
 from transformers.image_transforms import group_images_by_shape, reorder_images
 
 from image_latent_transformer.collator import stack_pad_tensors
-from image_latent_transformer.vision.masked_vit_patcher import is_vit_model, maybe_patch_vit_model
+from image_latent_transformer.vision.navit import NaViTModel
 from image_latent_transformer.vision.vision_utils import encode_images as utils_encode_images
 
 # Define a type alias for image encoders, for type inference and clarity
 # However, every image encoder should be supported
-ImageEncoder = Union[ViTModel, ViTForImageClassification]
+ImageEncoder = Union[ViTModel, ViTForImageClassification, NaViTModel]
 
 
 def encode_padded_images(image_encoder: ImageEncoder,
@@ -30,10 +30,11 @@ def encode_images(image_encoder: ImageEncoder,
                   input_images_dimensions: torch.Tensor) -> torch.Tensor:
     """Image encoder should accept variable size images and return consistent embeddings."""
 
-    if is_vit_model(image_encoder):
-        # For ViT models we need to implement a "fast" path that knows how to handle padding correctly
-        maybe_patch_vit_model(image_encoder)
-        return encode_padded_images(image_encoder, input_images)
+    # TODO: this is actually SLOWER right now. https://github.com/lucidrains/vit-pytorch/issues/347
+    # if is_vit_model(image_encoder):
+    #     # For ViT models we need to implement a "fast" path that knows how to handle padding correctly
+    #     maybe_patch_vit_model(image_encoder)
+    #     return encode_padded_images(image_encoder, input_images)
 
     B, L, *_ = input_images.shape  # noqa: N806
 
@@ -79,8 +80,9 @@ def encode_images_sequentially(image_encoder: ImageEncoder,
 
 def encode_images_group(image_encoder: ImageEncoder,
                         images: list[torch.Tensor]) -> torch.Tensor:
-    # TODO: if NaVIT, we can just call the model directly https://github.com/lucidrains/vit-pytorch#navit
-    #       for huggingface this is SmolVLMVisionTransformer
+    if isinstance(image_encoder, NaViTModel):
+        # NaViT can handle variable size images natively!
+        return utils_encode_images(image_encoder, images)
 
     grouped_images, grouped_images_index = group_images_by_shape(images, disable_grouping=False)
 
