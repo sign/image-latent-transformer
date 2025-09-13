@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'Dockerfile'
+      - 'pyproject.toml'
       - '.github/workflows/docker-build.yaml'
   pull_request:
     paths:

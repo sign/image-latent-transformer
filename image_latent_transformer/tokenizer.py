@@ -1,6 +1,6 @@
 import warnings
 from collections import namedtuple
-from typing import Optional
+from typing import Optional, Union
 
 import torch
 from torch.nn.utils.rnn import pad_sequence
@@ -13,9 +13,16 @@ from image_latent_transformer.pretokenizer.control import ControlTokens
 def tokenize_ids(text: str, errors="strict"):
     return list(text.encode('utf-8', errors=errors))
 
-
 TokenizerResult = namedtuple("TokenizerResult", ["input_ids", "attention_mask"])
 
+PAD_TOKEN = ControlTokens.Null
+PAD_TOKEN_ID = ord(PAD_TOKEN)
+
+BOS_TOKEN = ControlTokens.StartOfText
+BOS_TOKEN_ID = ord(BOS_TOKEN)
+
+EOS_TOKEN = ControlTokens.EndOfText
+EOS_TOKEN_ID = ord(EOS_TOKEN)
 
 class UTF8Tokenizer(PreTrainedTokenizer):
     """
@@ -31,13 +38,13 @@ class UTF8Tokenizer(PreTrainedTokenizer):
 
     def __init__(self, **kwargs):
         # Pad token
-        kwargs["pad_token"] = getattr(kwargs, "pad_token", ControlTokens.Null)
+        kwargs["pad_token"] = getattr(kwargs, "pad_token", PAD_TOKEN)
         kwargs["pad_token_id"] = ord(kwargs["pad_token"])
         # BOS token
-        kwargs["bos_token"] = getattr(kwargs, "bos_token", ControlTokens.StartOfText)
+        kwargs["bos_token"] = getattr(kwargs, "bos_token", BOS_TOKEN)
         kwargs["bos_token_id"] = ord(kwargs["bos_token"])
         # EOS token
-        kwargs["eos_token"] = getattr(kwargs, "eos_token", ControlTokens.EndOfText)
+        kwargs["eos_token"] = getattr(kwargs, "eos_token", EOS_TOKEN)
         kwargs["eos_token_id"] = ord(kwargs["eos_token"])
 
         super().__init__(**kwargs)
@@ -73,25 +80,26 @@ class UTF8Tokenizer(PreTrainedTokenizer):
         return _bytes.decode("utf-8", errors="ignore")
 
     def build_inputs_with_special_tokens(self,
-                                         token_ids_0: list[int],
-                                         token_ids_1: Optional[list[int]] = None) -> list[int]:
+                                         token_ids_0: Union[list[int], bytearray],
+                                         token_ids_1: Optional[list[int]] = None) -> Union[list[int], bytearray]:
         assert token_ids_1 is None, "UTF8Tokenizer only supports single sequence"
+
         # Experimentally, the fastest way to add BOS/EOS
-        token_ids_0.append(self.eos_token_id)  # EOS
-        token_ids_0.insert(0, self.bos_token_id)  # BOS
+        token_ids_0.append(EOS_TOKEN_ID)  # EOS
+        token_ids_0.insert(0, BOS_TOKEN_ID)  # BOS
         return token_ids_0
 
     def torch(self,
               texts: list[TextInput],
               add_special_tokens: bool = True,
               padding: bool = False,
-              truncation: bool = None,
+              truncation: bool = False,
               max_length: Optional[int] = None,
               device: Optional[torch.device] = None):
 
-        input_ids = [tokenize_ids(text) for text in texts]
+        input_bytes = [bytearray(text, "utf-8") for text in texts]
 
-        if truncation is not None:
+        if truncation:
             if max_length is None:
                 warnings.warn(
                     "Asking to truncate to max_length but no maximum length is provided and the model has "
@@ -104,22 +112,29 @@ class UTF8Tokenizer(PreTrainedTokenizer):
                         "We need to remove more tokens than exist. Default to no truncation.",
                         stacklevel=2)
                 else:
-                    input_ids = [ids[:max_length] for ids in input_ids]
+                    input_bytes = [text_bytes[:corrected_max_length] for text_bytes in input_bytes]
 
         if add_special_tokens:
             # Faster to manipulate strings than lists of ints
-            input_ids = [self.build_inputs_with_special_tokens(ids) for ids in input_ids]
+            input_bytes = [self.build_inputs_with_special_tokens(ids) for ids in input_bytes]
 
-        input_ids = [torch.tensor(ids, dtype=torch.long) for ids in input_ids]
-        attention_mask = [torch.ones(len(ids), dtype=torch.long) for ids in input_ids]
+        # torch.frombuffer is faster than torch.tensor for bytearrays since no copy is made
+        input_ids = [torch.frombuffer(ids, dtype=torch.uint8) for ids in input_bytes]
 
         if padding:
             input_ids = pad_sequence(input_ids, batch_first=True, padding_value=0)
-            attention_mask = pad_sequence(attention_mask, batch_first=True, padding_value=0)
+            attention_mask = input_ids.ne(0)
+        else:
+            # Slow path - no padding means we need to return a list of tensors
+            attention_mask = [torch.ones(len(ids), dtype=torch.bool) for ids in input_ids]
 
         if device is not None:
-            input_ids = input_ids.to(device)
-            attention_mask = attention_mask.to(device)
+            if isinstance(input_ids, list):
+                input_ids = [ids.to(device, non_blocking=True) for ids in input_ids]
+                attention_mask = [mask.to(device, non_blocking=True) for mask in attention_mask]
+            else:
+                input_ids = input_ids.to(device, non_blocking=True)
+                attention_mask = attention_mask.to(device, non_blocking=True)
 
         return TokenizerResult(input_ids=input_ids, attention_mask=attention_mask)
 

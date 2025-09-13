@@ -57,8 +57,8 @@ def test_torch_method_basic(tokenizer):
     for i, text in enumerate(texts):
         expected_ids = [ord(c) for c in text]
         assert result.input_ids[i].tolist() == expected_ids
-        assert result.input_ids[i].dtype == torch.long
-        assert result.attention_mask[i].dtype == torch.long
+        assert result.input_ids[i].dtype == torch.uint8
+        assert result.attention_mask[i].dtype == torch.bool
         assert result.attention_mask[i].tolist() == [1] * len(expected_ids)
 
 
@@ -161,9 +161,6 @@ def test_comparison_tokenizer_vs_torch_method_multiple_strings(tokenizer):
     result1 = tokenizer(texts, padding=True, return_tensors="pt")
     result2 = tokenizer.torch(texts, padding=True)
 
-    assert result1.input_ids[0].dtype == result2.input_ids[0].dtype
-    assert result1.attention_mask[0].dtype == result2.attention_mask[0].dtype
-
     assert torch.equal(result1.input_ids[0], result2.input_ids[0])
     assert torch.equal(result1.attention_mask[0], result2.attention_mask[0])
 
@@ -194,8 +191,8 @@ def test_dtype_consistency(tokenizer):
     texts = ["hello", "world"]
     result = tokenizer.torch(texts, padding=True)
 
-    assert result.input_ids.dtype == torch.long
-    assert result.attention_mask.dtype == torch.long
+    assert result.input_ids.dtype == torch.uint8
+    assert result.attention_mask.dtype == torch.bool
 
 
 def test_batch_consistency(tokenizer):
