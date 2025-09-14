@@ -4,10 +4,10 @@ from torch.nn import Embedding
 
 
 def unpack_bits(x: torch.Tensor) -> torch.Tensor:
-    if x.dtype != torch.uint8:
-        x = x.to(torch.uint8)
+    assert x.dtype == torch.uint8, "Expected bytes tensor input (torch.uint8)"
     shifts = torch.arange(7, -1, -1, device=x.device, dtype=torch.uint8)
-    return ((x.unsqueeze(-1) >> shifts) & 1).to(torch.long)  # (B, L, 8)
+    shifted = x.unsqueeze(-1) >> shifts  # (B, L, 8)
+    return shifted & 1
 
 
 class PatchedBitEmbeddings(nn.Module):
@@ -38,7 +38,8 @@ class PatchedBitEmbeddings(nn.Module):
         self.weight = nn.Parameter(embeddings.weight.detach().clone(), requires_grad=True)
 
         # Bits table buffer (float32 initially); device/dtype-adjusted copies are cached lazily
-        self.register_buffer("_bits256_base", self._make_bits256(), persistent=False)
+        all_bytes = torch.arange(256, dtype=torch.uint8)
+        self.register_buffer("_bits256_base", unpack_bits(all_bytes), persistent=False)
         self._bits_cached = None  # (256, 8) on current device/dtype
         self._bits_device = torch.device("meta")  # sentinel (forces first refresh)
         self._bits_dtype = dtype
@@ -79,14 +80,6 @@ class PatchedBitEmbeddings(nn.Module):
         self.register_forward_pre_hook(lambda m, inp: m._maybe_refresh_weight_())
 
     # ---- internals ----
-
-    @staticmethod
-    def _make_bits256() -> torch.Tensor:
-        """Return (256,8) float32 bits MSB→LSB for values 0..255."""
-        b = torch.arange(256, dtype=torch.uint8)
-        shifts = torch.arange(7, -1, -1, dtype=torch.uint8)
-        bits = ((b.unsqueeze(-1) >> shifts) & 1).to(torch.float32)
-        return bits  # (256, 8)
 
     def _ensure_bits_cached(self):
         """Cache bits in current device/dtype (no work in the hot path after first time)."""
@@ -131,7 +124,11 @@ class PatchedBitEmbeddings(nn.Module):
 
     def forward(self, input_ids: torch.Tensor) -> torch.Tensor:
         # Façade already refreshed by pre-hook; forward is just a normal embedding lookup
-        return nn.functional.embedding(input_ids, self.weight)
+        input_ids = input_ids.to(dtype=torch.long)
+        # TODO: ideally, we should use
+        #  return nn.functional.embedding(input_ids, self.weight)
+        #  https://github.com/pytorch/pytorch/issues/162918
+        return self.weight[input_ids]
 
 
 def patch_embedding_layers(model):

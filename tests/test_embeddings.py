@@ -20,8 +20,8 @@ class TestEmbeddings:
 
     @pytest.fixture
     def sample_input(self):
-        B, L = 2, 16# noqa: N806
-        return torch.randint(0, 256, (B, L), dtype=torch.long)
+        B, L = 2, 16 # noqa: N806
+        return torch.randint(0, 256, (B, L), dtype=torch.uint8)
 
     @pytest.fixture
     def attention_mask(self):
@@ -33,9 +33,9 @@ class TestEmbeddings:
         bits = unpack_bits(x)
 
         assert bits.shape == (3, 8)
-        assert torch.allclose(bits[0], torch.tensor([1, 1, 1, 1, 1, 1, 1, 1]))
-        assert torch.allclose(bits[1], torch.tensor([0, 0, 0, 0, 0, 0, 0, 0]))
-        assert torch.allclose(bits[2], torch.tensor([1, 0, 0, 0, 0, 0, 0, 0]))
+        assert torch.allclose(bits[0], torch.tensor([1, 1, 1, 1, 1, 1, 1, 1], dtype=torch.uint8))
+        assert torch.allclose(bits[1], torch.tensor([0, 0, 0, 0, 0, 0, 0, 0], dtype=torch.uint8))
+        assert torch.allclose(bits[2], torch.tensor([1, 0, 0, 0, 0, 0, 0, 0], dtype=torch.uint8))
 
     def test_embedding_setup(self, model):
         original_embeddings = model.get_input_embeddings()
@@ -81,11 +81,13 @@ class TestEmbeddings:
         assert final_param_count == original_param_count
 
     def test_embedding_weight_preservation(self, model, sample_input):
+        sample_input_int = sample_input.to(dtype=torch.int)
+
         original_embeddings = model.get_input_embeddings()
         original_weight = original_embeddings.weight.clone()
 
         with torch.inference_mode():
-            original_output = original_embeddings(sample_input)
+            original_output = original_embeddings(sample_input_int)
 
         patch_embedding_layers(model)
         join_embedding_layers(model)
@@ -94,7 +96,7 @@ class TestEmbeddings:
         final_weight = final_embeddings.weight
 
         with torch.inference_mode():
-            final_output = final_embeddings(sample_input)
+            final_output = final_embeddings(sample_input_int)
 
         assert torch.allclose(original_weight, final_weight, atol=1e-6)
         assert torch.allclose(original_output, final_output, atol=1e-6)
@@ -118,10 +120,12 @@ class TestEmbeddings:
         assert torch.allclose(weight, torch.zeros_like(weight))
 
     def test_forward_pass_consistency(self, model, sample_input):
+        sample_input_int = sample_input.to(dtype=torch.int)
+
         original_embeddings = model.get_input_embeddings()
 
         with torch.inference_mode():
-            original_embedded = original_embeddings(sample_input)
+            original_embedded = original_embeddings(sample_input_int)
 
         patch_embedding_layers(model)
         patched_embeddings = model.get_input_embeddings()
