@@ -14,7 +14,7 @@ from image_latent_transformer.collator import collate_fn
 from image_latent_transformer.config import ImageLatentTransformerConfig
 from image_latent_transformer.model import ImageLatentTransformerForCausalLM, logger
 from image_latent_transformer.processor import TextImageProcessor
-from image_latent_transformer.tokenizer import UTF8Tokenizer
+from utf8_tokenizer.tokenizer import UTF8Tokenizer
 from image_latent_transformer.vision.navit import NaViTConfig
 
 
@@ -71,7 +71,7 @@ def get_model_config(model_name):
 
 
 def setup_model(
-        image_encoder_name="NaViT-tiny",
+        image_encoder_name="WinKawaks/vit-tiny-patch16-224",
         bytes_encoder_name="prajjwal1/bert-tiny",
         latent_transformer_name="EleutherAI/pythia-70m",
         bytes_decoder_name="EleutherAI/pythia-70m",

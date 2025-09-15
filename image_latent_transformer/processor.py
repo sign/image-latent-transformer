@@ -12,7 +12,7 @@ from image_latent_transformer.attention import (
 from image_latent_transformer.collator import collate_fn, stack_pad_tensors
 from image_latent_transformer.pretokenizer.pretokenizer import text_to_words
 from image_latent_transformer.renderer import render_text
-from image_latent_transformer.tokenizer import UTF8Tokenizer
+from utf8_tokenizer.tokenizer import UTF8Tokenizer
 
 
 class TextImageProcessor(ProcessorMixin):

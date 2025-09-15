@@ -12,8 +12,9 @@ from typing import Any, Callable, TypedDict
 
 import regex
 
+from utf8_tokenizer.control import CONTROl_TOKENS_PATTERN
+
 from image_latent_transformer.pretokenizer.chinese import segment_chinese
-from image_latent_transformer.pretokenizer.control import CONTROl_TOKENS_PATTERN
 from image_latent_transformer.pretokenizer.japanese import segment_japanese
 
 # Three classes of tokens inside the Default branch:

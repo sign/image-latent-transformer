@@ -8,7 +8,7 @@ import torch
 from transformers import PreTrainedTokenizer, StoppingCriteria, add_start_docstrings
 from transformers.generation.stopping_criteria import STOPPING_CRITERIA_INPUTS_DOCSTRING
 
-from image_latent_transformer.pretokenizer.control import CONTROl_TOKENS_PATTERN
+from utf8_tokenizer.control import CONTROl_TOKENS_PATTERN
 from image_latent_transformer.pretokenizer.languages import segment_text
 
 _COMPILED_GRAPHEME_PATTERN = regex.compile(r"\X")
