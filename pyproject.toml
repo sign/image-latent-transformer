@@ -17,6 +17,7 @@ dependencies = [
     "cachetools", # For LRU cache in processor
     "vit-pytorch", # For NaViT model implementation
     "utf8-tokenizer", # For tokenization of bytes
+    "lxml", # for XML parsing in fontconfig TODO remove once https://github.com/sign/image-latent-transformer/issues/24
 ]
 
 [project.optional-dependencies]
@@ -46,6 +47,7 @@ packages = [
     "image_latent_transformer",
     "image_latent_transformer.vision",
     "image_latent_transformer.pretokenizer",
+    "font_configurator", # TODO: extract to separate package https://github.com/sign/image-latent-transformer/issues/24
 ]
 
 [tool.ruff]
@@ -57,7 +59,7 @@ extend-exclude = [
 
 [tool.ruff.lint]
 select = [
-    "E", # pycodestyle errors
+     "E", # pycodestyle errors
     "W", # pycodestyle warnings
     "F", # pyflakes
     "C90", # mccabe complexity
@@ -76,4 +78,8 @@ select = [
 
 [tool.pytest.ini_options]
 addopts = "-v"
-testpaths = ["image_latent_transformer", "tests"]
+testpaths = [
+    "image_latent_transformer",
+    "tests",
+    "font_configurator",
+]
