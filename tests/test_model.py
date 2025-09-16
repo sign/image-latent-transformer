@@ -112,6 +112,33 @@ def test_attention_does_look_back():
             (f"Loss at position {i} should be different due to context: "
              f"{outputs[texts[0]].loss[i]} vs {outputs[texts[1]].loss[i]} (diff: {loss_diff})")
 
+DEVICES = ["cpu"]
+if torch.cuda.is_available():
+    DEVICES.append("cuda")
+if torch.backends.mps.is_available():
+    DEVICES.append("mps")
+
+@pytest.mark.parametrize("device", DEVICES)
+def test_multiple_texts_batch_not_nan(device):
+    """Test that attention does look back - model uses previous context."""
+    model, processor, collator = setup_model()
+    # model.eval()
+
+    # Move model to specified device
+    model = model.to(torch.device(device))
+
+    # Test sequences with shared suffix but different prefix
+    texts = ["1", "1 2 3"]
+
+    dataset = make_dataset(texts)
+    batch = dataset_to_batch(model, processor, collator, dataset)
+
+    # TODO: this fails on mps device, because of the attention mask
+    #   ONLY when no_grad is used https://github.com/huggingface/transformers/issues/40858
+    with torch.no_grad():
+        outputs = model(**batch)
+    assert not torch.isnan(outputs.loss).any(), "Loss contains NaN values"
+
 
 def test_loss_is_independent_of_batch():
     """Test that loss at first position is identical regardless of other items in batch."""
