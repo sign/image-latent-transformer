@@ -210,7 +210,5 @@ __marimo__/
 
 .claude/
 build
-.env
-image_latent_transformer/trained_model
 output/
 wandb/
