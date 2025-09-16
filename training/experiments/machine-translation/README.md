@@ -14,7 +14,7 @@ python run_clm.py \
     --per_device_train_batch_size 8 \
     --per_device_eval_batch_size 8 \
     --block_size 128 \
-    --output_dir ./output-clm \
+    --output_dir ./output/clm \
 ```
 
 Compared to our model setup:
@@ -29,7 +29,7 @@ python train.py \
     --per_device_eval_batch_size 128 \
     --max_sequence_length 128 \
     --max_word_length 20 \
-    --output_dir ./output-ilt \
+    --output_dir ./output/ilt \
     --dtype bfloat16 \
 ```
 

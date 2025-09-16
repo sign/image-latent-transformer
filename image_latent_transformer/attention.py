@@ -1,8 +1,7 @@
 import warnings
 
 import torch
-
-from image_latent_transformer.pretokenizer.control import ControlTokens
+from utf8_tokenizer.control import ControlTokens
 
 
 def add_self_attention_blocks(mask: torch.Tensor, words: list[str]) -> None:

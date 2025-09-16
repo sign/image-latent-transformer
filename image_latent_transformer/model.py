@@ -16,7 +16,6 @@ from transformers import (
 )
 from transformers.modeling_outputs import CausalLMOutput
 from transformers.models.auto.auto_factory import _get_model_class
-
 from utf8_tokenizer.embeddings import patch_embedding_layers
 from utf8_tokenizer.tokenizer import UTF8Tokenizer
 

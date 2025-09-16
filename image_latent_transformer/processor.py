@@ -4,6 +4,7 @@ import torch
 from cachetools import LRUCache
 from datasets import Dataset
 from transformers import AutoImageProcessor, ProcessorMixin
+from utf8_tokenizer.tokenizer import UTF8Tokenizer
 
 from image_latent_transformer.attention import (
     get_attention_mask_for_packed_sequence,
@@ -12,7 +13,6 @@ from image_latent_transformer.attention import (
 from image_latent_transformer.collator import collate_fn, stack_pad_tensors
 from image_latent_transformer.pretokenizer.pretokenizer import text_to_words
 from image_latent_transformer.renderer import render_text
-from utf8_tokenizer.tokenizer import UTF8Tokenizer
 
 
 class TextImageProcessor(ProcessorMixin):

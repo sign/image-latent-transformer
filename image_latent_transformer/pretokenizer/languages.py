@@ -11,7 +11,6 @@ from itertools import chain
 from typing import Any, Callable, TypedDict
 
 import regex
-
 from utf8_tokenizer.control import CONTROl_TOKENS_PATTERN
 
 from image_latent_transformer.pretokenizer.chinese import segment_chinese

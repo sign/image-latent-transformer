@@ -84,7 +84,7 @@ def train():
         "--max_word_length", "16",
         "--auto_find_batch_size", "true",
         "--do_train", "True",
-        # "--do_eval", "True", # TODO: fix eval
+        "--do_eval", "True",
         "--output_dir", MODEL_OUTPUT_DIR,
         "--overwrite_output_dir", "True",
         "--logging_steps", "10",

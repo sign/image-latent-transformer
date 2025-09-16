@@ -9,12 +9,12 @@ from transformers import (
     enable_full_determinism,
     set_seed,
 )
+from utf8_tokenizer.tokenizer import UTF8Tokenizer
 
 from image_latent_transformer.collator import collate_fn
 from image_latent_transformer.config import ImageLatentTransformerConfig
 from image_latent_transformer.model import ImageLatentTransformerForCausalLM, logger
 from image_latent_transformer.processor import TextImageProcessor
-from utf8_tokenizer.tokenizer import UTF8Tokenizer
 from image_latent_transformer.vision.navit import NaViTConfig
 
 

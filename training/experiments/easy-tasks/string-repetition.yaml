@@ -1,0 +1,49 @@
+# Model Setup
+image_encoder_model_name_or_path: WinKawaks/vit-tiny-patch16-224
+bytes_encoder_model_name_or_path: prajjwal1/bert-tiny
+latent_transformer_model_name_or_path: sbintuitions/tiny-lm
+bytes_decoder_model_name_or_path: sbintuitions/tiny-lm
+
+# Dataset setup
+dataset_name: Helsinki-NLP/opus-100
+dataset_config_name: en-he
+dataset_text_template: "<text> {translation[en]} <repeat> {translation[en]}"
+max_sequence_length: 128
+max_word_length: 16
+
+max_eval_samples: 32
+
+# Data Loader
+dataloader_num_workers: 0 # Local
+dataloader_pin_memory: true
+
+# Training setup
+remove_unused_columns: false # Necessary
+per_device_train_batch_size: 2
+per_device_eval_batch_size: 2
+auto_find_batch_size: true
+output_dir: ./output/string-repetition-tiny
+overwrite_output_dir: true
+do_train: true
+max_steps: 1
+learning_rate: 3.0e-4
+optim: adamw_torch_fused
+
+# Evaluation
+do_eval: false
+eval_on_start: true
+eval_strategy: steps
+eval_steps: 10
+metric_for_best_model: accuracy
+
+# Logging
+logging_steps: 10
+logging_strategy: steps
+include_tokens_per_second: true
+include_num_input_tokens_seen: true
+report_to: none
+
+# Dtype
+#bf16: true
+#dtype: bfloat16
+#bf16_full_eval: false

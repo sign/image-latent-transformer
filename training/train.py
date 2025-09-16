@@ -97,10 +97,12 @@ def split_streaming_dataset(
 
 def parse_args_into_dataclasses(args: Optional[dict] = None):
     parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
+    # If we pass only one argument to the script and it's the path to a json or yaml file,
+    # let's parse it to get our arguments.
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
-        # If we pass only one argument to the script and it's the path to a json file,
-        # let's parse it to get our arguments.
         return parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
+    elif len(sys.argv) == 2 and sys.argv[1].endswith(".yaml"):
+        return parser.parse_yaml_file(yaml_file=os.path.abspath(sys.argv[1]))
     else:
         return parser.parse_args_into_dataclasses(args=args)
 
@@ -323,34 +325,48 @@ def limit_dataset_size(dataset, max_samples: Optional[int] = None, streaming: bo
     return dataset
 
 
-def setup_evaluation_functions(training_args: TrainingArguments, cache_dir=None):
+def setup_evaluation_functions(training_args: TrainingArguments, pad_token_id: int, cache_dir=None):
     # Include everything for the metrics calculation
-    training_args.include_for_metrics = ["inputs", "loss"]
+    training_args.include_for_metrics = ["loss"]
+    # Tell trainer the correct name of our labels output column
+    training_args.label_names = ["labels_output"]
+    # HuggingFace fails to concatenate the batches
+    training_args.eval_do_concat_batches = False
+
 
     def preprocess_logits_for_metrics(logits, labels):
-        print("preprocess_logits_for_metrics")
-        print("logits", logits)
-        print("labels", labels)
-
         if isinstance(logits, tuple):
             # Depending on the model and config, logits may contain extra tensors,
             # like past_key_values, but logits always come first
             logits = logits[0]
-        return logits.argmax(dim=-1)
+        return logits.argmax(dim=-1) #  torch.Size([16, 61, 13])
 
     metric = evaluate.load("accuracy", cache_dir=cache_dir)
 
     def compute_metrics(eval_preds):
-        print("compute_metrics", list(vars(eval_preds).keys()))
-        print(vars(eval_preds))
+        all_preds = eval_preds.predictions
+        all_labels = eval_preds.label_ids
 
-        # TODO: this doesn't work at all for our setup
-        preds, labels = eval_preds
-        # preds have the same shape as the labels, after the argmax(-1) has been calculated
-        # by preprocess_logits_for_metrics but we need to shift the labels
-        labels = labels[:, 1:].reshape(-1)
-        preds = preds[:, :-1].reshape(-1)
-        return metric.compute(predictions=preds, references=labels)
+        flat_preds = []
+        flat_labels = []
+
+        for preds, labels in zip(all_preds, all_labels):
+            preds = preds.reshape(-1)
+            labels = labels.reshape(-1)
+
+            # Remove pads
+            mask = labels != pad_token_id
+            preds = preds[mask]
+            labels = labels[mask]
+
+            # Accumulate
+            flat_preds.append(torch.tensor(preds))
+            flat_labels.append(torch.tensor(labels))
+
+        flat_preds = torch.cat(flat_preds)
+        flat_labels = torch.cat(flat_labels)
+
+        return metric.compute(predictions=flat_preds, references=flat_labels)
 
     return (
         compute_metrics if training_args.do_eval and not is_torch_xla_available() else None,
@@ -420,7 +436,10 @@ def train(args: Optional[dict] = None):  # noqa: C901
         eval_dataset = eval_dataset.with_transform(processor)
 
     # Initialize our Trainer
-    compute_metrics, preprocess_logits_for_metrics = setup_evaluation_functions(training_args, cache_dir)
+    compute_metrics, preprocess_logits_for_metrics = setup_evaluation_functions(training_args,
+                                                                                processor.tokenizer.pad_token_id,
+                                                                                cache_dir)
+
     trainer = Trainer(
         model=model,
         args=training_args,

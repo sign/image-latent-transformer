@@ -1,9 +1,9 @@
 import torch
 from tqdm import tqdm
 from transformers import AutoImageProcessor, ViTModel
+from utf8_tokenizer.tokenizer import UTF8Tokenizer
 
 from image_latent_transformer.processor import TextImageProcessor
-from utf8_tokenizer.tokenizer import UTF8Tokenizer
 from image_latent_transformer.vision.batch_image_encoder import encode_images, encode_padded_images
 from image_latent_transformer.vision.masked_vit_patcher import maybe_patch_vit_model
 from image_latent_transformer.vision.navit import NaViTConfig, NaViTModel
