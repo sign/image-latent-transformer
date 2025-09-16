@@ -8,18 +8,18 @@ from typing import TYPE_CHECKING
 import pytest
 from lxml import etree
 
-from image_latent_transformer.font.fontconfig_managers import (
+from font_configurator.fontconfig_managers import (
     BaseFontconfigManager,
     DarwinFontconfigManager,
     FontconfigMode,
     LinuxFontconfigManager,
     SupportedPlatforms,
 )
-from image_latent_transformer.font.fontconfig_templates import (
+from font_configurator.fontconfig_templates import (
     DARWIN_FONTCONFIG_REMOVE_SYSTEM_FONTS_PATTERNS,
     LINUX_FONTCONFIG_REMOVE_SYSTEM_FONTS_PATTERNS,
 )
-from tests.test_font.font.conftest import (
+from font_configurator.test_font.conftest import (
     DARWIN_ONLY_VALID_TEST_CASES,
     INVALID_EXTENSIONS,
     INVALID_FONTCONFIG_TEST_CASES,

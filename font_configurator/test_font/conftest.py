@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import pytest
 from lxml import etree
 
-from image_latent_transformer.font.fontconfig_managers import (
+from font_configurator.fontconfig_managers import (
     BaseFontconfigManager,
     DarwinFontconfigManager,
     FontconfigMode,
@@ -60,14 +60,16 @@ def linux_manager() -> LinuxFontconfigManager:
 @pytest.fixture
 def font_dir() -> pathlib.Path:
     """Path to the test fonts directory."""
-    return pathlib.Path("tests/test_assets/fonts").resolve()
+    current_dir = pathlib.Path(__file__).parent
+    return (current_dir.parent / "test_assets" / "fonts").resolve()
 
 
 @pytest.fixture(scope="session")
 def fontconfig_data_path() -> pathlib.Path:
     """Returns the path to the fontconfig test data directory."""
     # assumes tests are run from the project root.
-    return pathlib.Path("tests/test_assets/fontconfigs").resolve()
+    current_dir = pathlib.Path(__file__).parent
+    return (current_dir.parent / "test_assets" / "fontconfigs").resolve()
 
 
 @pytest.fixture

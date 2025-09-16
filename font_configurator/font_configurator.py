@@ -14,7 +14,7 @@ from typing import ClassVar
 
 import gi
 
-from image_latent_transformer.font.fontconfig_managers import (
+from font_configurator.fontconfig_managers import (
     BaseFontconfigManager,
     DarwinFontconfigManager,
     FontconfigMode,

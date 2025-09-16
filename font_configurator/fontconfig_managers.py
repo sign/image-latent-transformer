@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, ClassVar
 
 from lxml import etree
 
-from image_latent_transformer.font.fontconfig_templates import (
+from font_configurator.fontconfig_templates import (
     DARWIN_FONTCONFIG_REMOVE_SYSTEM_FONTS_PATTERNS,
     DARWIN_FONTCONFIG_TEMPLATE_CONFIG_MINIMAL,
     LINUX_FONTCONFIG_REMOVE_SYSTEM_FONTS_PATTERNS,

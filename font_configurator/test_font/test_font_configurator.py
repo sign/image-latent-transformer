@@ -10,8 +10,8 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from image_latent_transformer.font.font_configurator import FontConfigurator
-from image_latent_transformer.font.fontconfig_managers import (
+from font_configurator.font_configurator import FontConfigurator
+from font_configurator.fontconfig_managers import (
     BaseFontconfigManager,
     DarwinFontconfigManager,
     FontconfigMode,

@@ -10,9 +10,9 @@ import cairo
 import gi
 import pytest
 
-from image_latent_transformer.font.font_configurator import FontConfigurator
-from image_latent_transformer.font.fontconfig_managers import FontconfigMode
-from tests.test_font_intergration.font.conftest import (
+from font_configurator.font_configurator import FontConfigurator
+from font_configurator.fontconfig_managers import FontconfigMode
+from font_configurator.test_font_intergration.conftest import (
     FONT_CONFIGURATOR_ONLY_MINIMAL_TEST_CASES,
     FontConfiguratorOnlyMinimalTestCase,
 )

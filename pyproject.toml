@@ -2,20 +2,22 @@
 name = "image-latent-transformer"
 description = "Decode text (bytes) from an image"
 version = "0.0.1"
-authors = [{ name = "Amit Moryossef", email = "amit@sign.mt" }]
+authors = [
+    { name = "Amit Moryossef", email = "amit@sign.mt" },
+]
 readme = "README.md"
 dependencies = [
     "transformers[torch]",
     "torch",
-    "trl",                                                                       # For huggingface implementation of pack_dataset
+    "trl", # For huggingface implementation of pack_dataset
     "datasets",
-    "Pillow",                                                                    # For AutoImageProcessor
-    "torchvision",                                                               # For use_fast=True
+    "Pillow", # For AutoImageProcessor
+    "torchvision", # For use_fast=True
     "signwriting @ git+https://github.com/sign-language-processing/signwriting", # To render SignWriting images
-    "cachetools",                                                                # For LRU cache in processor
-    "vit-pytorch",                                                               # For NaViT model implementation
-    "utf8-tokenizer",                                                            # For tokenization of bytes
-    "lxml",                                                                      # for XML parsing in fontconfig
+    "cachetools", # For LRU cache in processor
+    "vit-pytorch", # For NaViT model implementation
+    "utf8-tokenizer", # For tokenization of bytes
+    "lxml", # for XML parsing in fontconfig TODO remove once https://github.com/sign/image-latent-transformer/issues/24
 ]
 
 [project.optional-dependencies]
@@ -26,18 +28,18 @@ dev = [
 ]
 
 train = [
-    "modal",        # Used to run training jobs
-    "hf_transfer",  # For HF_HUB_ENABLE_HF_TRANSFER
-    "accelerate",   # For distributed training
-    "datasets",     # For dataset loading and processing
-    "evaluate",     # For evaluation metrics
+    "modal", # Used to run training jobs
+    "hf_transfer", # For HF_HUB_ENABLE_HF_TRANSFER
+    "accelerate", # For distributed training
+    "datasets", # For dataset loading and processing
+    "evaluate", # For evaluation metrics
     "scikit-learn", # For "accuracy" metric in evaluate
-    "wandb",        # For experiment tracking
+    "wandb", # For experiment tracking
 ]
 
 languages = [
     "fugashi[unidic-lite]", # For Japanese word segmentation
-    "jieba",                # For Chinese word segmentation
+    "jieba", # For Chinese word segmentation
 ]
 
 [tool.setuptools]
@@ -45,6 +47,7 @@ packages = [
     "image_latent_transformer",
     "image_latent_transformer.vision",
     "image_latent_transformer.pretokenizer",
+    "font_configurator", # TODO: extract to separate package https://github.com/sign/image-latent-transformer/issues/24
 ]
 
 [tool.ruff]
@@ -56,18 +59,18 @@ extend-exclude = [
 
 [tool.ruff.lint]
 select = [
-    "E",    # pycodestyle errors
-    "W",    # pycodestyle warnings
-    "F",    # pyflakes
-    "C90",  # mccabe complexity
-    "I",    # isort
-    "N",    # pep8-naming
-    "UP",   # pyupgrade
-    "B",    # flake8-bugbear
-    "PT",   # flake8-pytest-style
+     "E", # pycodestyle errors
+    "W", # pycodestyle warnings
+    "F", # pyflakes
+    "C90", # mccabe complexity
+    "I", # isort
+    "N", # pep8-naming
+    "UP", # pyupgrade
+    "B", # flake8-bugbear
+    "PT", # flake8-pytest-style
     "W605", # invalid escape sequence
-    "BLE",  # flake8-blind-except
-    "TRY",  # tryceratops
+    "BLE", # flake8-blind-except
+    "TRY", # tryceratops
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -75,4 +78,8 @@ select = [
 
 [tool.pytest.ini_options]
 addopts = "-v"
-testpaths = ["image_latent_transformer", "tests"]
+testpaths = [
+    "image_latent_transformer",
+    "tests",
+    "font_configurator",
+]

@@ -27,7 +27,9 @@ def font_dir_factory(tmp_path: pathlib.Path) -> Callable[[str], pathlib.Path]:
 
     def _create_font_dir(font_file_name: str) -> pathlib.Path:
         """The actual factory function returned by the fixture."""
-        base_assets_path = pathlib.Path("tests/test_assets/fonts").resolve()
+
+        current_dir = pathlib.Path(__file__).parent
+        base_assets_path = (current_dir.parent / "test_assets" / "fonts").resolve()
         src_font_path = base_assets_path.joinpath(font_file_name)
 
         if not src_font_path.exists():
