@@ -3,7 +3,7 @@ from typing import Union
 import torch
 from cachetools import LRUCache
 from datasets import Dataset
-from transformers import AutoImageProcessor, ProcessorMixin
+from transformers import ImageProcessingMixin, ProcessorMixin
 from utf8_tokenizer.tokenizer import UTF8Tokenizer
 
 from image_latent_transformer.attention import (
@@ -11,6 +11,7 @@ from image_latent_transformer.attention import (
     get_position_ids_for_packed_sequence,
 )
 from image_latent_transformer.collator import collate_fn, stack_pad_tensors
+from image_latent_transformer.noop import NoopImageProcessor
 from image_latent_transformer.pretokenizer.pretokenizer import text_to_words
 from image_latent_transformer.renderer import render_text
 
@@ -19,12 +20,12 @@ class TextImageProcessor(ProcessorMixin):
     name = "text-image-processor"
 
     attributes = ["tokenizer", "image_processor"]
-    image_processor_class = "AutoImageProcessor"
+    image_processor_class = "ImageProcessingMixin"
     tokenizer_class = "UTF8Tokenizer"
 
     def __init__(self,
                  tokenizer: UTF8Tokenizer,
-                 image_processor: AutoImageProcessor,
+                 image_processor: ImageProcessingMixin,
                  max_seq_length: int = 128,
                  max_word_length: int = 32,
                  cache_size: int = 10000):
@@ -43,6 +44,9 @@ class TextImageProcessor(ProcessorMixin):
         self.images_cache = LRUCache(maxsize=self.cache_size)
 
     def render_texts(self, texts: list[str]) -> tuple[torch.Tensor, torch.Tensor]:
+        if isinstance(self.image_processor, NoopImageProcessor):
+            return torch.empty(1,), torch.empty(1,)
+
         images = [self.images_cache.get(text, None) for text in texts]
         missing_texts = [(i, texts[i]) for i, v in enumerate(images) if v is None]
         renders = (render_text(text) for _, text in missing_texts)

@@ -14,6 +14,7 @@ from utf8_tokenizer.tokenizer import UTF8Tokenizer
 from image_latent_transformer.collator import collate_fn
 from image_latent_transformer.config import ImageLatentTransformerConfig
 from image_latent_transformer.model import ImageLatentTransformerForCausalLM, logger
+from image_latent_transformer.noop import NoopConfig, NoopImageProcessor
 from image_latent_transformer.processor import TextImageProcessor
 from image_latent_transformer.vision.navit import NaViTConfig
 
@@ -65,6 +66,9 @@ CUSTOM_PROCESSORS_ALIAS: dict[str, str] = {
 
 
 def get_model_config(model_name):
+    if model_name is None:
+        return NoopConfig()
+
     if model_name in CUSTOM_MODELS:
         return CUSTOM_MODELS[model_name]
     return AutoConfig.from_pretrained(model_name)
@@ -88,14 +92,14 @@ def setup_model(
         image_processor_name = CUSTOM_PROCESSORS_ALIAS.get(image_encoder_name, image_encoder_name)
         image_processor = AutoImageProcessor.from_pretrained(image_processor_name, use_fast=True)
     else:
-        image_processor = None
+        image_processor = NoopImageProcessor()
 
     tokenizer = UTF8Tokenizer()
 
     config = ImageLatentTransformerConfig(
         # All sub-configs are loaded from the respective model names
-        image_encoder=get_model_config(image_encoder_name) if image_encoder_name else None,
-        bytes_encoder=get_model_config(bytes_encoder_name) if bytes_encoder_name else None,
+        image_encoder=get_model_config(image_encoder_name),
+        bytes_encoder=get_model_config(bytes_encoder_name),
         latent_transformer=get_model_config(latent_transformer_name),
         bytes_decoder=get_model_config(bytes_decoder_name),
         # Other configuration parameters

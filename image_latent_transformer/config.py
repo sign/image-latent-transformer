@@ -43,3 +43,6 @@ class ImageLatentTransformerConfig(PretrainedConfig):
             config_cls = CONFIG_MAPPING[model_type] if model_type else PretrainedConfig
             config = config_cls(**config)
             setattr(self, name, config)
+
+        if config is None:
+            setattr(self, name, PretrainedConfig())

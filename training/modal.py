@@ -38,7 +38,7 @@ image = (
     timeout=3600 * 24,
     retries=Retries(max_retries=0)
 )
-def train_remote(args: dict):
+def train_remote(config_path: str):
     import subprocess
     # Your real training script (kept in repo) with args from env if you want
     subprocess.check_call(["nvidia-smi"])
@@ -52,55 +52,12 @@ def train_remote(args: dict):
     print("Python version:")
     subprocess.check_call(["python", "--version"])
 
-    local_train(args)
+    local_train(config_path)
 
 
 @app.local_entrypoint()
-def train():
-    # TODO convert to yaml
-    args = [
-        # Model args
-        "--image_encoder_model_name_or_path", "WinKawaks/vit-tiny-patch16-224",
-        "--bytes_encoder_model_name_or_path", "prajjwal1/bert-tiny",
-        "--latent_transformer_model_name_or_path", "EleutherAI/pythia-70m",
-        "--bytes_decoder_model_name_or_path", "sbintuitions/tiny-lm",
-        # Align representations between pretrained models
-        # "--load_pretrained", "True",
-        # "--warmup_freeze_steps", "500",
-        # Dataset args
-        "--dataset_name", "Helsinki-NLP/opus-100",
-        "--dataset_config_name", "en-he",
-        "--dataset_text_template", "<en>\x0E{translation[en]}\x0F<he> {translation[he]}",
-        "--remove_unused_columns", "False",
-        # Dataloader args
-        "--dataloader_num_workers", "8",
-        "--dataloader_prefetch_factor", "4",
-        "--dataloader_pin_memory", "True",
-        "--dataloader_persistent_workers", "True",
-        # Training args
-        "--per_device_train_batch_size", "176",
-        "--per_device_eval_batch_size", "176",
-        "--max_sequence_length", "128",
-        "--max_word_length", "16",
-        "--auto_find_batch_size", "true",
-        "--do_train", "True",
-        "--do_eval", "True",
-        "--output_dir", MODEL_OUTPUT_DIR,
-        "--overwrite_output_dir", "True",
-        "--logging_steps", "10",
-        "--logging_strategy", "steps",
-        "--max_steps", "30000",
-
-        "--include_tokens_per_second", "True",
-        "--include_num_input_tokens_seen", "True",
-        "--learning_rate", "3e-4",
-        "--dtype", "bfloat16",
-        "--bf16", "True",
-        "--optim", "adamw_torch_fused",
-        "--report_to", "wandb",
-    ]
-
-    train_remote.remote(args)
+def train(config: str):
+    train_remote.remote(config)
 
 
 @app.function(

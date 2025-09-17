@@ -4,7 +4,7 @@ import logging
 import math
 import os
 import sys
-from typing import Optional
+from typing import Optional, Union
 
 import datasets
 import evaluate
@@ -95,10 +95,13 @@ def split_streaming_dataset(
     return IterableDatasetDict({"train": train_stream, "validation": validation_stream})
 
 
-def parse_args_into_dataclasses(args: Optional[dict] = None):
+def parse_args_into_dataclasses(args: Union[Optional[list[str]], str] = None):
     parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
     # If we pass only one argument to the script and it's the path to a json or yaml file,
     # let's parse it to get our arguments.
+    if isinstance(args, str):
+        return parser.parse_yaml_file(yaml_file=os.path.abspath(args))
+
     if len(sys.argv) == 2 and sys.argv[1].endswith(".json"):
         return parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
     elif len(sys.argv) == 2 and sys.argv[1].endswith(".yaml"):
@@ -374,7 +377,7 @@ def setup_evaluation_functions(training_args: TrainingArguments, pad_token_id: i
     )
 
 
-def train(args: Optional[dict] = None):  # noqa: C901
+def train(args: Union[Optional[list[str]], str] = None):  # noqa: C901
     cache_dir = None  # Use the default cache directory / Environment variable
 
     enable_optimizations()

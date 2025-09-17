@@ -20,6 +20,7 @@ from utf8_tokenizer.embeddings import patch_embedding_layers
 from utf8_tokenizer.tokenizer import UTF8Tokenizer
 
 from image_latent_transformer.config import ImageLatentTransformerConfig
+from image_latent_transformer.noop import NoopConfig
 from image_latent_transformer.pretokenizer.pretokenizer import WordStoppingCriteria
 from image_latent_transformer.processor import TextImageProcessor
 from image_latent_transformer.vision.batch_image_encoder import encode_images
@@ -70,16 +71,19 @@ class ImageLatentTransformer(PreTrainedModel):
                  attn_implementation=None):
         super().__init__(config=config)
 
-        assert config.bytes_encoder is not None or config.image_encoder is not None, \
+        is_image_encoder = not isinstance(config.image_encoder, NoopConfig)
+        is_bytes_encoder = not isinstance(config.bytes_encoder, NoopConfig)
+
+        assert is_bytes_encoder or is_image_encoder, \
             "At least one encoder must be provided"
 
-        if config.image_encoder is None or config.bytes_encoder is None:
+        if not is_bytes_encoder or not is_image_encoder:
             warnings.warn("Image encoder and bytes encoder are not provided, setting modality_dropout to 0.0",
                           stacklevel=2)
             config.modality_dropout = 0.0
 
         # Image Encoder
-        if config.image_encoder:
+        if is_image_encoder:
             self.image_encoder = model_from_config(config.image_encoder, AutoModel,
                                                    config.dtype, load_pretrained, attn_implementation)
             self.image_encoder_dim = image_encoder_size(self.image_encoder)
@@ -88,7 +92,7 @@ class ImageLatentTransformer(PreTrainedModel):
             self.image_encoder_dim = 0
 
         # Bytes Encoder
-        if config.bytes_encoder:
+        if is_bytes_encoder:
             self.bytes_encoder = model_from_config(config.bytes_encoder, AutoModelForMaskedLM,
                                                    config.dtype, load_pretrained, attn_implementation)
             self.bytes_encoder.resize_token_embeddings(config.num_tokens, pad_to_multiple_of=8)
@@ -540,9 +544,7 @@ class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin)
         texts = ["".join(generated_words) for generated_words in all_generated_words]
         return texts
 
+
 AutoConfig.register(ImageLatentTransformerConfig.model_type, ImageLatentTransformerConfig)
 AutoModel.register(ImageLatentTransformerConfig, ImageLatentTransformer)
 AutoModelForCausalLM.register(ImageLatentTransformerConfig, ImageLatentTransformerForCausalLM)
-
-ImageLatentTransformer.register_for_auto_class("AutoModel")
-ImageLatentTransformerForCausalLM.register_for_auto_class("AutoModelForCausalLM")

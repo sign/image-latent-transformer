@@ -57,6 +57,7 @@ Training:
 
 ```bash
 modal run --detach -m training.modal::train
+modal run -m training.modal::train --config="training/experiments/easy-tasks/string-repetition.yaml"
 modal run -m training.modal::predict
 ```
 
