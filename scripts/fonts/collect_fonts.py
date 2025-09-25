@@ -178,6 +178,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--output-dir",
         dest="output_dir",
+        default="fonts_collections",
         help="Destination directory for the bundled fonts",
     )
     parser.add_argument(
