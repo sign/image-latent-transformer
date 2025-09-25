@@ -212,3 +212,5 @@ __marimo__/
 build
 output/
 wandb/
+fonts_collections
+demo_renderer

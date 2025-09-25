@@ -3,6 +3,7 @@
 import logging
 import math
 import os
+import pathlib
 import sys
 from typing import Optional, Union
 
@@ -23,8 +24,10 @@ from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import send_example_telemetry
 from trl import pack_dataset
 
+from font_configurator.font_configurator import FontConfigurator
 from image_latent_transformer.model_utils import setup_model
 from training.args_data import DataTrainingArguments
+from training.args_font_configurator import FontConfiguratorArguments
 from training.args_model import ModelArguments
 from training.freeze_callback import FreezeWarmupCallback
 
@@ -56,8 +59,8 @@ def enable_optimizations():
 
 
 def split_streaming_dataset(
-        full_streaming_dataset,
-        validation_percentage: int = 5,
+    full_streaming_dataset,
+    validation_percentage: int = 5,
 ) -> IterableDatasetDict:
     """
     Splits a streaming dataset into
@@ -96,7 +99,7 @@ def split_streaming_dataset(
 
 
 def parse_args_into_dataclasses(args: Union[Optional[list[str]], str] = None):
-    parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
+    parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments, FontConfiguratorArguments))
     # If we pass only one argument to the script and it's the path to a json or yaml file,
     # let's parse it to get our arguments.
     if isinstance(args, str):
@@ -130,11 +133,11 @@ def init_logging(training_args: TrainingArguments):
 
     # Log on each process the small summary:
     logger.warning(
-        f"Process rank: {training_args.local_rank}, " +
-        f"device: {training_args.device}, " +
-        f"n_gpu: {training_args.n_gpu}, " +
-        f"distributed training: {training_args.parallel_mode.value == 'distributed'}, " +
-        f"16-bits training: {training_args.fp16}"
+        f"Process rank: {training_args.local_rank}, "
+        + f"device: {training_args.device}, "
+        + f"n_gpu: {training_args.n_gpu}, "
+        + f"distributed training: {training_args.parallel_mode.value == 'distributed'}, "
+        + f"16-bits training: {training_args.fp16}"
     )
     logger.info(f"Training/evaluation parameters {training_args}")
 
@@ -180,10 +183,12 @@ def detect_last_checkpoint(training_args: TrainingArguments):
     return last_checkpoint
 
 
-def init_datasets(data_args: DataTrainingArguments,  # noqa: C901
-                  trust_remote_code: bool,
-                  do_train: bool = True,
-                  cache_dir: str = None):
+def init_datasets(  # noqa: C901
+    data_args: DataTrainingArguments,
+    trust_remote_code: bool,
+    do_train: bool = True,
+    cache_dir: str = None,
+):
     # Get the datasets: you can either provide your own CSV/JSON/TXT training and evaluation files (see below)
     # or just provide the name of one of the public datasets available on the hub at https://huggingface.co/datasets/
     # (the dataset will be downloaded automatically from the datasets Hub).
@@ -290,8 +295,7 @@ def init_datasets(data_args: DataTrainingArguments,  # noqa: C901
     text_column_name = "text" if "text" in column_names else column_names[0]
 
     def mapping_function(x):
-        text = data_args.dataset_text_template.format(**x) \
-            if data_args.dataset_text_template else x[text_column_name]
+        text = data_args.dataset_text_template.format(**x) if data_args.dataset_text_template else x[text_column_name]
         return {"text": text}
 
     map_args = {}
@@ -302,18 +306,11 @@ def init_datasets(data_args: DataTrainingArguments,  # noqa: C901
         }
 
     text_datasets = raw_datasets.map(
-        mapping_function,
-        remove_columns=column_names,
-        desc="Keep only the text column & apply template",
-        **map_args
+        mapping_function, remove_columns=column_names, desc="Keep only the text column & apply template", **map_args
     )
 
     # Filter out empty texts
-    text_datasets = text_datasets.filter(
-        lambda x: len(x["text"]) > 0,
-        desc="Filter out empty texts",
-        **map_args
-    )
+    text_datasets = text_datasets.filter(lambda x: len(x["text"]) > 0, desc="Filter out empty texts", **map_args)
 
     return text_datasets
 
@@ -336,13 +333,12 @@ def setup_evaluation_functions(training_args: TrainingArguments, pad_token_id: i
     # HuggingFace fails to concatenate the batches
     training_args.eval_do_concat_batches = False
 
-
     def preprocess_logits_for_metrics(logits, labels):
         if isinstance(logits, tuple):
             # Depending on the model and config, logits may contain extra tensors,
             # like past_key_values, but logits always come first
             logits = logits[0]
-        return logits.argmax(dim=-1) #  torch.Size([16, 61, 13])
+        return logits.argmax(dim=-1)  #  torch.Size([16, 61, 13])
 
     metric = evaluate.load("accuracy", cache_dir=cache_dir)
 
@@ -373,8 +369,20 @@ def setup_evaluation_functions(training_args: TrainingArguments, pad_token_id: i
 
     return (
         compute_metrics if training_args.do_eval and not is_torch_xla_available() else None,
-        preprocess_logits_for_metrics if training_args.do_eval and not is_torch_xla_available() else None
+        preprocess_logits_for_metrics if training_args.do_eval and not is_torch_xla_available() else None,
     )
+
+
+def init_font_configurator(font_configurator_args: FontConfiguratorArguments) -> tuple[FontConfigurator, pathlib.Path]:
+    font_configurator = FontConfigurator()
+    path_to_file = font_configurator.setup_font(
+        mode=font_configurator_args.mode,
+        fontconfig_source_path=font_configurator_args.fontconfig_source_path,
+        font_dir=font_configurator_args.font_dir,
+        fontconfig_destination_dir=font_configurator_args.fontconfig_destination_dir,
+        force_reinitialize=font_configurator_args.force_reinitialize,
+    )
+    return font_configurator, path_to_file
 
 
 def train(args: Union[Optional[list[str]], str] = None):  # noqa: C901
@@ -382,7 +390,7 @@ def train(args: Union[Optional[list[str]], str] = None):  # noqa: C901
 
     enable_optimizations()
 
-    model_args, data_args, training_args = parse_args_into_dataclasses(args)
+    model_args, data_args, training_args, font_configurator_args = parse_args_into_dataclasses(args)
 
     # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
     # information sent is the one passed as arguments along with your Python/PyTorch versions.
@@ -392,6 +400,9 @@ def train(args: Union[Optional[list[str]], str] = None):  # noqa: C901
 
     # Detecting last checkpoint.
     last_checkpoint = detect_last_checkpoint(training_args)
+
+    # Initialize font_configurator
+    font_configurator, path_to_file = init_font_configurator(font_configurator_args=font_configurator_args)
 
     # Initialize the model
     model, processor, collator = init_model(model_args, seed=training_args.seed)
@@ -405,26 +416,25 @@ def train(args: Union[Optional[list[str]], str] = None):  # noqa: C901
     processor.save_pretrained(save_directory=training_args.output_dir, push_to_hub=False)
 
     # Load the datasets
-    text_datasets = init_datasets(data_args,
-                                  cache_dir=cache_dir,
-                                  trust_remote_code=model_args.trust_remote_code,
-                                  do_train=training_args.do_train)
+    text_datasets = init_datasets(
+        data_args, cache_dir=cache_dir, trust_remote_code=model_args.trust_remote_code, do_train=training_args.do_train
+    )
 
     train_dataset = None
     if training_args.do_train:
         if "train" not in text_datasets:
             raise ValueError("--do_train requires a train dataset")  # noqa: TRY003
-        train_dataset = limit_dataset_size(text_datasets["train"],
-                                           max_samples=data_args.max_train_samples,
-                                           streaming=data_args.streaming)
+        train_dataset = limit_dataset_size(
+            text_datasets["train"], max_samples=data_args.max_train_samples, streaming=data_args.streaming
+        )
 
     eval_dataset = None
     if training_args.do_eval:
         if "validation" not in text_datasets:
             raise ValueError("--do_eval requires a validation dataset")  # noqa: TRY003
-        eval_dataset = limit_dataset_size(text_datasets["validation"],
-                                          max_samples=data_args.max_eval_samples,
-                                          streaming=data_args.streaming)
+        eval_dataset = limit_dataset_size(
+            text_datasets["validation"], max_samples=data_args.max_eval_samples, streaming=data_args.streaming
+        )
 
     # Sequence packing
     if train_dataset:
@@ -439,9 +449,9 @@ def train(args: Union[Optional[list[str]], str] = None):  # noqa: C901
         eval_dataset = eval_dataset.with_transform(processor)
 
     # Initialize our Trainer
-    compute_metrics, preprocess_logits_for_metrics = setup_evaluation_functions(training_args,
-                                                                                processor.tokenizer.pad_token_id,
-                                                                                cache_dir)
+    compute_metrics, preprocess_logits_for_metrics = setup_evaluation_functions(
+        training_args, processor.tokenizer.pad_token_id, cache_dir
+    )
 
     trainer = Trainer(
         model=model,

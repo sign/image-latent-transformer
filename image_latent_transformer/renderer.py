@@ -1,3 +1,4 @@
+import pathlib
 import re
 from functools import cache
 
@@ -7,6 +8,9 @@ import numpy as np
 from PIL import Image
 from signwriting.formats.swu import is_swu
 from signwriting.visualizer.visualize import signwriting_to_image
+
+from font_configurator.font_configurator import FontConfigurator
+from font_configurator.fontconfig_managers import FontconfigMode
 
 gi.require_version("Pango", "1.0")
 gi.require_version("PangoCairo", "1.0")
@@ -29,7 +33,7 @@ def replace_control_characters(text: str) -> str:
             return chr(0x2421)
         return char
 
-    return re.sub(r'[\x00-\x1F\x7F]', control_char_to_symbol, text)
+    return re.sub(r"[\x00-\x1F\x7F]", control_char_to_symbol, text)
 
 
 @cache
@@ -39,10 +43,12 @@ def cached_font_description(font_name: str, dpi: int, font_size: int) -> Pango.F
     return Pango.font_description_from_string(f"{font_name} {scaled_font_size}px")
 
 
-def render_text(text: str,
-                block_size: int = 16,
-                dpi: int = 120,
-                font_size: int = 12) -> np.ndarray:
+def render_text(
+    text: str,
+    block_size: int = 16,
+    dpi: int = 120,
+    font_size: int = 12,
+) -> np.ndarray:
     """
     Renders multiple lines of text in black on white background using PangoCairo.
 
@@ -109,7 +115,7 @@ def render_text(text: str,
 def render_text_image(text: str, block_size: int = 16, dpi: int = 120, font_size: int = 12) -> Image.Image:
     img_array = render_text(text, block_size=block_size, dpi=dpi, font_size=font_size)
     img = Image.fromarray(img_array)
-    img.info['dpi'] = (dpi, dpi)
+    img.info["dpi"] = (dpi, dpi)
     return img
 
 
@@ -124,13 +130,24 @@ def render_signwriting(text: str, block_size: int = 16) -> np.ndarray:
 
 
 def main():
+    result_dir = pathlib.Path("demo_renderer")
+    result_dir.mkdir(parents=True, exist_ok=True)
+
+    font_configurator = FontConfigurator()
+    font_configurator.setup_font(
+        mode=FontconfigMode.TEMPLATE_MINIMAL,
+        font_dir="fonts_collections/Noto_Sans/core_and_extra",  # see scripts/fonts/README.md
+        fontconfig_destination_dir=result_dir,
+        force_reinitialize=True,
+    )
     # Example: render mixed text with emojis and newlines
     text = "hello🤗\r\n\x02 "
     image = render_text_image(text, block_size=16, dpi=120, font_size=12)
 
     # Save the example
-    image.save("hello_example.png")
-    print(f"Rendered {text} and saved as 'hello_example.png'")
+    image_path = result_dir.joinpath("hello_example.png")
+    image.save(str(image_path))
+    print(f"Rendered {text} and saved as '{image_path}'")
     print(f"Image size: {image.size}")
 
     # Example: render SignWriting
@@ -138,8 +155,18 @@ def main():
     image = render_text_image(text, block_size=32)
 
     # Save the example
-    image.save("swu_example.png")
-    print(f"Rendered {text} and saved as 'swu_example.png'")
+    image_path = result_dir.joinpath("swu_example.png")
+    image.save(str(image_path))
+    print(f"Rendered {text} and saved as '{image_path}'")
+    print(f"Image size: {image.size}")
+
+    # Example: render Noto Sans with emoji
+    text = "100% Noto Sans 👹"  # see https://fonts.google.com/noto/specimen/Noto+Color+Emoji/glyphs
+    image = render_text_image(text, block_size=16, dpi=120, font_size=12)
+
+    image_path = result_dir.joinpath("noto_sans_100.png")
+    image.save(str(image_path))
+    print(f"Rendered {text} and saved as '{image_path}'")
     print(f"Image size: {image.size}")
 
 
