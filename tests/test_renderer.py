@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 import torch
 
-from image_latent_transformer.renderer import render_text_image
+from welt.renderer import render_text_image
 
 
 class TestRenderer(unittest.TestCase):

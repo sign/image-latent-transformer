@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from transformers import GPT2TokenizerFast
 
-from image_latent_transformer.pretokenizer.pretokenizer import text_to_words
+from welt.pretokenizer.pretokenizer import text_to_words
 
 tokenizer = GPT2TokenizerFast.from_pretrained('Xenova/gpt-4')
 

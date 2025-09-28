@@ -19,12 +19,12 @@ from transformers.models.auto.auto_factory import _get_model_class
 from utf8_tokenizer.embeddings import patch_embedding_layers
 from utf8_tokenizer.tokenizer import UTF8Tokenizer
 
-from image_latent_transformer.config import ImageLatentTransformerConfig
-from image_latent_transformer.noop import NoopConfig
-from image_latent_transformer.pretokenizer.pretokenizer import WordStoppingCriteria
-from image_latent_transformer.processor import TextImageProcessor
-from image_latent_transformer.vision.batch_image_encoder import encode_images
-from image_latent_transformer.vision.vision_utils import image_encoder_size
+from welt.config import WordLatentTransformerConfig
+from welt.noop import NoopConfig
+from welt.pretokenizer.pretokenizer import WordStoppingCriteria
+from welt.processor import TextImageProcessor
+from welt.vision.batch_image_encoder import encode_images
+from welt.vision.vision_utils import image_encoder_size
 
 logger = logging.getLogger(__name__)
 
@@ -61,12 +61,12 @@ def set_module_trainable(module, trainable: bool = True):
         p.requires_grad = trainable
 
 
-class ImageLatentTransformer(PreTrainedModel):
-    config_class = ImageLatentTransformerConfig
+class WordLatentTransformer(PreTrainedModel):
+    config_class = WordLatentTransformerConfig
 
     _supports_flash_attn = True
 
-    def __init__(self, config: ImageLatentTransformerConfig,
+    def __init__(self, config: WordLatentTransformerConfig,
                  load_pretrained: bool = False,
                  attn_implementation=None):
         super().__init__(config=config)
@@ -351,7 +351,7 @@ class ImageLatentTransformer(PreTrainedModel):
         set_module_trainable(self, True)
 
 
-class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin):
+class WordLatentTransformerForCausalLM(WordLatentTransformer, GenerationMixin):
 
     def _generate_latents(self, latent_past_key_values, encoded_input: torch.Tensor,
                           attention_mask: torch.Tensor,
@@ -545,6 +545,6 @@ class ImageLatentTransformerForCausalLM(ImageLatentTransformer, GenerationMixin)
         return texts
 
 
-AutoConfig.register(ImageLatentTransformerConfig.model_type, ImageLatentTransformerConfig)
-AutoModel.register(ImageLatentTransformerConfig, ImageLatentTransformer)
-AutoModelForCausalLM.register(ImageLatentTransformerConfig, ImageLatentTransformerForCausalLM)
+AutoConfig.register(WordLatentTransformerConfig.model_type, WordLatentTransformerConfig)
+AutoModel.register(WordLatentTransformerConfig, WordLatentTransformer)
+AutoModelForCausalLM.register(WordLatentTransformerConfig, WordLatentTransformerForCausalLM)

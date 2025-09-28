@@ -9,7 +9,7 @@ from transformers import PreTrainedTokenizer, StoppingCriteria, add_start_docstr
 from transformers.generation.stopping_criteria import STOPPING_CRITERIA_INPUTS_DOCSTRING
 from utf8_tokenizer.control import CONTROl_TOKENS_PATTERN
 
-from image_latent_transformer.pretokenizer.languages import segment_text
+from welt.pretokenizer.languages import segment_text
 
 _COMPILED_GRAPHEME_PATTERN = regex.compile(r"\X")
 _COMPLETE_WORD_PATTERNS = [

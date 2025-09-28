@@ -1,6 +1,6 @@
 import pytest
 
-from image_latent_transformer.pretokenizer.chinese import has_chinese, segment_chinese
+from welt.pretokenizer.chinese import has_chinese, segment_chinese
 
 
 def test_has_chinese_simple():

@@ -6,7 +6,7 @@ from modal import Retries
 from training.sample import sample
 from training.train import train as local_train
 
-app = modal.App("image-latent-transformer")
+app = modal.App("WeLT")
 
 MODEL_MNT_DIR = "/output"
 MODEL_OUTPUT_DIR = f"{MODEL_MNT_DIR}/en-he-28m-d"
@@ -16,9 +16,9 @@ image = (
     modal.Image.from_dockerfile("Dockerfile")
     .env({
         "HF_HUB_ENABLE_HF_TRANSFER": "1",  # turn on faster downloads from HF
-        "WANDB_PROJECT": "image-latent-transformer",
+        "WANDB_PROJECT": "WeLT",
     })
-    .add_local_dir(library_path / "image_latent_transformer", "/app/image_latent_transformer")
+    .add_local_dir(library_path / "welt", "/app/welt")
     .add_local_dir(library_path / "training", "/app/training")
 )
 

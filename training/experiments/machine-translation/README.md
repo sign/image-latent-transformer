@@ -29,7 +29,7 @@ python train.py \
     --per_device_eval_batch_size 128 \
     --max_sequence_length 128 \
     --max_word_length 20 \
-    --output_dir ./output/ilt \
+    --output_dir ./output/welt \
     --dtype bfloat16 \
 ```
 

@@ -6,12 +6,12 @@ from datasets import Dataset
 from safetensors.torch import load_model, save_model
 from transformers.modeling_outputs import CausalLMOutput
 
-from image_latent_transformer.model import ImageLatentTransformer
-from image_latent_transformer.model_utils import setup_model
+from welt.model import WordLatentTransformer
+from welt.model_utils import setup_model
 
 
 def setup_tiny_model():
-    """Set up a tiny version of the ImageLatentTransformer model for testing, the tinyer the better."""
+    """Set up a tiny version of the WordLatentTransformer model for testing, the tinyer the better."""
     return setup_model(
         image_encoder_name="WinKawaks/vit-tiny-patch16-224",
         bytes_encoder_name="prajjwal1/bert-tiny",
@@ -198,7 +198,7 @@ def test_model_from_pretrained_works():
         original_num_parameters = num_model_params(model)
         model.save_pretrained(save_directory=temp_dir, push_to_hub=False)
 
-        new_model = ImageLatentTransformer.from_pretrained(temp_dir)
+        new_model = WordLatentTransformer.from_pretrained(temp_dir)
         loaded_num_parameters = num_model_params(new_model)
 
         assert original_num_parameters == loaded_num_parameters, \

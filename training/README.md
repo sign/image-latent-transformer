@@ -1,7 +1,7 @@
 # Training
 
 > [!CAUTION]
-> Read the [vision README][../image_latent_transformer/vision/README.md] to understand how to select
+> Read the [vision README](../welt/vision/README.md) to understand how to select
 > an image encoder model for fast training.
 
 Setup with:
@@ -43,7 +43,7 @@ python -m training.train \
 ```
 
 Use `warmup_freeze_steps=N` to freeze the pretrained modules for the first N steps
-([#7](https://github.com/sign/image-latent-transformer/issues/7)).
+([#7](https://github.com/sign/WeLT/issues/7)).
 
 ## Using Modal.com
 

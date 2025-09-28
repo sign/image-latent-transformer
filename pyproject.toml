@@ -1,6 +1,6 @@
 [project]
-name = "image-latent-transformer"
-description = "Decode text (bytes) from an image"
+name = "WeLT"
+description = "WeLT: Word embedding Latent Transformer - a language model designed to operate on \"words\"."
 version = "0.0.1"
 authors = [
     { name = "Amit Moryossef", email = "amit@sign.mt" },
@@ -17,7 +17,7 @@ dependencies = [
     "cachetools", # For LRU cache in processor
     "vit-pytorch", # For NaViT model implementation
     "utf8-tokenizer", # For tokenization of bytes
-    "lxml", # for XML parsing in fontconfig TODO remove once https://github.com/sign/image-latent-transformer/issues/24
+    "lxml", # for XML parsing in fontconfig TODO remove once https://github.com/sign/WeLT/issues/24
 ]
 
 [project.optional-dependencies]
@@ -44,17 +44,17 @@ languages = [
 
 [tool.setuptools]
 packages = [
-    "image_latent_transformer",
-    "image_latent_transformer.vision",
-    "image_latent_transformer.pretokenizer",
-    "font_configurator", # TODO: extract to separate package https://github.com/sign/image-latent-transformer/issues/24
+    "welt",
+    "welt.vision",
+    "welt.pretokenizer",
+    "font_configurator", # TODO: extract to separate package https://github.com/sign/WeLT/issues/24
 ]
 
 [tool.ruff]
 line-length = 120
 extend-exclude = [
     "training/experiments/*",
-    "image_latent_transformer/vision/masked_vit_patcher.py", # Hacky patching file
+    "welt/vision/masked_vit_patcher.py", # Hacky patching file
 ]
 
 [tool.ruff.lint]
@@ -79,7 +79,7 @@ select = [
 [tool.pytest.ini_options]
 addopts = "-v"
 testpaths = [
-    "image_latent_transformer",
+    "welt",
     "tests",
     "font_configurator",
 ]

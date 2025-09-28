@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from image_latent_transformer.collator import stack_pad_tensors_fast, stack_pad_tensors_slow
+from welt.collator import stack_pad_tensors_fast, stack_pad_tensors_slow
 
 
 def test_stack_pad_tensors_consistency():

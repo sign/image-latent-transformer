@@ -1,6 +1,6 @@
 import pytest
 
-from image_latent_transformer.pretokenizer.pretokenizer import (
+from welt.pretokenizer.pretokenizer import (
     is_word_complete,
     text_to_words,
     utf8_chunks_grapheme_safe,

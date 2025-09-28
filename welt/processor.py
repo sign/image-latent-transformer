@@ -6,14 +6,14 @@ from datasets import Dataset
 from transformers import ImageProcessingMixin, ProcessorMixin
 from utf8_tokenizer.tokenizer import UTF8Tokenizer
 
-from image_latent_transformer.attention import (
+from welt.attention import (
     get_attention_mask_for_packed_sequence,
     get_position_ids_for_packed_sequence,
 )
-from image_latent_transformer.collator import collate_fn, stack_pad_tensors
-from image_latent_transformer.noop import NoopImageProcessor
-from image_latent_transformer.pretokenizer.pretokenizer import text_to_words
-from image_latent_transformer.renderer import render_text
+from welt.collator import collate_fn, stack_pad_tensors
+from welt.noop import NoopImageProcessor
+from welt.pretokenizer.pretokenizer import text_to_words
+from welt.renderer import render_text
 
 
 class TextImageProcessor(ProcessorMixin):
@@ -68,7 +68,7 @@ class TextImageProcessor(ProcessorMixin):
 
         # TODO: Ensure all texts end with a space. this is a model quirk and needs to be handled generally
         #  if the text does not end with a space, the model should continue generating the last word directly
-        #  https://github.com/sign/image-latent-transformer/issues/2
+        #  https://github.com/sign/WeLT/issues/2
         text += " "
 
         max_bytes = self.max_word_length - 2  # Reserve space for BOS and EOS tokens
@@ -105,7 +105,7 @@ class TextImageProcessor(ProcessorMixin):
                     # For efficiency, we don't just use the next word as label, but a longer token string
                     # max_word_length characters, not bytes, will be trimmed by the tokenizer later
                     label = text[label_idx:label_idx + self.max_word_length]
-                    # TODO: remove once https://github.com/sign/image-latent-transformer/issues/2 is solved
+                    # TODO: remove once https://github.com/sign/WeLT/issues/2 is solved
                     label = label.rstrip()  # Remove trailing spaces to avoid generating them
                     labels.append(label)
             else:
@@ -113,7 +113,7 @@ class TextImageProcessor(ProcessorMixin):
                 raw_labels = words[offset + 1:offset + length] + [""]
                 # Truncate labels to max_word_length (characters, not bytes)
                 labels += [label[:self.max_word_length] for label in raw_labels]
-                # TODO: remove once https://github.com/sign/image-latent-transformer/issues/2 is solved
+                # TODO: remove once https://github.com/sign/WeLT/issues/2 is solved
                 labels[-2] = labels[-2].rstrip()  # Remove last trailing space to avoid generating it
 
             offset += length

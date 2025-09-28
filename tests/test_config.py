@@ -3,8 +3,8 @@ import tempfile
 
 import pytest
 
-from image_latent_transformer.config import ImageLatentTransformerConfig
 from tests.test_model import setup_tiny_model
+from welt.config import WordLatentTransformerConfig
 
 
 def test_config_save_and_load_equal():
@@ -13,7 +13,7 @@ def test_config_save_and_load_equal():
     with tempfile.TemporaryDirectory() as temp_dir:
         model.config.save_pretrained(save_directory=temp_dir, push_to_hub=False)
 
-        new_config = ImageLatentTransformerConfig.from_pretrained(temp_dir)
+        new_config = WordLatentTransformerConfig.from_pretrained(temp_dir)
 
         old_config_text = model.config.to_json_string()
         new_config_text = new_config.to_json_string()

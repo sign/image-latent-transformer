@@ -23,10 +23,10 @@ from transformers.trainer_utils import get_last_checkpoint
 from transformers.utils import send_example_telemetry
 from trl import pack_dataset
 
-from image_latent_transformer.model_utils import setup_model
 from training.args_data import DataTrainingArguments
 from training.args_model import ModelArguments
 from training.freeze_callback import FreezeWarmupCallback
+from welt.model_utils import setup_model
 
 logger = logging.getLogger(__name__)
 

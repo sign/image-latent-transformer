@@ -5,9 +5,9 @@ import torch
 from transformers import ViTForImageClassification, ViTModel
 from transformers.image_transforms import group_images_by_shape, reorder_images
 
-from image_latent_transformer.collator import stack_pad_tensors
-from image_latent_transformer.vision.navit import NaViTModel
-from image_latent_transformer.vision.vision_utils import encode_images as utils_encode_images
+from welt.collator import stack_pad_tensors
+from welt.vision.navit import NaViTModel
+from welt.vision.vision_utils import encode_images as utils_encode_images
 
 # Define a type alias for image encoders, for type inference and clarity
 # However, every image encoder should be supported

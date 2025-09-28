@@ -4,7 +4,7 @@ from transformers import AutoImageProcessor
 from trl import pack_dataset
 from utf8_tokenizer.tokenizer import UTF8Tokenizer
 
-from image_latent_transformer.processor import TextImageProcessor
+from welt.processor import TextImageProcessor
 
 dataset = load_dataset("Helsinki-NLP/opus-100", "en-he", split="train")
 

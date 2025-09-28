@@ -3,8 +3,8 @@ import tempfile
 import pytest
 import torch
 
-from image_latent_transformer.vision.navit import NaViTConfig, NaViTModel
 from tests.test_model import num_model_params
+from welt.vision.navit import NaViTConfig, NaViTModel
 
 
 @pytest.fixture(scope="module")

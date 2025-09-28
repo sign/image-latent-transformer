@@ -11,12 +11,12 @@ from transformers import (
 )
 from utf8_tokenizer.tokenizer import UTF8Tokenizer
 
-from image_latent_transformer.collator import collate_fn
-from image_latent_transformer.config import ImageLatentTransformerConfig
-from image_latent_transformer.model import ImageLatentTransformerForCausalLM, logger
-from image_latent_transformer.noop import NoopConfig, NoopImageProcessor
-from image_latent_transformer.processor import TextImageProcessor
-from image_latent_transformer.vision.navit import NaViTConfig
+from welt.collator import collate_fn
+from welt.config import WordLatentTransformerConfig
+from welt.model import WordLatentTransformerForCausalLM, logger
+from welt.noop import NoopConfig, NoopImageProcessor
+from welt.processor import TextImageProcessor
+from welt.vision.navit import NaViTConfig
 
 
 def print_model_summary(name: str, model):
@@ -96,7 +96,7 @@ def setup_model(
 
     tokenizer = UTF8Tokenizer()
 
-    config = ImageLatentTransformerConfig(
+    config = WordLatentTransformerConfig(
         # All sub-configs are loaded from the respective model names
         image_encoder=get_model_config(image_encoder_name),
         bytes_encoder=get_model_config(bytes_encoder_name),
@@ -115,7 +115,7 @@ def setup_model(
     )
 
     # Combine the models
-    model = ImageLatentTransformerForCausalLM(config,
+    model = WordLatentTransformerForCausalLM(config,
                                               load_pretrained=load_pretrained,
                                               attn_implementation=get_attn_implementation())
     print_model_summary("Image Encoder", model.image_encoder)

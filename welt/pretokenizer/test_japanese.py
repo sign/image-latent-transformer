@@ -1,6 +1,6 @@
 import pytest
 
-from image_latent_transformer.pretokenizer.japanese import has_japanese, segment_japanese
+from welt.pretokenizer.japanese import has_japanese, segment_japanese
 
 
 def test_has_japanese_hiragana():

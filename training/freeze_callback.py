@@ -1,6 +1,6 @@
 from transformers import TrainerCallback, TrainerControl, TrainerState, TrainingArguments
 
-from image_latent_transformer.model import ImageLatentTransformer
+from welt.model import WordLatentTransformer
 
 
 class FreezeWarmupCallback(TrainerCallback):
@@ -11,7 +11,7 @@ class FreezeWarmupCallback(TrainerCallback):
     Safe with DDP/Deepspeed since toggling requires_grad is fine mid-training.
     """
 
-    def __init__(self, model: ImageLatentTransformer, steps: int = 0):
+    def __init__(self, model: WordLatentTransformer, steps: int = 0):
         self.model = model
 
         self.steps = steps

@@ -3,11 +3,11 @@ import torch
 from torch import nn
 from transformers import AutoModel, AutoModelForImageClassification
 
-from image_latent_transformer.vision.masked_vit_patcher import (
+from welt.vision.masked_vit_patcher import (
     is_vit_model,
     maybe_patch_vit_model,
 )
-from image_latent_transformer.vision.vision_utils import encode_images
+from welt.vision.vision_utils import encode_images
 
 
 class TestIsVitModel:

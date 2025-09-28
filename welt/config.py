@@ -3,8 +3,8 @@ from typing import Optional, Union
 from transformers import CONFIG_MAPPING, AutoConfig, PretrainedConfig
 
 
-class ImageLatentTransformerConfig(PretrainedConfig):
-    model_type = "image_latent_transformer"
+class WordLatentTransformerConfig(PretrainedConfig):
+    model_type = "welt"
 
     sub_configs = {
         "image_encoder": AutoConfig,

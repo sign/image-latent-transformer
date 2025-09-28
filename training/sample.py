@@ -4,15 +4,15 @@ import torch
 from transformers import GenerationConfig
 from transformers.trainer_utils import get_last_checkpoint
 
-from image_latent_transformer.model import ImageLatentTransformerForCausalLM
-from image_latent_transformer.processor import TextImageProcessor
+from welt.model import WordLatentTransformerForCausalLM
+from welt.processor import TextImageProcessor
 
 
 @torch.no_grad()
 @torch.autocast(device_type="cuda", dtype=torch.bfloat16)
 def sample(model_path: Path):
     last_checkpoint = get_last_checkpoint(model_path)
-    model = ImageLatentTransformerForCausalLM.from_pretrained(last_checkpoint, attn_implementation="flash_attention_2")
+    model = WordLatentTransformerForCausalLM.from_pretrained(last_checkpoint, attn_implementation="flash_attention_2")
     processor = TextImageProcessor.from_pretrained(model_path)
 
     model.eval()
