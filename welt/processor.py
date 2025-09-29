@@ -5,6 +5,7 @@ from cachetools import LRUCache
 from datasets import Dataset
 from transformers import ImageProcessingMixin, ProcessorMixin
 from utf8_tokenizer.tokenizer import UTF8Tokenizer
+from words_segmentation.pretokenizer import text_to_words
 
 from welt.attention import (
     get_attention_mask_for_packed_sequence,
@@ -12,7 +13,6 @@ from welt.attention import (
 )
 from welt.collator import collate_fn, stack_pad_tensors
 from welt.noop import NoopImageProcessor
-from welt.pretokenizer.pretokenizer import text_to_words
 from welt.renderer import render_text
 
 

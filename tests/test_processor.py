@@ -293,7 +293,6 @@ def test_processor_works_on_packed_sequence(processor):
 
 def test_processor_save_and_load_works_without_image_processor():
     processor = TextImageProcessor(tokenizer=UTF8Tokenizer(), image_processor=NoopImageProcessor())
-    processor.save_pretrained(save_directory="example", push_to_hub=False)
 
     with tempfile.TemporaryDirectory() as temp_dir:
         processor.save_pretrained(save_directory=temp_dir, push_to_hub=False)

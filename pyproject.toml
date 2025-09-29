@@ -16,6 +16,7 @@ dependencies = [
     "signwriting @ git+https://github.com/sign-language-processing/signwriting", # To render SignWriting images
     "cachetools", # For LRU cache in processor
     "vit-pytorch", # For NaViT model implementation
+    "words-segmentation", # For pre-tokenization into words
     "utf8-tokenizer", # For tokenization of bytes
     "lxml", # for XML parsing in fontconfig TODO remove once https://github.com/sign/WeLT/issues/24
 ]
@@ -37,16 +38,10 @@ train = [
     "wandb", # For experiment tracking
 ]
 
-languages = [
-    "fugashi[unidic-lite]", # For Japanese word segmentation
-    "jieba", # For Chinese word segmentation
-]
-
 [tool.setuptools]
 packages = [
     "welt",
     "welt.vision",
-    "welt.pretokenizer",
     "font_configurator", # TODO: extract to separate package https://github.com/sign/WeLT/issues/24
 ]
 
@@ -59,7 +54,7 @@ extend-exclude = [
 
 [tool.ruff.lint]
 select = [
-     "E", # pycodestyle errors
+    "E", # pycodestyle errors
     "W", # pycodestyle warnings
     "F", # pyflakes
     "C90", # mccabe complexity

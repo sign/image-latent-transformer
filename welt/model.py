@@ -18,10 +18,10 @@ from transformers.modeling_outputs import CausalLMOutput
 from transformers.models.auto.auto_factory import _get_model_class
 from utf8_tokenizer.embeddings import patch_embedding_layers
 from utf8_tokenizer.tokenizer import UTF8Tokenizer
+from words_segmentation.pretokenizer import WordStoppingCriteria
 
 from welt.config import WordLatentTransformerConfig
 from welt.noop import NoopConfig
-from welt.pretokenizer.pretokenizer import WordStoppingCriteria
 from welt.processor import TextImageProcessor
 from welt.vision.batch_image_encoder import encode_images
 from welt.vision.vision_utils import image_encoder_size

@@ -22,13 +22,12 @@ RUN conda install -y python=3.12 && conda clean -afy
 RUN conda install -y pycairo pygobject manimpango -c conda-forge && conda clean -afy
 
 # Install package dependencies
-RUN mkdir -p /app/welt/pretokenizer && \
-    mkdir -p /app/welt/vision && \
+RUN mkdir -p /app/welt/vision && \
     touch /app/README.md && \
     mkdir -p /app/font_configurator
 WORKDIR /app
 COPY pyproject.toml /app/pyproject.toml
-RUN pip install ".[train,languages]"
+RUN pip install ".[train]"
 
 # Install fused kernel packages
 RUN pip install ninja triton flash-attn --no-build-isolation
