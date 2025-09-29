@@ -7,6 +7,7 @@ from datasets import Dataset
 from trl.data_utils import pack_dataset
 from utf8_tokenizer.control import ControlTokens
 from utf8_tokenizer.tokenizer import UTF8Tokenizer
+from words_segmentation.tokenizer import WordsSegmentationTokenizer
 
 from tests.test_model import setup_tiny_model
 from welt.noop import NoopImageProcessor
@@ -196,6 +197,7 @@ def test_get_words_and_labels_packed_vs_unpacked_respect_max_word_length(process
     words = processor.pretokenize(text)
 
     new_processor = TextImageProcessor(
+        pretokenizer=WordsSegmentationTokenizer(),
         tokenizer=processor.tokenizer,
         image_processor=processor.image_processor,
         max_word_length=3
@@ -292,7 +294,10 @@ def test_processor_works_on_packed_sequence(processor):
 
 
 def test_processor_save_and_load_works_without_image_processor():
-    processor = TextImageProcessor(tokenizer=UTF8Tokenizer(), image_processor=NoopImageProcessor())
+    processor = TextImageProcessor(
+        pretokenizer=WordsSegmentationTokenizer(),
+        tokenizer=UTF8Tokenizer(),
+        image_processor=NoopImageProcessor())
 
     with tempfile.TemporaryDirectory() as temp_dir:
         processor.save_pretrained(save_directory=temp_dir, push_to_hub=False)

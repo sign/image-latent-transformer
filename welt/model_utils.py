@@ -10,6 +10,7 @@ from transformers import (
     set_seed,
 )
 from utf8_tokenizer.tokenizer import UTF8Tokenizer
+from words_segmentation.tokenizer import WordsSegmentationTokenizer
 
 from welt.collator import collate_fn
 from welt.config import WordLatentTransformerConfig
@@ -84,6 +85,7 @@ def setup_model(
         dtype=torch.float32,
         seed=42,
         load_pretrained=True,
+        max_word_length=None,
 ):
     set_seed(seed, deterministic=True)
     enable_full_determinism(seed=seed, warn_only=True)
@@ -116,8 +118,8 @@ def setup_model(
 
     # Combine the models
     model = WordLatentTransformerForCausalLM(config,
-                                              load_pretrained=load_pretrained,
-                                              attn_implementation=get_attn_implementation())
+                                             load_pretrained=load_pretrained,
+                                             attn_implementation=get_attn_implementation())
     print_model_summary("Image Encoder", model.image_encoder)
     print_model_summary("Bytes Encoder", model.bytes_encoder)
     print_model_summary("Latent Transformer", model.latent_transformer)
@@ -125,8 +127,14 @@ def setup_model(
     print_model_summary("Final Model", model)
 
     max_seq_length = getattr(model.latent_transformer.config, "max_position_embeddings", 1024)
-    max_word_length = getattr(model.bytes_decoder.config, "max_position_embeddings", 128)
+    if max_word_length is None:
+        max_word_length = getattr(model.bytes_decoder.config, "max_position_embeddings", 128)
+
+    max_bytes = max_word_length - 2  # Reserve space for BOS and EOS tokens
+    pretokenizer = WordsSegmentationTokenizer(max_bytes=max_bytes)
+
     processor = TextImageProcessor(
+        pretokenizer=pretokenizer,
         tokenizer=tokenizer,
         image_processor=image_processor,
         max_seq_length=max_seq_length,

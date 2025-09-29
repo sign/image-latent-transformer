@@ -3,9 +3,9 @@ from typing import Union
 import torch
 from cachetools import LRUCache
 from datasets import Dataset
-from transformers import ImageProcessingMixin, ProcessorMixin
+from transformers import ImageProcessingMixin, PreTrainedTokenizer, ProcessorMixin
 from utf8_tokenizer.tokenizer import UTF8Tokenizer
-from words_segmentation.pretokenizer import text_to_words
+from words_segmentation.tokenizer import WordsSegmentationTokenizer  # noqa: F401 - for registering AutoTokenizer
 
 from welt.attention import (
     get_attention_mask_for_packed_sequence,
@@ -19,22 +19,26 @@ from welt.renderer import render_text
 class TextImageProcessor(ProcessorMixin):
     name = "text-image-processor"
 
-    attributes = ["tokenizer", "image_processor"]
-    image_processor_class = "AutoImageProcessor"
+    attributes = ["pretokenizer", "tokenizer", "image_processor"]
+    pretokenizer_class = "AutoTokenizer"
     tokenizer_class = "AutoTokenizer"
+    image_processor_class = "AutoImageProcessor"
 
     def __init__(self,
+                 pretokenizer: PreTrainedTokenizer,
                  tokenizer: UTF8Tokenizer,
                  image_processor: ImageProcessingMixin,
                  max_seq_length: int = 128,
                  max_word_length: int = 32,
                  cache_size: int = 10000):
-        super().__init__(tokenizer=tokenizer,
+        super().__init__(pretokenizer=pretokenizer,
+                         tokenizer=tokenizer,
                          image_processor=image_processor)
 
         assert tokenizer.bos_token_id is not None, "Tokenizer must have a BOS token"
         assert tokenizer.eos_token_id is not None, "Tokenizer must have an EOS token"
 
+        self.pretokenizer = pretokenizer
         self.tokenizer = tokenizer
         self.image_processor = image_processor
         self.max_word_length = max_word_length
@@ -71,8 +75,7 @@ class TextImageProcessor(ProcessorMixin):
         #  https://github.com/sign/WeLT/issues/2
         text += " "
 
-        max_bytes = self.max_word_length - 2  # Reserve space for BOS and EOS tokens
-        return text_to_words(text, max_bytes=max_bytes)
+        return self.pretokenizer.tokenize(text)
 
     def pretokenize_dataset(self, dataset: Dataset) -> Dataset:
         """Pretokenize a dataset in place, adding a 'words' column."""

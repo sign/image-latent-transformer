@@ -139,7 +139,7 @@ def init_logging(training_args: TrainingArguments):
     logger.info(f"Training/evaluation parameters {training_args}")
 
 
-def init_model(model_args: ModelArguments, seed: int):
+def init_model(model_args: ModelArguments, data_args: DataTrainingArguments, seed: int):
     # Set seed before initializing model.
     set_seed(seed)
 
@@ -153,6 +153,7 @@ def init_model(model_args: ModelArguments, seed: int):
         dtype=model_args.dtype,
         seed=seed,
         load_pretrained=model_args.load_pretrained,
+        max_word_length=data_args.max_word_length
     )
 
     # Load the model from a local path if provided
@@ -336,13 +337,12 @@ def setup_evaluation_functions(training_args: TrainingArguments, pad_token_id: i
     # HuggingFace fails to concatenate the batches
     training_args.eval_do_concat_batches = False
 
-
     def preprocess_logits_for_metrics(logits, labels):
         if isinstance(logits, tuple):
             # Depending on the model and config, logits may contain extra tensors,
             # like past_key_values, but logits always come first
             logits = logits[0]
-        return logits.argmax(dim=-1) #  torch.Size([16, 61, 13])
+        return logits.argmax(dim=-1)  # torch.Size([16, 61, 13])
 
     metric = evaluate.load("accuracy", cache_dir=cache_dir)
 
@@ -394,12 +394,10 @@ def train(args: Union[Optional[list[str]], str] = None):  # noqa: C901
     last_checkpoint = detect_last_checkpoint(training_args)
 
     # Initialize the model
-    model, processor, collator = init_model(model_args, seed=training_args.seed)
+    model, processor, collator = init_model(model_args, data_args, seed=training_args.seed)
 
     if data_args.max_sequence_length is not None:
         processor.max_seq_length = data_args.max_sequence_length
-    if data_args.max_word_length is not None:
-        processor.max_word_length = data_args.max_word_length
 
     # Save the processor to the output directory
     processor.save_pretrained(save_directory=training_args.output_dir, push_to_hub=False)
