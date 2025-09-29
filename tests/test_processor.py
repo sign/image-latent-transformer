@@ -6,8 +6,10 @@ import torch
 from datasets import Dataset
 from trl.data_utils import pack_dataset
 from utf8_tokenizer.control import ControlTokens
+from utf8_tokenizer.tokenizer import UTF8Tokenizer
 
 from tests.test_model import setup_tiny_model
+from welt.noop import NoopImageProcessor
 from welt.processor import TextImageProcessor
 
 
@@ -287,6 +289,18 @@ def test_processor_works_on_packed_sequence(processor):
     for inputs in transformed_dataset:
         assert all(key in inputs for key in expected_keys)
         assert all(isinstance(inputs[key], torch.Tensor) for key in expected_tensor_keys)
+
+
+def test_processor_save_and_load_works_without_image_processor():
+    processor = TextImageProcessor(tokenizer=UTF8Tokenizer(), image_processor=NoopImageProcessor())
+    processor.save_pretrained(save_directory="example", push_to_hub=False)
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        processor.save_pretrained(save_directory=temp_dir, push_to_hub=False)
+        new_processor = TextImageProcessor.from_pretrained(temp_dir)
+        print(new_processor.image_processor)
+        print(new_processor.image_processor.to_dict())
+        assert isinstance(new_processor.image_processor, NoopImageProcessor)
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-# 🌎WeLT: Word Embedding Latent Transformer
+# 🌎 WeLT: Word Embedding Latent Transformer
 
 ![Python](https://img.shields.io/badge/python-3.12-blue)
 [![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)

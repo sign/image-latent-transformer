@@ -20,8 +20,8 @@ class TextImageProcessor(ProcessorMixin):
     name = "text-image-processor"
 
     attributes = ["tokenizer", "image_processor"]
-    image_processor_class = "ImageProcessingMixin"
-    tokenizer_class = "UTF8Tokenizer"
+    image_processor_class = "AutoImageProcessor"
+    tokenizer_class = "AutoTokenizer"
 
     def __init__(self,
                  tokenizer: UTF8Tokenizer,

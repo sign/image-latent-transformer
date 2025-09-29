@@ -3,14 +3,21 @@ This model creates NoOp classes for frequently used Huggingface Transformers com
 to allow for specifying we do not want to use a component.
 """
 
-from transformers import AutoConfig, AutoModel, ImageProcessingMixin, PretrainedConfig, PreTrainedModel
+from transformers import (
+    AutoConfig,
+    AutoImageProcessor,
+    AutoModel,
+    ImageProcessingMixin,
+    PretrainedConfig,
+    PreTrainedModel,
+)
 
 
 class NoopImageProcessor(ImageProcessingMixin):
     name = "noop-image-processor"
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
     def __call__(self, **unused_kwargs):
         raise NotImplementedError()
@@ -32,5 +39,6 @@ class NoopModel(PreTrainedModel):
         super().__init__(config=config)
 
 
+AutoImageProcessor.register(NoopConfig, NoopImageProcessor)
 AutoConfig.register(NoopConfig.model_type, NoopConfig)
 AutoModel.register(NoopConfig, NoopModel)
