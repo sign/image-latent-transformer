@@ -7,6 +7,7 @@ import numpy as np
 from PIL import Image
 from signwriting.formats.swu import is_swu
 from signwriting.visualizer.visualize import signwriting_to_image
+from utf8_tokenizer.control import visualize_control_tokens
 
 gi.require_version("Pango", "1.0")
 gi.require_version("PangoCairo", "1.0")
@@ -58,7 +59,7 @@ def render_text(text: str,
     if is_swu(text):
         return render_signwriting(text, block_size=block_size)
 
-    text = replace_control_characters(text)
+    text = visualize_control_tokens(text, include_whitespace=True)
 
     # Create temporary surface to measure text
     temp_surface = cairo.ImageSurface(cairo.FORMAT_RGB24, 1, 1)
