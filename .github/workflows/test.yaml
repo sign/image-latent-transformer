@@ -2,13 +2,20 @@
 
 name: Test
 
-
-on: [push, pull_request]
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+
+    env:
+      # Make uv install into the currently active interpreter (Conda)
+      UV_SYSTEM_PYTHON: "1"
 
     steps:
       - uses: actions/checkout@v5
@@ -26,7 +33,7 @@ jobs:
         with:
           python-version: "3.12"
           enable-cache: true
-          activate-environment: true
+          activate-environment: false
 
       - name: Install Conda Dependencies
         shell: bash -l {0}

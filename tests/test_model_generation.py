@@ -37,7 +37,7 @@ def predict_texts(texts: list[str], model, processor, collator):
             max_generated_words=5
         )
 
-    for text, output in zip(texts, outputs):
+    for text, output in zip(texts, outputs, strict=False):
         print(f"Generated for '{text}': {output}")
     return outputs
 

@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-from typing import Optional
 
 from transformers import (
     HfArgumentParser,
@@ -21,7 +20,7 @@ def listed_model(model_names):
 
 @dataclass
 class ModelArguments:
-    model_name_or_path: Optional[str] = field(
+    model_name_or_path: str | None = field(
         default=None,
         metadata={
             "help": (
@@ -30,10 +29,10 @@ class ModelArguments:
         },
     )
 
-    image_encoder_model_name_or_path: Optional[str] = listed_model(MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING_NAMES)
-    bytes_encoder_model_name_or_path: Optional[str] = listed_model(MODEL_FOR_MASKED_LM_MAPPING_NAMES)
-    latent_transformer_model_name_or_path: Optional[str] = listed_model(MODEL_FOR_CAUSAL_LM_MAPPING_NAMES)
-    bytes_decoder_model_name_or_path: Optional[str] = listed_model(MODEL_FOR_CAUSAL_LM_MAPPING_NAMES)
+    image_encoder_model_name_or_path: str | None = listed_model(MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING_NAMES)
+    bytes_encoder_model_name_or_path: str | None = listed_model(MODEL_FOR_MASKED_LM_MAPPING_NAMES)
+    latent_transformer_model_name_or_path: str | None = listed_model(MODEL_FOR_CAUSAL_LM_MAPPING_NAMES)
+    bytes_decoder_model_name_or_path: str | None = listed_model(MODEL_FOR_CAUSAL_LM_MAPPING_NAMES)
 
     load_pretrained: bool = field(default=False, metadata={
         "help": "Whether to load the pretrained weights of the models specified in *_model_name_or_path."
@@ -54,7 +53,7 @@ class ModelArguments:
         },
     )
 
-    dtype: Optional[str] = field(
+    dtype: str | None = field(
         default=None,
         metadata={
             "help": (

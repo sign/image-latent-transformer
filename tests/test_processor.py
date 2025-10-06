@@ -109,7 +109,7 @@ def test_processor_multiple_strings_collated_attention_mask(processor):
         ])
     ]
 
-    for mask, expected_mask in zip(inputs["attention_mask"], expected):
+    for mask, expected_mask in zip(inputs["attention_mask"], expected, strict=False):
         assert torch.equal(mask[0], expected_mask)
 
 

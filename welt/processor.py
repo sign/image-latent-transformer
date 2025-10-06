@@ -1,4 +1,3 @@
-from typing import Union
 
 import torch
 from cachetools import LRUCache
@@ -58,7 +57,7 @@ class TextImageProcessor(ProcessorMixin):
                      for image in renders)
         processed = (p.pixel_values[0] for p in processed)
         # Update cache and images list
-        for (i, text), image in zip(missing_texts, processed):
+        for (i, text), image in zip(missing_texts, processed, strict=False):
             self.images_cache[text] = image
             images[i] = image
 
@@ -159,7 +158,7 @@ class TextImageProcessor(ProcessorMixin):
         }
 
     def __call__(self,
-                 batch: Union[dict[str, list[str]], str, list[str]],
+                 batch: dict[str, list[str]] | str | list[str],
                  collated=False,
                  packed=False) -> dict[str, torch.Tensor]:
         if isinstance(batch, str):
@@ -174,7 +173,7 @@ class TextImageProcessor(ProcessorMixin):
             batch = {"words": words, "seq_lengths": [[len(w)] for w in words]}
 
         dicts = [self.process_single_example(words=words, seq_lengths=seq_lengths, pack=packed)
-                 for words, seq_lengths in zip(batch["words"], batch["seq_lengths"])]
+                 for words, seq_lengths in zip(batch["words"], batch["seq_lengths"], strict=False)]
 
         if collated:
             return collate_fn(dicts)

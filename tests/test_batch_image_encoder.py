@@ -27,12 +27,14 @@ MODELS = {
 
 MODEL_NAMES = list(MODELS.keys())
 
+
 def images_dimensions(images: list[list[torch.Tensor]]) -> torch.Tensor:
     tensors = [
         [torch.tensor([img.shape[-2], img.shape[-1]], dtype=torch.long) for img in batch]
         for batch in images
     ]
     return stack_pad_tensors_list(tensors)
+
 
 @cache
 def image_encoder(model_name):
@@ -211,7 +213,8 @@ def test_encode_images_batch_vs_individual(model_name):
                                        images_dimensions(sub_batch))
         individual_embeddings.append(img_embeddings.squeeze(0))
 
-    for i, (individual_embedding, batch_embedding) in enumerate(zip(individual_embeddings, batch_embeddings[0])):
+    pairs = zip(individual_embeddings, batch_embeddings[0], strict=False)
+    for i, (individual_embedding, batch_embedding) in enumerate(pairs):
         print(individual_embedding.shape, batch_embedding.shape)
         # Compare results (allowing for small numerical differences)
         assert torch.allclose(batch_embedding, individual_embedding, atol=1e-3), \

@@ -1,4 +1,3 @@
-from typing import Optional, Union
 
 from transformers import CONFIG_MAPPING, AutoConfig, PretrainedConfig
 
@@ -14,10 +13,10 @@ class WordLatentTransformerConfig(PretrainedConfig):
     }
 
     def __init__(self,
-                 image_encoder: Optional[Union[AutoConfig, dict]] = None,
-                 bytes_encoder: Optional[Union[AutoConfig, dict]] = None,
-                 latent_transformer: Union[AutoConfig, dict] = None,
-                 bytes_decoder: Union[AutoConfig, dict] = None,
+                 image_encoder: AutoConfig | dict | None = None,
+                 bytes_encoder: AutoConfig | dict | None = None,
+                 latent_transformer: AutoConfig | dict = None,
+                 bytes_decoder: AutoConfig | dict = None,
                  modality_dropout: float = 0.15,
                  num_tokens: int = 256,
                  **kwargs):

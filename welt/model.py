@@ -1,6 +1,6 @@
 import logging
 import warnings
-from typing import Any, Optional
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -223,10 +223,10 @@ class WordLatentTransformer(PreTrainedModel):
                 attention_mask: torch.Tensor,
                 input_images: torch.Tensor,
                 input_images_dimensions: torch.Tensor,
-                position_ids: Optional[torch.Tensor] = None,
-                labels_input: Optional[torch.Tensor] = None,
-                labels_attention_mask: Optional[torch.Tensor] = None,
-                labels_output: Optional[torch.Tensor] = None):
+                position_ids: torch.Tensor | None = None,
+                labels_input: torch.Tensor | None = None,
+                labels_attention_mask: torch.Tensor | None = None,
+                labels_output: torch.Tensor | None = None):
         """
         Args:
             input_ids: (BATCH, LENGTH, INPUT_TOKENS)
@@ -390,7 +390,7 @@ class WordLatentTransformerForCausalLM(WordLatentTransformer, GenerationMixin):
             self,
             latents: torch.Tensor,
             tokenizer: UTF8Tokenizer,
-            bytes_generation_config: Optional[GenerationConfig] = None,
+            bytes_generation_config: GenerationConfig | None = None,
             **bytes_generation_kwargs
     ) -> torch.Tensor:
         # Start generation with BOS token
@@ -437,7 +437,7 @@ class WordLatentTransformerForCausalLM(WordLatentTransformer, GenerationMixin):
     def _prep_bytes_generation_config(self,
                                       max_word_length: int,
                                       tokenizer: UTF8Tokenizer,
-                                      bytes_generation_config: Optional[GenerationConfig] = None) -> GenerationConfig:
+                                      bytes_generation_config: GenerationConfig | None = None) -> GenerationConfig:
         default_generation_config_args = dict(
             max_new_tokens=max_word_length,
             bos_token_id=tokenizer.bos_token_id,
@@ -462,7 +462,7 @@ class WordLatentTransformerForCausalLM(WordLatentTransformer, GenerationMixin):
             attention_mask: torch.Tensor,
             processor: TextImageProcessor,
             max_generated_words: int = 50,
-            bytes_generation_config: Optional[GenerationConfig] = None,
+            bytes_generation_config: GenerationConfig | None = None,
             **_unused_kwargs):
         """
         Generate text sequences using iterative latent-then-bytes generation.
@@ -530,7 +530,7 @@ class WordLatentTransformerForCausalLM(WordLatentTransformer, GenerationMixin):
             if batch_finished:
                 break
 
-            for word, generated_words in zip(words, all_generated_words):
+            for word, generated_words in zip(words, all_generated_words, strict=False):
                 if len(generated_words) == 0 or len(generated_words[-1]) > 0:
                     # Only add words if not EOS
                     generated_words.append(word)
