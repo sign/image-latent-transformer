@@ -4,7 +4,6 @@ import logging
 import math
 import os
 import sys
-from typing import Optional, Union
 
 import datasets
 import evaluate
@@ -95,7 +94,7 @@ def split_streaming_dataset(
     return IterableDatasetDict({"train": train_stream, "validation": validation_stream})
 
 
-def parse_args_into_dataclasses(args: Union[Optional[list[str]], str] = None):
+def parse_args_into_dataclasses(args: list[str] | None | str = None):
     parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
     # If we pass only one argument to the script and it's the path to a json or yaml file,
     # let's parse it to get our arguments.
@@ -319,7 +318,7 @@ def init_datasets(data_args: DataTrainingArguments,  # noqa: C901
     return text_datasets
 
 
-def limit_dataset_size(dataset, max_samples: Optional[int] = None, streaming: bool = False):
+def limit_dataset_size(dataset, max_samples: int | None = None, streaming: bool = False):
     if max_samples is not None:
         if streaming:
             dataset = dataset.take(max_samples)
@@ -353,7 +352,7 @@ def setup_evaluation_functions(training_args: TrainingArguments, pad_token_id: i
         flat_preds = []
         flat_labels = []
 
-        for preds, labels in zip(all_preds, all_labels):
+        for preds, labels in zip(all_preds, all_labels, strict=False):
             preds = preds.reshape(-1)
             labels = labels.reshape(-1)
 
@@ -377,7 +376,7 @@ def setup_evaluation_functions(training_args: TrainingArguments, pad_token_id: i
     )
 
 
-def train(args: Union[Optional[list[str]], str] = None):  # noqa: C901
+def train(args: list[str] | None | str = None):  # noqa: C901
     cache_dir = None  # Use the default cache directory / Environment variable
 
     enable_optimizations()

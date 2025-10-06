@@ -6,7 +6,6 @@ including functions to determine encoder dimensions and handle configuration edg
 """
 import inspect
 from functools import cache
-from typing import Union
 
 import torch
 from transformers import AutoModelForImageClassification
@@ -173,7 +172,7 @@ def pool_hidden_dim(tensor: torch.Tensor, hidden_size: int) -> torch.Tensor:
 
 
 def encode_images(image_encoder: AutoModelForImageClassification,
-                  images: Union[list[torch.Tensor], torch.Tensor]) -> torch.Tensor:
+                  images: list[torch.Tensor] | torch.Tensor) -> torch.Tensor:
     """
     Encode a batch of images using the provided image encoder model.
 

@@ -39,7 +39,7 @@ def sample(model_path: Path):
         max_generated_words=32,
         bytes_generation_config=GenerationConfig(num_beams=2)  # Sample with beam search, for example
     )
-    for text, output in zip(texts, outputs):
+    for text, output in zip(texts, outputs, strict=False):
         print(f"Generated for '{text}': {output}")
 
 

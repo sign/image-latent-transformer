@@ -1,5 +1,4 @@
 from itertools import chain
-from typing import Union
 
 import torch
 from transformers import ViTForImageClassification, ViTModel
@@ -11,7 +10,7 @@ from welt.vision.vision_utils import encode_images as utils_encode_images
 
 # Define a type alias for image encoders, for type inference and clarity
 # However, every image encoder should be supported
-ImageEncoder = Union[ViTModel, ViTForImageClassification, NaViTModel]
+ImageEncoder = ViTModel | ViTForImageClassification | NaViTModel
 
 
 def encode_padded_images(image_encoder: ImageEncoder,
@@ -40,8 +39,8 @@ def encode_images(image_encoder: ImageEncoder,
 
     # Recreate as list of lists if input is a nested tensor, cropping padding from each image
     nested_images = [
-        [img[:, :h, :w] for img, (h, w) in zip(images, dims) if h > 0 and w > 0]
-        for images, dims in zip(input_images, input_images_dimensions)
+        [img[:, :h, :w] for img, (h, w) in zip(images, dims, strict=False) if h > 0 and w > 0]
+        for images, dims in zip(input_images, input_images_dimensions, strict=False)
     ]
 
     # Flatten images
@@ -64,7 +63,7 @@ def encode_images(image_encoder: ImageEncoder,
 
 
 def encode_images_batch(image_encoder: ImageEncoder,
-                        images: Union[list[torch.Tensor], torch.Tensor]) -> torch.Tensor:
+                        images: list[torch.Tensor] | torch.Tensor) -> torch.Tensor:
     if isinstance(images, list):
         images = stack_pad_tensors(images)
 

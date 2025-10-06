@@ -1,5 +1,6 @@
-name: Lint
+# act --container-architecture linux/amd64 -j lint
 
+name: Lint
 
 on:
   push:
@@ -7,21 +8,22 @@ on:
   pull_request:
     branches: [ main ]
 
-
 jobs:
   lint:
-    name: Lint
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-python@v5
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6.5.0
         with:
-          python-version: '3.12'
-          cache: 'pip'
+          python-version: "3.12"
+          enable-cache: true
+          activate-environment: true
 
-      - name: Install Requirements
-        run: pip install ".[dev]"
+      - name: Install dependencies
+        run: uv pip install ".[dev]"
 
-      - name: Lint Code
-        run: ruff check .
+      - name: Lint code
+        run: uv run ruff check .

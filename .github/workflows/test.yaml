@@ -1,12 +1,12 @@
-name: Test
+# act --container-architecture linux/amd64 -j test
 
+name: Test
 
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-
 
 jobs:
   test:
