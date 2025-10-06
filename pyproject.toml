@@ -6,6 +6,7 @@ authors = [
     { name = "Amit Moryossef", email = "amit@sign.mt" },
 ]
 readme = "README.md"
+requires-python = ">=3.12"
 dependencies = [
     "transformers[torch]",
     "torch",

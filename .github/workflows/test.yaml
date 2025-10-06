@@ -1,12 +1,9 @@
+# act --container-architecture linux/amd64 -j test
+
 name: Test
 
 
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-
+on: [push, pull_request]
 
 jobs:
   test:
@@ -24,6 +21,13 @@ jobs:
           channels: conda-forge,defaults
           channel-priority: true
 
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6.5.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+          activate-environment: true
+
       - name: Install Conda Dependencies
         shell: bash -l {0}
         run: |
@@ -32,10 +36,10 @@ jobs:
 
       - name: Install Package
         shell: bash -l {0}
-        run: pip install ".[dev]"
+        run: uv pip install ".[dev]"
 
       - name: Test Code
         shell: bash -l {0}
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: pytest -n auto --dist loadscope
+        run: uv run pytest -n auto --dist loadscope
