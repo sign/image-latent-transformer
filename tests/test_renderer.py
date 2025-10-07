@@ -9,6 +9,7 @@ from welt.renderer import (
     REQUIRED_CAIRO_VERSION,
     REQUIRED_PANGO_VERSION,
     REQUIRED_PYGOBJECT_VERSION,
+    REQUIRED_MANIMPANGO_VERSION,
 )
 
 
@@ -18,6 +19,7 @@ class TestRenderer(unittest.TestCase):
         """Test that the installed library versions match the required versions."""
         import cairo
         import gi
+        import manimpango
         gi.require_version("Pango", "1.0")
         from gi.repository import Pango
         
@@ -40,6 +42,11 @@ class TestRenderer(unittest.TestCase):
         pygobject_version = gi.__version__
         assert pygobject_version == REQUIRED_PYGOBJECT_VERSION, \
             f"pygobject version mismatch: expected {REQUIRED_PYGOBJECT_VERSION}, found {pygobject_version}"
+        
+        # Check manimpango version
+        manimpango_version = manimpango.__version__
+        assert manimpango_version == REQUIRED_MANIMPANGO_VERSION, \
+            f"manimpango version mismatch: expected {REQUIRED_MANIMPANGO_VERSION}, found {manimpango_version}"
 
 
     def test_single_text_has_black_pixels(self):
