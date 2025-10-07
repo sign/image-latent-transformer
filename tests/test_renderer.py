@@ -3,10 +3,44 @@ import unittest
 import numpy as np
 import torch
 
-from welt.renderer import render_text_image
+from welt.renderer import (
+    render_text_image,
+    REQUIRED_PYCAIRO_VERSION,
+    REQUIRED_CAIRO_VERSION,
+    REQUIRED_PANGO_VERSION,
+    REQUIRED_PYGOBJECT_VERSION,
+)
 
 
 class TestRenderer(unittest.TestCase):
+    
+    def test_library_versions_are_correct(self):
+        """Test that the installed library versions match the required versions."""
+        import cairo
+        import gi
+        gi.require_version("Pango", "1.0")
+        from gi.repository import Pango
+        
+        # Check pycairo version
+        pycairo_version = ".".join(map(str, cairo.version_info))
+        assert pycairo_version == REQUIRED_PYCAIRO_VERSION, \
+            f"pycairo version mismatch: expected {REQUIRED_PYCAIRO_VERSION}, found {pycairo_version}"
+        
+        # Check cairo library version
+        cairo_version = cairo.cairo_version_string()
+        assert cairo_version == REQUIRED_CAIRO_VERSION, \
+            f"cairo version mismatch: expected {REQUIRED_CAIRO_VERSION}, found {cairo_version}"
+        
+        # Check pango version
+        pango_version = Pango.version_string()
+        assert pango_version == REQUIRED_PANGO_VERSION, \
+            f"pango version mismatch: expected {REQUIRED_PANGO_VERSION}, found {pango_version}"
+        
+        # Check pygobject version
+        pygobject_version = gi.__version__
+        assert pygobject_version == REQUIRED_PYGOBJECT_VERSION, \
+            f"pygobject version mismatch: expected {REQUIRED_PYGOBJECT_VERSION}, found {pygobject_version}"
+
 
     def test_single_text_has_black_pixels(self):
         """Test that rendering a single text produces black pixels in the image."""
