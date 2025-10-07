@@ -19,7 +19,7 @@ RUN apt-get update && \
 RUN conda install -y python=3.12 && conda clean -afy
 
 # Install rendering dependencies
-RUN conda install -y pycairo pygobject manimpango -c conda-forge && conda clean -afy
+RUN conda install -c conda-forge pycairo=1.28.0 pygobject=3.54.3 manimpango=0.6.0 cairo=1.18.4 pango=1.56.4 -y && conda clean -afy
 
 # Install package dependencies
 RUN mkdir -p /app/welt/vision && \
