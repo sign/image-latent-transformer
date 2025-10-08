@@ -13,6 +13,75 @@ gi.require_version("Pango", "1.0")
 gi.require_version("PangoCairo", "1.0")
 from gi.repository import Pango, PangoCairo  # noqa: E402
 
+# Version requirements for rendering consistency
+# See: https://github.com/sign/WeLT/issues/17
+REQUIRED_PYCAIRO_VERSION = "1.28.0"
+REQUIRED_CAIRO_VERSION = "1.18.4"
+REQUIRED_PANGO_VERSION = "1.56.4"
+REQUIRED_PYGOBJECT_VERSION = "3.54.3"
+REQUIRED_MANIMPANGO_VERSION = "0.6.0"
+
+def _check_rendering_library_versions():
+    """
+    Check that the installed versions of pycairo, cairo, pango, pygobject, and manimpango match required versions.
+    
+    Different versions of these libraries can produce slightly different renderings, which may be
+    imperceptible to humans but can significantly affect PIXEL-based models that process 16x16 patches.
+    
+    Raises:
+        RuntimeError: If any library version does not match the required version.
+    """
+    errors = []
+    
+    # Check pycairo version
+    pycairo_version = ".".join(map(str, cairo.version_info))
+    if pycairo_version != REQUIRED_PYCAIRO_VERSION:
+        errors.append(f"pycairo: expected {REQUIRED_PYCAIRO_VERSION}, found {pycairo_version}")
+    
+    # Check cairo library version
+    cairo_version = cairo.cairo_version_string()
+    if cairo_version != REQUIRED_CAIRO_VERSION:
+        errors.append(f"cairo: expected {REQUIRED_CAIRO_VERSION}, found {cairo_version}")
+    
+    # Check pango version
+    pango_version = Pango.version_string()
+    if pango_version != REQUIRED_PANGO_VERSION:
+        errors.append(f"pango: expected {REQUIRED_PANGO_VERSION}, found {pango_version}")
+    
+    # Check pygobject version
+    pygobject_version = gi.__version__
+    if pygobject_version != REQUIRED_PYGOBJECT_VERSION:
+        errors.append(f"pygobject: expected {REQUIRED_PYGOBJECT_VERSION}, found {pygobject_version}")
+    
+    # Check manimpango version
+    try:
+        import manimpango
+        manimpango_version = manimpango.__version__
+        if manimpango_version != REQUIRED_MANIMPANGO_VERSION:
+            errors.append(f"manimpango: expected {REQUIRED_MANIMPANGO_VERSION}, found {manimpango_version}")
+    except ImportError:
+        # manimpango is optional, only used for certain rendering tasks
+        pass
+    
+    if errors:
+        error_msg = (
+            "Rendering library version mismatch detected!\n\n"
+            "The following libraries have incorrect versions:\n" +
+            "\n".join(f"  - {error}" for error in errors) +
+            "\n\nDifferent versions can produce slightly different renderings that significantly "
+            "affect model performance in PIXEL-based models.\n\n"
+            "Please install the correct versions:\n"
+            f"  conda install -c conda-forge pycairo={REQUIRED_PYCAIRO_VERSION} "
+            f"pygobject={REQUIRED_PYGOBJECT_VERSION} manimpango={REQUIRED_MANIMPANGO_VERSION} "
+            f"cairo={REQUIRED_CAIRO_VERSION} pango={REQUIRED_PANGO_VERSION} -y\n\n"
+            "See: https://github.com/sign/WeLT/issues/17"
+        )
+        raise RuntimeError(error_msg)
+
+# Check versions on module import
+_check_rendering_library_versions()
+
+
 
 def dim_to_block_size(value: int, block_size: int) -> int:
     return ((value + block_size - 1) // block_size) * block_size

@@ -28,7 +28,7 @@ jobs:
         shell: bash -l {0}
         run: |
           conda install python=3.12 -y
-          conda install -c conda-forge pycairo pygobject manimpango -y
+          conda install -c conda-forge pycairo=1.28.0 pygobject=3.54.3 manimpango=0.6.0 cairo=1.18.4 pango=1.56.4 -y
 
       - name: Install Package
         shell: bash -l {0}

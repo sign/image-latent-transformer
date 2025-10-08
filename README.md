@@ -31,7 +31,7 @@ Install dependencies:
 ```shell
 conda create -n welt python=3.12 -y
 conda activate welt
-conda install -c conda-forge pycairo pygobject manimpango -y
+conda install -c conda-forge pycairo=1.28.0 pygobject=3.54.3 manimpango=0.6.0 cairo=1.18.4 pango=1.56.4 -y
 pip install ".[dev]"
 ```
 
