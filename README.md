@@ -39,7 +39,10 @@ Or using docker:
 
 ```shell
 docker build -t welt .
-docker run -it --rm welt /bin/bash
+docker run -it --rm \
+  -v "$(pwd)/welt:/app/welt" \
+  -v "$(pwd)/training:/app/training" \
+  welt /bin/bash
 ```
 
 > [!TIP]
