@@ -11,6 +11,7 @@ from utf8_tokenizer.control import visualize_control_tokens
 
 gi.require_version("Pango", "1.0")
 gi.require_version("PangoCairo", "1.0")
+gi.require_foreign("cairo")
 from gi.repository import Pango, PangoCairo  # noqa: E402
 
 
@@ -64,7 +65,11 @@ def render_text(text: str,
     # Create temporary surface to measure text
     temp_surface = cairo.ImageSurface(cairo.FORMAT_RGB24, 1, 1)
     temp_context = cairo.Context(temp_surface)
-    layout = PangoCairo.create_layout(temp_context)
+    try:
+        layout = PangoCairo.create_layout(temp_context)
+    except KeyError as e:
+        if "could not find foreign type Context" in str(e):
+            raise RuntimeError("Pango/Cairo not properly installed. See https://github.com/sign/WeLT/issues/31") from e
 
     # Set font
     font_desc = cached_font_description("sans", dpi, font_size)
