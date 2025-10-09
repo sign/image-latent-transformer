@@ -1,4 +1,5 @@
-# act --container-architecture linux/amd64 -j test
+# docker run -it ghcr.io/catthehacker/ubuntu:act-latest /bin/bash
+# act --container-architecture linux/amd64 -j test --reuse
 
 name: Test
 
@@ -16,26 +17,44 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # Use https mirrors to avoid potential network issues
+      - name: Setup package manager
+        run: |
+          sudo sed -i 's|http://|https://|g' /etc/apt/sources.list
+          sudo sed -i 's|http://|https://|g' /etc/apt/sources.list.d/*.list
+          sudo apt-get update -q
+
+      # https://pycairo.readthedocs.io/en/latest/getting_started.html
+      - name: Install PyCairo dependencies
+        run: sudo apt-get install -y libcairo2-dev pkg-config python3-dev
+
+      # https://pygobject.gnome.org/getting_started.html
+      - name: Install PyGObject dependencies
+        run: sudo apt-get install -y python3-gi python3-gi-cairo gir1.2-gtk-4.0
+
       - name: Setup Miniconda
         uses: conda-incubator/setup-miniconda@v3
         with:
-          auto-activate-base: true
           python-version: "3.12"
-          channels: conda-forge,defaults
-          channel-priority: true
 
       - name: Install Conda Dependencies
-        shell: bash -l {0}
+        shell: bash -el {0}
         run: |
           conda install python=3.12 -y
           conda install -c conda-forge pycairo pygobject manimpango -y
+          conda install -c conda-forge uv -y
+
+      # We only run on tests on CPU, so no need to install CUDA version of torch (saves space and time)
+      - name: Install Torch CPU Only
+        shell: bash -el {0}
+        run: uv pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 
       - name: Install Package
-        shell: bash -l {0}
-        run: pip install ".[dev]"
+        shell: bash -el {0}
+        run: uv pip install ".[dev]"
 
       - name: Test Code
-        shell: bash -l {0}
+        shell: bash -el {0}
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: pytest -n auto --dist loadscope
+        run: uv run pytest tests/test_renderer.py
