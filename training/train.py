@@ -328,13 +328,25 @@ def limit_dataset_size(dataset, max_samples: int | None = None, streaming: bool 
     return dataset
 
 
-def setup_evaluation_functions(training_args: TrainingArguments, pad_token_id: int, cache_dir=None):
+def setup_evaluation_functions(training_args: TrainingArguments, processor: int, cache_dir=None):
+    pad_token_id = processor.tokenizer.pad_token_id
+
     # Include everything for the metrics calculation
     training_args.include_for_metrics = ["loss"]
     # Tell trainer the correct name of our labels output column
     training_args.label_names = ["labels_output"]
     # HuggingFace fails to concatenate the batches
     training_args.eval_do_concat_batches = False
+
+    # This needs to be passed as a parameter
+    required_metrics = ["accuracy", "cer"]
+
+    # Convert list of metrics into str -> Obj mapping
+    if isinstance(required_metrics, str):
+        metric_objs = {required_metrics: evaluate.load(required_metrics, cache_dir=cache_dir)}
+    else:
+        metric_objs = {metric: evaluate.load(metric, cache_dir=cache_dir) for metric in required_metrics}
+
 
     def preprocess_logits_for_metrics(logits, labels):
         if isinstance(logits, tuple):
@@ -343,12 +355,9 @@ def setup_evaluation_functions(training_args: TrainingArguments, pad_token_id: i
             logits = logits[0]
         return logits.argmax(dim=-1)  # torch.Size([16, 61, 13])
 
-    metric = evaluate.load("accuracy", cache_dir=cache_dir)
-
-    def compute_metrics(eval_preds):
-        all_preds = eval_preds.predictions
-        all_labels = eval_preds.label_ids
-
+    
+    def _flat_ids_after_mask(all_preds, all_labels):
+ 
         flat_preds = []
         flat_labels = []
 
@@ -368,7 +377,67 @@ def setup_evaluation_functions(training_args: TrainingArguments, pad_token_id: i
         flat_preds = torch.cat(flat_preds)
         flat_labels = torch.cat(flat_labels)
 
-        return metric.compute(predictions=flat_preds, references=flat_labels)
+        return flat_preds, flat_labels
+    
+    def _texts_after_mask(all_preds, all_labels):
+
+        def _decode_texts(preds):
+            texts = []
+            for w in range(preds.shape[1]):
+                out_texts = processor.tokenizer.batch_decode(preds[:,w,:], skip_special_tokens=True)
+                if len(texts) == 0:
+                    texts.extend(out_texts)
+                else:
+                    for i, _ in enumerate(texts):
+                        texts[i] += out_texts[i]
+            return texts
+        
+        pred_texts, label_texts = [], []
+
+        for preds, labels in zip(all_preds, all_labels, strict=False):
+
+            # No need to do this because skip_special_token does so already.
+            # mask = labels != pad_token_id
+            # preds = preds[mask]
+            # labels = labels[mask]
+
+            pred_text = _decode_texts(preds)
+            label_text = _decode_texts(labels)
+
+            pred_texts.extend(pred_text)
+            label_texts.extend(label_text)
+        
+        # print("Preds:", pred_texts[0], "Labels:", label_texts[0], )
+        return pred_texts, label_texts
+
+    def compute_metrics(eval_preds):
+        all_preds = eval_preds.predictions
+        all_labels = eval_preds.label_ids
+
+        results = {}
+
+    
+        needs_id = any(m in metric_objs for m in ("accuracy",))
+        # Decode into text?
+        needs_text = any(m in metric_objs for m in ("cer", "wer", "bleu", "rouge"))
+
+        if needs_id:
+            id_preds, id_labels = _flat_ids_after_mask(all_preds, all_labels)
+
+        if needs_text:
+            text_preds, text_labels = _texts_after_mask(all_preds, all_labels)
+
+        for name, metric in metric_objs.items():
+            if name == "accuracy":
+                out = metric.compute(predictions=id_preds, references=id_labels)
+                results["accuracy"] = float(out["accuracy"])
+            
+            elif name == "cer": # Can add wer, bleu, rouge
+                out = metric.compute(predictions=text_preds, references=text_labels)
+                results["cer"] = out
+
+        return results
+            
 
     return (
         compute_metrics if training_args.do_eval and not is_torch_xla_available() else None,
@@ -437,7 +506,7 @@ def train(args: list[str] | None | str = None):  # noqa: C901
 
     # Initialize our Trainer
     compute_metrics, preprocess_logits_for_metrics = setup_evaluation_functions(training_args,
-                                                                                processor.tokenizer.pad_token_id,
+                                                                                processor,
                                                                                 cache_dir)
 
     trainer = Trainer(
