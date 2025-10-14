@@ -80,12 +80,6 @@ There, you can select the model architectures you want to use for each component
 
 ## Inference
 
-> [!CAUTION]
-> Our text [renderer](./welt/renderer.py) relies on the computer's font rendering capabilities.
-> Rendering on different systems may yield different results (e.g. emoji).
-> We call the community to create a more robust renderer, decoupled from the system's font rendering,
-> for better consistency across platforms and easier reproducibility.
-
 Since we have two decoders, the autoregressive prediction logic is a bit more complex than the usual,
 and supporting decoding algorithms like beam-search is not trivial.
 

@@ -2,6 +2,7 @@
 import torch
 from cachetools import LRUCache
 from datasets import Dataset
+from pixel_renderer import render_text
 from transformers import ImageProcessingMixin, PreTrainedTokenizer, ProcessorMixin
 from utf8_tokenizer.tokenizer import UTF8Tokenizer
 from words_segmentation.tokenizer import WordsSegmentationTokenizer  # noqa: F401 - for registering AutoTokenizer
@@ -12,7 +13,6 @@ from welt.attention import (
 )
 from welt.collator import collate_fn, stack_pad_tensors
 from welt.noop import NoopImageProcessor
-from welt.renderer import render_text
 
 
 class TextImageProcessor(ProcessorMixin):
