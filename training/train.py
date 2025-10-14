@@ -19,7 +19,6 @@ from transformers import (
     set_seed,
 )
 from transformers.trainer_utils import get_last_checkpoint
-from transformers.utils import send_example_telemetry
 from trl import pack_dataset
 
 from training.args_data import DataTrainingArguments
@@ -152,7 +151,8 @@ def init_model(model_args: ModelArguments, data_args: DataTrainingArguments, see
         dtype=model_args.dtype,
         seed=seed,
         load_pretrained=model_args.load_pretrained,
-        max_word_length=data_args.max_word_length
+        max_word_length=data_args.max_word_length,
+        pretokenizer_name=model_args.pretokenizer_name,
     )
 
     # Load the model from a local path if provided
@@ -382,10 +382,6 @@ def train(args: list[str] | None | str = None):  # noqa: C901
     enable_optimizations()
 
     model_args, data_args, training_args = parse_args_into_dataclasses(args)
-
-    # Sending telemetry. Tracking the example usage helps us better allocate resources to maintain them. The
-    # information sent is the one passed as arguments along with your Python/PyTorch versions.
-    send_example_telemetry("run_clm", model_args, data_args)
 
     init_logging(training_args)
 

@@ -5,6 +5,7 @@ import torch
 from transformers import (
     AutoConfig,
     AutoImageProcessor,
+    AutoTokenizer,
     PretrainedConfig,
     enable_full_determinism,
     set_seed,
@@ -80,6 +81,7 @@ def setup_model(
         bytes_encoder_name="prajjwal1/bert-tiny",
         latent_transformer_name="EleutherAI/pythia-70m",
         bytes_decoder_name="EleutherAI/pythia-70m",
+        pretokenizer_name: str | None = None,
         trust_remote_code=False,
         modality_dropout=0.15,
         dtype=torch.float32,
@@ -131,7 +133,14 @@ def setup_model(
         max_word_length = getattr(model.bytes_decoder.config, "max_position_embeddings", 128)
 
     max_bytes = max_word_length - 2  # Reserve space for BOS and EOS tokens
-    pretokenizer = WordsSegmentationTokenizer(max_bytes=max_bytes)
+    if pretokenizer_name is not None:
+        print(f"Using pretokenizer: {pretokenizer_name}")
+        pretokenizer = AutoTokenizer.from_pretrained(pretokenizer_name,
+                                                     use_fast=True,
+                                                     trust_remote_code=trust_remote_code)
+    else:
+        print("Using pretokenizer: WordsSegmentationTokenizer")
+        pretokenizer = WordsSegmentationTokenizer(max_bytes=max_bytes)
 
     processor = TextImageProcessor(
         pretokenizer=pretokenizer,
